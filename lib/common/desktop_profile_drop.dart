@@ -5,7 +5,6 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/views/profiles/clipboard_import_dialog.dart';
 import 'package:fl_clash/common/common.dart';
-import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/config/profile_template.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -80,13 +79,11 @@ class _DesktopProfileDropState extends ConsumerState<DesktopProfileDrop> {
       final paths = details.files.map((file) => file.path).toList();
       final content = await readDroppedProfile(paths);
       if (!mounted) return;
-      globalState.navigatorKey.currentState?.popUntil((route) => route.isFirst);
-      ref.read(currentPageLabelProvider.notifier).toProfiles();
-      await Future<void>.delayed(Duration.zero);
-      if (!mounted) return;
+      final navigatorContext = globalState.navigatorKey.currentState?.context;
+      if (navigatorContext == null) return;
       final action = ref.read(profilesActionProvider.notifier);
       await showDialog<void>(
-        context: context,
+        context: navigatorContext,
         barrierDismissible: false,
         builder: (_) => ClipboardImportDialog(
           title: context.appLocalizations.fileImport,
@@ -101,8 +98,10 @@ class _DesktopProfileDropState extends ConsumerState<DesktopProfileDrop> {
       );
     } catch (error) {
       if (!mounted) return;
+      final navigatorContext = globalState.navigatorKey.currentState?.context;
+      if (navigatorContext == null) return;
       await showDialog<void>(
-        context: context,
+        context: navigatorContext,
         builder: (context) => AlertDialog(
           title: Text(context.appLocalizations.fileImport),
           content: Text(error.toString()),
