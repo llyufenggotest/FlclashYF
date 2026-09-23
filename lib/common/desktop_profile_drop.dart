@@ -5,6 +5,8 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/views/profiles/clipboard_import_dialog.dart';
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/config/profile_template.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
