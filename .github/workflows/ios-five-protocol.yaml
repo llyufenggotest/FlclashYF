@@ -69,7 +69,7 @@ jobs:
         shell: bash
         run: |
           (cd core/sing-shadowsocks2 && go test ./... && go vet ./...)
-          (cd core/mihomo && go test ./adapter ./adapter/outbound ./common/convert ./transport/oppa ./transport/vless ./transport/xhttp ./tunnel)
+          (cd core/mihomo && go test ./adapter ./adapter/outbound ./common/convert ./transport/anytls ./transport/oppa ./transport/snell ./transport/vless ./transport/xhttp ./tunnel)
           (cd core/mihomo && go test -tags with_low_memory ./adapter ./adapter/outbound ./component/mmdb ./config ./hub/executor ./rules/provider ./rules/common ./common/probelimit)
           (cd core/mihomo && go vet ./adapter ./adapter/outbound ./component/updater ./hub/executor ./hub/route ./rules/provider ./tunnel)
           (cd core && CGO_ENABLED=0 go test ./... && CGO_ENABLED=0 go test -tags with_low_memory ./... && CGO_ENABLED=0 go vet ./...)

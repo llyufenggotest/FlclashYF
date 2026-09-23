@@ -10,6 +10,8 @@ MIHOMO = ROOT / "core" / "mihomo"
 
 CONTRACTS = {
     "oppa": ("oppa", ["transport/oppa", "adapter"]),
+    "shanlian-anytls": ("#sl", ["transport/anytls"]),
+    "oix-snell": ("#oix", ["transport/snell", "adapter/outbound"]),
     "fastup": ("fastup", ["adapter", "adapter/outbound"]),
     "x365": ("x365", ["adapter", "adapter/outbound"]),
     "juzi": ("juzi", ["transport/vless", "adapter/outbound"]),
