@@ -78,6 +78,10 @@ class _DesktopProfileDropState extends ConsumerState<DesktopProfileDrop> {
       final paths = details.files.map((file) => file.path).toList();
       final content = await readDroppedProfile(paths);
       if (!mounted) return;
+      globalState.navigatorKey.currentState?.popUntil((route) => route.isFirst);
+      ref.read(currentPageLabelProvider.notifier).toProfiles();
+      await Future<void>.delayed(Duration.zero);
+      if (!mounted) return;
       final action = ref.read(profilesActionProvider.notifier);
       await showDialog<void>(
         context: context,
