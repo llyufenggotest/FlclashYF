@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/window.dart';
+import 'package:fl_clash/common/desktop_profile_drop.dart';
 import 'package:fl_clash/common/profile_auto_updater.dart';
 import 'package:fl_clash/bootstrap.dart';
 import 'package:fl_clash/common/system_dns.dart';
@@ -204,7 +205,9 @@ class ApplicationState extends ConsumerState<Application> {
                         isDesktop: system.isDesktop,
                         isAndroid: system.isAndroid,
                         onConnectivityChanged: _handleConnectivityChanged,
-                        child: child!,
+                        child: system.isDesktop
+                            ? DesktopProfileDrop(child: child!)
+                            : child!,
                       ),
                     ),
                   );

@@ -319,7 +319,11 @@ Future<({String yaml, String md5})> _makeRealProfileTask(
     rawConfig['proxy-groups'] = data.proxyGroups;
   }
   rawConfig['rules'] = rules;
-  final yaml = await _encodeYaml(Map<String, dynamic>.from(rawConfig));
+  Map<String, dynamic> finalConfig = Map<String, dynamic>.from(rawConfig);
+  if (system.isIOS) {
+    finalConfig = sanitizeProfileForIOS(finalConfig);
+  }
+  final yaml = await _encodeYaml(finalConfig);
   return (yaml: yaml, md5: yaml.toMd5());
 }
 

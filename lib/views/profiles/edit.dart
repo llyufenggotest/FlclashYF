@@ -146,6 +146,17 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
     }
   }
 
+  void _setEditedProfileData(String data) {
+    setState(() {
+      _rawText = data;
+      _fileData = Uint8List.fromList(utf8.encode(data));
+    });
+    _fileInfoNotifier.value = _fileInfoNotifier.value?.copyWith(
+      size: _fileData?.length ?? 0,
+      lastModified: DateTime.now(),
+    );
+  }
+
   Future<void> _editProfileFile() async {
     if (_rawText == null) {
       final profilePath = await appPath.getProfilePath(
@@ -156,7 +167,17 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
         _rawText = await file.readAsString();
       }
     }
-    if (!mounted) return;
+    if (!mounted || _rawText == null) return;
+    switch (protocolEditPolicyForYaml(_rawText!)) {
+      case ProtocolEditPolicy.readOnly:
+        context.showNotifier(
+          'This protocol profile is read-only.',
+          level: MessageLevel.warning,
+        );
+        return;
+      case ProtocolEditPolicy.standard:
+        break;
+    }
     final title = widget.profile.label.takeFirstValid([
       widget.profile.id.toString(),
     ]);
@@ -186,14 +207,7 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
     if (!mounted || data == null) {
       return;
     }
-    setState(() {
-      _rawText = data;
-      _fileData = Uint8List.fromList(utf8.encode(data));
-    });
-    _fileInfoNotifier.value = _fileInfoNotifier.value?.copyWith(
-      size: _fileData?.length ?? 0,
-      lastModified: DateTime.now(),
-    );
+    _setEditedProfileData(data);
   }
 
   Future<void> _uploadProfileFile() async {

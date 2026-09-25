@@ -384,6 +384,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "download": MessageLookupByLibrary.simpleMessage("ダウンロード"),
     "downloadSpeed": MessageLookupByLibrary.simpleMessage("ダウンロード速度"),
     "downloadTraffic": MessageLookupByLibrary.simpleMessage("ダウンロード通信量"),
+    "dropExactlyOneProfile": MessageLookupByLibrary.simpleMessage(
+      "プロファイルファイルを1つだけドロップしてください",
+    ),
+    "droppedItemNotFile": MessageLookupByLibrary.simpleMessage(
+      "ドロップされた項目はファイルではありません",
+    ),
     "easyTierConnectionLatency": MessageLookupByLibrary.simpleMessage("接続遅延"),
     "easyTierDnsZone": MessageLookupByLibrary.simpleMessage("DNS ゾーン"),
     "easyTierInstanceId": MessageLookupByLibrary.simpleMessage("インスタンス ID"),
@@ -501,6 +507,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "fidelityScheme": MessageLookupByLibrary.simpleMessage("フィデリティ"),
     "file": MessageLookupByLibrary.simpleMessage("ファイル"),
     "fileDesc": MessageLookupByLibrary.simpleMessage("プロファイルファイルを直接アップロードします"),
+    "fileImport": MessageLookupByLibrary.simpleMessage("ファイルからインポート"),
     "fileIsUpdate": MessageLookupByLibrary.simpleMessage(
       "ファイルが変更されています。変更を保存しますか？",
     ),
@@ -838,12 +845,29 @@ class MessageLookup extends MessageLookupByLibrary {
         MessageLookupByLibrary.simpleMessage("有効な間隔を入力してください"),
     "profileAutoUpdateIntervalNullValidationDesc":
         MessageLookupByLibrary.simpleMessage("自動更新間隔を入力してください"),
+    "profileFileInvalidUtf8": MessageLookupByLibrary.simpleMessage(
+      "プロファイルファイルは有効な UTF-8 ではありません",
+    ),
+    "profileFileTooLarge": MessageLookupByLibrary.simpleMessage(
+      "プロファイルファイルが大きすぎます",
+    ),
     "profileHasUpdate": MessageLookupByLibrary.simpleMessage(
       "プロファイルが変更されています。自動更新を無効にしますか？",
     ),
     "profileNameNullValidationDesc": MessageLookupByLibrary.simpleMessage(
       "プロファイル名を入力してください",
     ),
+    "profileTemplate": MessageLookupByLibrary.simpleMessage("プロファイルテンプレート"),
+    "profileTemplateDesc": MessageLookupByLibrary.simpleMessage(
+      "プロキシリンクのインポートに使用するテンプレートを編集します",
+    ),
+    "profileTemplateResetConfirm": MessageLookupByLibrary.simpleMessage(
+      "組み込みのプロファイルテンプレートに戻しますか？",
+    ),
+    "profileTemplateSaved": MessageLookupByLibrary.simpleMessage(
+      "プロファイルテンプレートを保存しました",
+    ),
+    "profileTemplateYaml": MessageLookupByLibrary.simpleMessage("テンプレート YAML"),
     "profileUrlInvalidValidationDesc": MessageLookupByLibrary.simpleMessage(
       "有効なプロファイル URL を入力してください",
     ),
@@ -943,6 +967,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "restartCoreTip": MessageLookupByLibrary.simpleMessage("コアを再起動してもよろしいですか？"),
     "restore": MessageLookupByLibrary.simpleMessage("復元"),
     "restoreAllData": MessageLookupByLibrary.simpleMessage("すべてのデータを復元"),
+    "restoreDefault": MessageLookupByLibrary.simpleMessage("デフォルトに戻す"),
     "restoreException": MessageLookupByLibrary.simpleMessage("復元エラー"),
     "restoreFromFileDesc": MessageLookupByLibrary.simpleMessage(
       "ファイルからデータを復元します",
@@ -957,15 +982,38 @@ class MessageLookup extends MessageLookupByLibrary {
     "restoreStrategyOverride": MessageLookupByLibrary.simpleMessage("上書き"),
     "restoreSuccess": MessageLookupByLibrary.simpleMessage("復元が完了しました"),
     "role": MessageLookupByLibrary.simpleMessage("ロール"),
+    "route": MessageLookupByLibrary.simpleMessage("ルート"),
     "routeAddress": MessageLookupByLibrary.simpleMessage("ルートアドレス"),
     "routeAddressDesc": MessageLookupByLibrary.simpleMessage(
       "リッスンするルートアドレスを設定します",
     ),
+    "routeGroupAuto": MessageLookupByLibrary.simpleMessage("自動選択"),
+    "routeGroupBalance": MessageLookupByLibrary.simpleMessage("負荷分散"),
+    "routeGroupManual": MessageLookupByLibrary.simpleMessage("手動選択"),
+    "routeGroupType": MessageLookupByLibrary.simpleMessage("グループタイプ"),
+    "routeGroups": MessageLookupByLibrary.simpleMessage("ルートグループ"),
+    "routeHealthInterval": MessageLookupByLibrary.simpleMessage("ヘルスチェック間隔"),
+    "routeInputHelp": MessageLookupByLibrary.simpleMessage(
+      "複数の対象は半角コンマまたは改行で区切ります",
+    ),
+    "routeInputHint": MessageLookupByLibrary.simpleMessage(
+      "ドメイン、IP、CIDR、またはルールセット URL",
+    ),
+    "routeInvalidInput": MessageLookupByLibrary.simpleMessage(
+      "有効なドメイン、IP、CIDR、または HTTP(S) URL を入力してください",
+    ),
+    "routeMembers": MessageLookupByLibrary.simpleMessage("ノードとグループ"),
     "routeMode": MessageLookupByLibrary.simpleMessage("ルートモード"),
     "routeModeBypassPrivate": MessageLookupByLibrary.simpleMessage(
       "プライベートアドレスをバイパス",
     ),
     "routeModeConfig": MessageLookupByLibrary.simpleMessage("設定を使用"),
+    "routeNoProfile": MessageLookupByLibrary.simpleMessage(
+      "ルーティングを設定するプロファイルを選択してください",
+    ),
+    "routeProviders": MessageLookupByLibrary.simpleMessage("ルールプロバイダー"),
+    "routeRules": MessageLookupByLibrary.simpleMessage("ルートルール"),
+    "routeTarget": MessageLookupByLibrary.simpleMessage("ターゲット"),
     "routes": MessageLookupByLibrary.simpleMessage("ルート"),
     "ru": MessageLookupByLibrary.simpleMessage("ロシア語"),
     "rule": MessageLookupByLibrary.simpleMessage("ルール"),
@@ -1254,6 +1302,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "unmaximize": MessageLookupByLibrary.simpleMessage("元に戻す"),
     "unnamed": MessageLookupByLibrary.simpleMessage("名称未設定"),
     "unpinWindow": MessageLookupByLibrary.simpleMessage("固定を解除"),
+    "unsupportedProfileFileType": MessageLookupByLibrary.simpleMessage(
+      "対応していないプロファイルファイル形式です",
+    ),
     "update": MessageLookupByLibrary.simpleMessage("更新"),
     "upload": MessageLookupByLibrary.simpleMessage("アップロード"),
     "uploadSpeed": MessageLookupByLibrary.simpleMessage("アップロード速度"),

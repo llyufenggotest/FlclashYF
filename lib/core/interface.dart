@@ -25,6 +25,8 @@ mixin CoreInterface {
 
   Future<String> decryptAgeConfig(String data, String ageSecretKey);
 
+  Future<List<Map<String, dynamic>>> convertUriSubscription(String data);
+
   Future<Map<String, dynamic>> getProfileConfig(int profileId);
 
   Future<Map<String, String>> generateAgeKeyPair();
@@ -189,6 +191,37 @@ abstract class CoreHandlerInterface with CoreInterface {
       method: CoreMethod.decryptAgeConfig,
       arguments: {'data': data, 'age-secret-key': ageSecretKey},
     );
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> convertUriSubscription(String data) async {
+    final result = await _invokeMethod<List<dynamic>>(
+      method: CoreMethod.convertUriSubscription,
+      arguments: data,
+    );
+    if (result == null) {
+      throw const CoreMethodException(
+        code: 'no_response',
+        message: 'Core did not answer convertUriSubscription',
+      );
+    }
+    final proxies = <Map<String, dynamic>>[];
+    for (final item in result) {
+      if (item is! Map) {
+        throw const CoreMethodException(
+          code: 'invalid_response',
+          message: 'Core returned an invalid URI subscription result',
+        );
+      }
+      proxies.add(Map<String, dynamic>.from(item));
+    }
+    if (proxies.isEmpty) {
+      throw const CoreMethodException(
+        code: 'invalid_response',
+        message: 'Core returned no URI subscription proxies',
+      );
+    }
+    return proxies;
   }
 
   @override

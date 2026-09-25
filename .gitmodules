@@ -1,4 +1,8 @@
 [submodule "core/mihomo"]
 	path = core/mihomo
-	url = https://github.com/chenx-dust/mihomo.git
-	branch = FlClash
+	url = https://github.com/llyufenggotest/Clash.Meta-custom.git
+	branch = flclash-yf-core
+[submodule "core/sing-shadowsocks2"]
+	path = core/sing-shadowsocks2
+	url = https://github.com/llyufenggotest/sing-shadowsocks2-meta.git
+	branch = flclash-yf

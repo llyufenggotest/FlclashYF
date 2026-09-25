@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
   connectivity_plus
+  desktop_drop
   dynamic_color
   file_selector_windows
   proxy

@@ -99,6 +99,10 @@ class CoreController {
     return validateConfig(data);
   }
 
+  Future<List<Map<String, dynamic>>> convertUriSubscription(String data) {
+    return _interface.convertUriSubscription(data);
+  }
+
   Future<String> decryptAgeConfig(String data, String ageSecretKey) {
     return _interface.decryptAgeConfig(data, ageSecretKey);
   }

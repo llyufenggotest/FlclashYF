@@ -174,6 +174,14 @@ var methodHandlers = map[CoreMethod]methodHandler{
 	validateConfigMethod: withArguments(func(data *string, response MethodResponse) {
 		response.success(handleValidateConfig(*data))
 	}),
+	convertURISubscriptionMethod: withArguments(func(data *string, response MethodResponse) {
+		proxies, err := handleConvertURISubscription(*data)
+		if err != nil {
+			response.failure("invalid_subscription", err.Error(), nil)
+			return
+		}
+		response.success(proxies)
+	}),
 	decryptAgeConfigMethod: withArguments(func(params *DecryptAgeConfigParams, response MethodResponse) {
 		response.success(handleDecryptAgeConfig(params))
 	}),

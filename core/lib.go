@@ -38,6 +38,7 @@ type TunHandler struct {
 	mu sync.RWMutex
 }
 
+// start brings up the TUN listener and reports whether a data path exists.
 func (th *TunHandler) start(fd int, options t.Options) bool {
 	configMu.Lock()
 	defer configMu.Unlock()
@@ -222,7 +223,7 @@ func handleStartTun(callback unsafe.Pointer, fd int, options t.Options) bool {
 		if callback != nil {
 			releaseObject(callback)
 		}
-		logError("startTun was handed no tun descriptor")
+		logError("TUN: refusing to start with fd=0")
 		return false
 	}
 	tunHandler = &TunHandler{
@@ -231,9 +232,6 @@ func handleStartTun(callback unsafe.Pointer, fd int, options t.Options) bool {
 	if tunHandler.start(fd, options) {
 		return true
 	}
-	// start() already cleared the handler, so nothing protects sockets from
-	// here on. Android has the routes up regardless, so the caller has to tear
-	// the VPN down rather than leave the device pointed at a black hole.
 	tunHandler = nil
 	return false
 }
@@ -299,7 +297,7 @@ func startTUN(callback unsafe.Pointer, fd C.int, optionsChar *C.char) bool {
 	} else {
 		handleResetConnections()
 	}
-	return true
+	return started
 }
 
 //export quickSetup

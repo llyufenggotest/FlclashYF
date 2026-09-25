@@ -9,6 +9,7 @@ import 'package:fl_clash/views/access.dart';
 import 'package:fl_clash/views/application_setting.dart';
 import 'package:fl_clash/views/backup_and_restore.dart';
 import 'package:fl_clash/views/config/config.dart';
+import 'package:fl_clash/views/config/profile_template.dart';
 import 'package:fl_clash/views/hotkey.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:material_ui/material_ui.dart';
@@ -74,6 +75,7 @@ class _ToolViewState extends ConsumerState<ToolsView> {
         if (system.isWindows) const _LoopbackItem(),
         if (system.isAndroid) const _AccessItem(),
         const _ConfigItem(),
+        const _ProfileTemplateItem(),
         const _AdvancedConfigItem(),
         const _SettingItem(),
       ],
@@ -215,7 +217,7 @@ class _AccessItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListItem.open(
-      leading: const Icon(Icons.view_list),
+      leading: const Icon(Icons.view_list_outlined),
       title: Text(context.appLocalizations.accessControl),
       subtitle: Text(context.appLocalizations.accessControlDesc),
       widget: const AccessView(),
@@ -229,10 +231,24 @@ class _ConfigItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListItem.open(
-      leading: const Icon(Icons.edit),
+      leading: const Icon(Icons.edit_outlined),
       title: Text(context.appLocalizations.basicConfig),
       subtitle: Text(context.appLocalizations.basicConfigDesc),
       widget: const ConfigView(),
+    );
+  }
+}
+
+class _ProfileTemplateItem extends StatelessWidget {
+  const _ProfileTemplateItem();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListItem.open(
+      leading: const Icon(Icons.description_outlined),
+      title: Text(context.appLocalizations.profileTemplate),
+      subtitle: Text(context.appLocalizations.profileTemplateDesc),
+      widget: const ProfileTemplateView(),
     );
   }
 }
@@ -243,7 +259,7 @@ class _AdvancedConfigItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListItem.open(
-      leading: const Icon(Icons.build),
+      leading: const Icon(Icons.build_outlined),
       title: Text(context.appLocalizations.advancedConfig),
       subtitle: Text(context.appLocalizations.advancedConfigDesc),
       widget: const AdvancedConfigView(),
@@ -257,7 +273,7 @@ class _SettingItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListItem.open(
-      leading: const Icon(Icons.settings),
+      leading: const Icon(Icons.settings_outlined),
       title: Text(context.appLocalizations.application),
       subtitle: Text(context.appLocalizations.applicationDesc),
       widget: const ApplicationSettingView(),
@@ -271,7 +287,7 @@ class _DisclaimerItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, ref) {
     return ListItem(
-      leading: const Icon(Icons.gavel),
+      leading: const Icon(Icons.gavel_outlined),
       title: Text(context.appLocalizations.disclaimer),
       onTap: () async {
         final isDisclaimerAccepted = await dialogs.showDisclaimer();
@@ -289,7 +305,7 @@ class _InfoItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListItem.open(
-      leading: const Icon(Icons.info),
+      leading: const Icon(Icons.info_outline),
       title: Text(context.appLocalizations.about),
       widget: const AboutView(),
     );
@@ -302,7 +318,7 @@ class _DeveloperItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListItem.open(
-      leading: const Icon(Icons.developer_board),
+      leading: const Icon(Icons.developer_board_outlined),
       title: Text(context.appLocalizations.developerMode),
       widget: const DeveloperView(),
     );

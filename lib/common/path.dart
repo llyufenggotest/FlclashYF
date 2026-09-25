@@ -183,6 +183,10 @@ class AppPath {
     return join(mHomeDirPath, 'config.yaml');
   }
 
+  Future<String> get profileTemplatePath async {
+    return join(await homeDirPath, 'profile_template.yaml');
+  }
+
   Future<String> get sharedPreferencesPath async {
     final directory = await dataDir.future;
     return join(directory.path, 'shared_preferences.json');

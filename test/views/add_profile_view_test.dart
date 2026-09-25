@@ -25,7 +25,9 @@ ProviderContainer _containerFor(WidgetTester tester) {
 }
 
 void main() {
-  testWidgets('lists new, QR code, file, and URL entries', (tester) async {
+  testWidgets('lists new, QR, file, URL, and clipboard entries', (
+    tester,
+  ) async {
     final container = _containerFor(tester);
 
     await tester.pumpWidget(
@@ -47,6 +49,8 @@ void main() {
     expect(find.text(l10n.qrcode), findsOne);
     expect(find.text(l10n.file), findsOne);
     expect(find.text(l10n.url), findsOne);
+    expect(find.text(l10n.clipboardImport), findsOne);
+    expect(find.text('Oppa'), findsNothing);
     expect(tester.takeException(), null);
   });
 

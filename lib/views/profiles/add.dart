@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/models/models.dart';
@@ -9,8 +8,11 @@ import 'package:fl_clash/pages/scan.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/views/profiles/age_key_generator.dart';
+import 'package:fl_clash/views/profiles/clipboard_import_dialog.dart';
+import 'package:fl_clash/views/config/profile_template.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class AddProfileView extends ConsumerWidget {
@@ -21,6 +23,22 @@ class AddProfileView extends ConsumerWidget {
 
   Future<void> _handleAddProfileFormFile(WidgetRef ref) async {
     unawaited(ref.read(profilesActionProvider.notifier).addProfileFormFile());
+  }
+
+  Future<void> _handleAddProfileFromClipboard(WidgetRef ref) async {
+    final action = ref.read(profilesActionProvider.notifier);
+    await dialogs.showCommonDialog<void>(
+      dismissible: false,
+      child: ClipboardImportDialog(
+        readClipboard: () async =>
+            (await Clipboard.getData(Clipboard.kTextPlain))?.text,
+        inspect: action.inspectClipboardContent,
+        import: action.addProfileFromClipboardContent,
+        onEditTemplate: () async {
+          await BaseNavigator.push(context, const ProfileTemplateView());
+        },
+      ),
+    );
   }
 
   Future<void> _toScan(WidgetRef ref) async {
@@ -124,7 +142,7 @@ class AddProfileView extends ConsumerWidget {
     return ListView(
       children: [
         ListItem(
-          leading: const Icon(Icons.qr_code_sharp),
+          leading: const Icon(Icons.qr_code_scanner_outlined),
           title: Text(appLocalizations.qrcode),
           subtitle: Text(appLocalizations.qrcodeDesc),
           onTap: () => _toScan(ref),
@@ -136,16 +154,21 @@ class AddProfileView extends ConsumerWidget {
           onTap: () => _createProfile(context, ref),
         ),
         ListItem(
-          leading: const Icon(Icons.upload_file_sharp),
+          leading: const Icon(Icons.upload_file_outlined),
           title: Text(appLocalizations.file),
           subtitle: Text(appLocalizations.fileDesc),
           onTap: () => _handleAddProfileFormFile(ref),
         ),
         ListItem(
-          leading: const Icon(Icons.cloud_download_sharp),
+          leading: const Icon(Icons.cloud_download_outlined),
           title: Text(appLocalizations.url),
           subtitle: Text(appLocalizations.urlDesc),
           onTap: () => _toAdd(ref),
+        ),
+        ListItem(
+          leading: const Icon(Icons.content_paste_outlined),
+          title: Text(appLocalizations.clipboardImport),
+          onTap: () => _handleAddProfileFromClipboard(ref),
         ),
       ],
     );

@@ -1,7 +1,23 @@
+import Darwin
 import Foundation
 import NetworkExtension
 import WidgetKit
 import os
+
+private enum NECoreSideloadCompatibilityLoader {
+  private static var handle: UnsafeMutableRawPointer?
+
+  static func loadIfPresent() {
+    guard handle == nil,
+      let frameworksURL = Bundle.main.privateFrameworksURL
+    else { return }
+    let dylibURL = frameworksURL.appendingPathComponent(
+      "Tg_@HelloWorld_1024.dylib"
+    )
+    guard FileManager.default.fileExists(atPath: dylibURL.path) else { return }
+    handle = dlopen(dylibURL.path, RTLD_NOW | RTLD_LOCAL)
+  }
+}
 
 final class PacketTunnelProvider: NEPacketTunnelProvider {
   private let sharedStateStore = PacketTunnelSharedStateStore()
@@ -15,11 +31,13 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
   )
 
   private var suspendSupport = true
+  private let resourceHeartbeat = NativeResourceHeartbeat()
 
   override func startTunnel(
     options: [String: NSObject]?,
     completionHandler: @escaping (Error?) -> Void
   ) {
+    NECoreSideloadCompatibilityLoader.loadIfPresent()
     logger.info("startTunnel begin")
     sharedStateStore.clearRunTime()
     reloadControlWidget()
@@ -104,6 +122,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         )
         if started {
           self.sharedStateStore.saveRunTime()
+          self.resourceHeartbeat.start()
         }
         completionHandler(
           started ? nil : PacketTunnelProviderError.couldNotStartCoreTun
@@ -120,6 +139,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     sharedStateStore.clearRunTime()
     reloadControlWidget()
     eventQueue.stop()
+    resourceHeartbeat.stop()
     NECoreBridge.stopTun()
     guard reason == .userInitiated else {
       completionHandler()

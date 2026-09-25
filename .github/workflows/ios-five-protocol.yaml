@@ -1,0 +1,262 @@
+name: FlclashYF multi-platform build
+
+on:
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: Platforms to build
+        default: all
+        type: choice
+        options:
+          - all
+          - ios
+          - desktop
+  push:
+    branches:
+      - main
+      - integration/flclash-yf
+      - integration/v0.8.126-yf
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+
+env:
+  FLUTTER_VERSION: '3.47.5'
+  GO_VERSION: '1.26.8'
+  NDK_VERSION: r29
+
+jobs:
+  verify:
+    name: Protocol and application tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            core/go.sum
+            core/mihomo/go.sum
+            core/sing-shadowsocks2/go.sum
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Verify module replacements
+        shell: bash
+        run: |
+          for module in core core/mihomo core/mihomo/test; do
+            replacement="$(cd "$module" && go list -m -f '{{if .Replace}}{{.Replace.Dir}}{{else}}NO_REPLACE{{end}}' github.com/metacubex/sing-shadowsocks2)"
+            test "$replacement" != NO_REPLACE
+          done
+
+      - name: Verify protocol core
+        shell: bash
+        run: |
+          (cd core/sing-shadowsocks2 && go test ./... && go vet ./...)
+          (cd core/mihomo && go test ./adapter ./adapter/outbound ./common/convert ./transport/anytls ./transport/oppa ./transport/snell ./transport/vless ./transport/xhttp ./tunnel)
+          (cd core/mihomo && go test -tags with_low_memory ./adapter ./adapter/outbound ./component/mmdb ./config ./hub/executor ./rules/provider ./rules/common ./common/probelimit)
+          (cd core/mihomo && go vet ./adapter ./adapter/outbound ./component/updater ./hub/executor ./hub/route ./rules/provider ./tunnel)
+          (cd core && CGO_ENABLED=0 go test ./... && CGO_ENABLED=0 go test -tags with_low_memory ./... && CGO_ENABLED=0 go vet ./...)
+          python3 scripts/protocol_smoke.py
+
+      - name: Verify Flutter application
+        run: |
+          flutter pub get
+          dart format --output=none --set-exit-if-changed lib test setup.dart
+          flutter analyze --no-fatal-infos
+          flutter test test/common/fastup_subscription_test.dart test/common/protocol_edit_policy_test.dart test/common/uri_subscription_test.dart test/common/profile_template_test.dart test/common/desktop_profile_drop_test.dart test/ios_profile_budget_test.dart test/ios_reclaim_battery_test.dart test/core/protocol_contract_test.dart test/providers/action_test.dart test/views/add_profile_view_test.dart test/views/clipboard_import_dialog_test.dart test/views/profile_template_test.dart test/views/tools_profile_template_test.dart
+
+      - name: Verify iOS sideload asset
+        run: |
+          python3 scripts/verify_ios_sideload_dylib.py
+          python3 scripts/audit_ios_sideload_dylib.py
+
+  android:
+    name: Android arm64-v8a
+    if: github.event_name == 'push' || inputs.platforms == 'all'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: core/go.sum
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: nttld/setup-ndk@v1
+        id: ndk
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+          add-to-path: true
+          link-to-sdk: true
+      - name: Build APK
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          flutter pub get
+          dart setup.dart android --arch arm64 -v
+          test -n "$(find dist -type f -name '*.apk' -print -quit)"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: FlclashYF-android-arm64-v8a
+          path: dist/*.apk
+          if-no-files-found: error
+
+  windows:
+    name: Windows x64
+    if: github.event_name == 'push' || inputs.platforms == 'all' || inputs.platforms == 'desktop'
+    needs: verify
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - run: git config --global core.longpaths true
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: core/go.sum
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Build portable archive
+        shell: bash
+        run: |
+          flutter pub get
+          dart setup.dart windows --targets zip -v
+          test -n "$(find dist -type f -name '*.zip' -print -quit)"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: FlclashYF-windows-x64
+          path: dist/*.zip
+          if-no-files-found: error
+
+  ios:
+    name: iOS arm64 IPA
+    if: github.event_name == 'push' || inputs.platforms == 'all' || inputs.platforms == 'ios'
+    needs: verify
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: core/go.sum
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Select newest Xcode
+        run: |
+          latest="$(find /Applications -maxdepth 1 -name 'Xcode*.app' -print | sort -V | tail -1)"
+          test -n "$latest"
+          sudo xcode-select -s "$latest"
+          xcodebuild -version
+      - name: Build IPA without Apple provisioning
+        run: |
+          flutter pub get
+          dart setup.dart ios --no-codesign --ios-bundle-id com.follow.clash.llyufeng -v
+      - name: Verify sideload compatibility dylib
+        env:
+          EXPECTED_SIDELOAD_DYLIB_SHA256: cd903ea15657cbd356398adcb60c8872c41c29b69acc1a5dfb78a49d6e75dea5
+        run: |
+          python3 scripts/verify_ios_sideload_dylib.py
+          python3 scripts/audit_ios_sideload_dylib.py
+          ipa="$(find dist -type f -name '*.ipa' -print -quit)"
+          test -n "$ipa"
+          out="$RUNNER_TEMP/ipa"
+          mkdir -p "$out"
+          unzip -q "$ipa" -d "$out"
+          runner="$out/Payload/Runner.app/Runner"
+          extension="$out/Payload/Runner.app/PlugIns/NECore.appex/NECore"
+          runner_dylib="$out/Payload/Runner.app/Frameworks/Tg_@HelloWorld_1024.dylib"
+          extension_dylib="$out/Payload/Runner.app/PlugIns/NECore.appex/Frameworks/Tg_@HelloWorld_1024.dylib"
+          for dylib in "$runner_dylib" "$extension_dylib"; do
+            test -x "$dylib"
+            echo "$EXPECTED_SIDELOAD_DYLIB_SHA256  $dylib" | shasum -a 256 -c -
+            file "$dylib" | grep -F arm64
+          done
+          for binary in "$runner" "$extension"; do
+            grep -aF 'Tg_@HelloWorld_1024.dylib' "$binary"
+            grep -aF dlopen "$binary"
+            otool -l "$binary" | grep -A2 LC_RPATH | grep -F '@executable_path/Frameworks'
+          done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: FlclashYF-ios-arm64-no-provisioning
+          path: dist/*.ipa
+          if-no-files-found: error
+
+  macos:
+    name: macOS ${{ matrix.arch }}
+    if: github.event_name == 'push' || inputs.platforms == 'all' || inputs.platforms == 'desktop'
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-26
+            arch: arm64
+          - os: macos-26-intel
+            arch: x64
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: core/go.sum
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Build DMG
+        run: |
+          flutter pub get
+          dart setup.dart macos -v
+          test -n "$(find dist -type f -name '*.dmg' -print -quit)"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: FlclashYF-macos-${{ matrix.arch }}
+          path: dist/*.dmg
+          if-no-files-found: error

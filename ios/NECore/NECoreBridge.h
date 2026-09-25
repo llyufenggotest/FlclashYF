@@ -29,6 +29,7 @@ struct sockaddr_ctl {
                            options:(NSData *)options;
 + (void)stopTun;
 + (void)setSuspended:(BOOL)suspended;
++ (void)releaseMemory;
 
 @end
 

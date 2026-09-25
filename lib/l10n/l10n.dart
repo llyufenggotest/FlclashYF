@@ -6589,6 +6589,256 @@ class AppLocalizations {
       args: [],
     );
   }
+
+  /// `File import`
+  String get fileImport {
+    return Intl.message('File import', name: 'fileImport', desc: '', args: []);
+  }
+
+  /// `Drop exactly one profile file`
+  String get dropExactlyOneProfile {
+    return Intl.message(
+      'Drop exactly one profile file',
+      name: 'dropExactlyOneProfile',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Dropped item is not a file`
+  String get droppedItemNotFile {
+    return Intl.message(
+      'Dropped item is not a file',
+      name: 'droppedItemNotFile',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Unsupported profile file type`
+  String get unsupportedProfileFileType {
+    return Intl.message(
+      'Unsupported profile file type',
+      name: 'unsupportedProfileFileType',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Profile file is too large`
+  String get profileFileTooLarge {
+    return Intl.message(
+      'Profile file is too large',
+      name: 'profileFileTooLarge',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Profile file is not valid UTF-8`
+  String get profileFileInvalidUtf8 {
+    return Intl.message(
+      'Profile file is not valid UTF-8',
+      name: 'profileFileInvalidUtf8',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Profile template`
+  String get profileTemplate {
+    return Intl.message(
+      'Profile template',
+      name: 'profileTemplate',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Edit the template used to import proxy links`
+  String get profileTemplateDesc {
+    return Intl.message(
+      'Edit the template used to import proxy links',
+      name: 'profileTemplateDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Template YAML`
+  String get profileTemplateYaml {
+    return Intl.message(
+      'Template YAML',
+      name: 'profileTemplateYaml',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Profile template saved`
+  String get profileTemplateSaved {
+    return Intl.message(
+      'Profile template saved',
+      name: 'profileTemplateSaved',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Restore the built-in profile template?`
+  String get profileTemplateResetConfirm {
+    return Intl.message(
+      'Restore the built-in profile template?',
+      name: 'profileTemplateResetConfirm',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Restore default`
+  String get restoreDefault {
+    return Intl.message(
+      'Restore default',
+      name: 'restoreDefault',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Route`
+  String get route {
+    return Intl.message('Route', name: 'route', desc: '', args: []);
+  }
+
+  /// `Select a profile to configure routing`
+  String get routeNoProfile {
+    return Intl.message(
+      'Select a profile to configure routing',
+      name: 'routeNoProfile',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Domain, IP, CIDR, or rule-set URL`
+  String get routeInputHint {
+    return Intl.message(
+      'Domain, IP, CIDR, or rule-set URL',
+      name: 'routeInputHint',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Target`
+  String get routeTarget {
+    return Intl.message('Target', name: 'routeTarget', desc: '', args: []);
+  }
+
+  /// `Route groups`
+  String get routeGroups {
+    return Intl.message(
+      'Route groups',
+      name: 'routeGroups',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Route rules`
+  String get routeRules {
+    return Intl.message('Route rules', name: 'routeRules', desc: '', args: []);
+  }
+
+  /// `Rule providers`
+  String get routeProviders {
+    return Intl.message(
+      'Rule providers',
+      name: 'routeProviders',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Nodes and groups`
+  String get routeMembers {
+    return Intl.message(
+      'Nodes and groups',
+      name: 'routeMembers',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Enter a valid domain, IP, CIDR, or HTTP(S) URL`
+  String get routeInvalidInput {
+    return Intl.message(
+      'Enter a valid domain, IP, CIDR, or HTTP(S) URL',
+      name: 'routeInvalidInput',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Group type`
+  String get routeGroupType {
+    return Intl.message(
+      'Group type',
+      name: 'routeGroupType',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Separate multiple targets with commas or new lines`
+  String get routeInputHelp {
+    return Intl.message(
+      'Separate multiple targets with commas or new lines',
+      name: 'routeInputHelp',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Manual selection`
+  String get routeGroupManual {
+    return Intl.message(
+      'Manual selection',
+      name: 'routeGroupManual',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Automatic selection`
+  String get routeGroupAuto {
+    return Intl.message(
+      'Automatic selection',
+      name: 'routeGroupAuto',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Load balancing`
+  String get routeGroupBalance {
+    return Intl.message(
+      'Load balancing',
+      name: 'routeGroupBalance',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Health check interval`
+  String get routeHealthInterval {
+    return Intl.message(
+      'Health check interval',
+      name: 'routeHealthInterval',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -23,6 +23,7 @@ import (
 	"github.com/metacubex/mihomo/adapter/outbound"
 	"github.com/metacubex/mihomo/adapter/outboundgroup"
 	"github.com/metacubex/mihomo/adapter/provider"
+	"github.com/metacubex/mihomo/common/convert"
 	"github.com/metacubex/mihomo/common/observable"
 	"github.com/metacubex/mihomo/common/utils"
 	"github.com/metacubex/mihomo/component/age"
@@ -138,6 +139,23 @@ func handleValidateConfig(data string) string {
 		return err.Error()
 	}
 	return ""
+}
+
+func handleConvertURISubscription(data string) ([]map[string]any, error) {
+	if len(data) > 8<<20 {
+		return nil, fmt.Errorf("URI subscription exceeds 8 MiB")
+	}
+	proxies, err := convert.ConvertsV2Ray([]byte(data))
+	if err != nil {
+		return nil, err
+	}
+	if len(proxies) == 0 {
+		return nil, fmt.Errorf("no supported proxy links found")
+	}
+	if len(proxies) > 4096 {
+		return nil, fmt.Errorf("URI subscription exceeds 4096 proxies")
+	}
+	return proxies, nil
 }
 
 func handleDecryptAgeConfig(params *DecryptAgeConfigParams) string {

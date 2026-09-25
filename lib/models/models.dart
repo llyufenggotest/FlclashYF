@@ -1,5 +1,6 @@
 export 'app.dart';
 export 'changelog.dart';
+export 'clipboard_import.dart';
 export 'clash_config.dart';
 export 'common.dart';
 export 'config.dart';

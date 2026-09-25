@@ -190,4 +190,9 @@ static void NECoreSystemLog(const char *level, const char *message) {
   suspend(suspended ? 1 : 0);
 }
 
++ (void)releaseMemory {
+  [self initializeBridge];
+  forceGC();
+}
+
 @end
