@@ -1,6 +1,7 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
+import 'package:fl_clash/views/dashboard/widgets/paper_plane_status_icon.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -153,6 +154,7 @@ class _StartButtonState extends ConsumerState<StartButton>
     if (!hasProfile) {
       return Container();
     }
+    final isStart = ref.watch(isStartProvider);
     final suspend = ref.watch(suspendProvider);
     final runTimeText = getTimeText(_displayRunTime);
     final theme = Theme.of(context);
@@ -177,6 +179,12 @@ class _StartButtonState extends ConsumerState<StartButton>
             clipBehavior: Clip.antiAlias,
             materialTapTargetSize: MaterialTapTargetSize.padded,
             heroTag: null,
+            backgroundColor: isStart
+                ? const Color(0xFFD7F5DD)
+                : const Color(0xFFF1F3F4),
+            foregroundColor: isStart
+                ? const Color(0xFF176B34)
+                : const Color(0xFF5F6368),
             onPressed: handleSwitchStart,
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -194,10 +202,7 @@ class _StartButtonState extends ConsumerState<StartButton>
                       child: child,
                     );
                   },
-                  child: AnimatedIcon(
-                    icon: AnimatedIcons.play_pause,
-                    progress: _animation,
-                  ),
+                  child: PaperPlaneStatusIcon(disconnected: !isStart),
                 ),
                 SizeTransition(
                   axis: Axis.horizontal,

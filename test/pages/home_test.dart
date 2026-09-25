@@ -10,6 +10,7 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/application_setting.dart';
 import 'package:fl_clash/views/tools.dart';
+import 'package:fl_clash/widgets/capsule_navigation.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:fl_clash/views/navigation.dart';
 import 'package:material_ui/material_ui.dart';
@@ -66,16 +67,16 @@ void main() {
 
     expect(globalState.navigatorKey.currentContext, isNotNull);
     expect(container.read(viewSizeProvider), const Size(1200, 800));
-    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byType(CapsuleNavigation), findsNothing);
 
     await tester.pump();
 
     expect(find.byType(NavigationRail), findsOneWidget);
-    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byType(CapsuleNavigation), findsNothing);
 
     await tester.pump(const Duration(milliseconds: 150));
 
-    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byType(CapsuleNavigation), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -141,7 +142,7 @@ void main() {
       await tester.pump();
       expect(find.text('count: 1'), findsOneWidget);
       expect(find.byType(NavigationRail), findsOneWidget);
-      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byType(CapsuleNavigation), findsNothing);
 
       for (var width = 1180.0; width >= 500; width -= 20) {
         tester.view.physicalSize = Size(width, 800);
@@ -152,7 +153,7 @@ void main() {
 
       expect(find.text('count: 1'), findsOneWidget);
       expect(find.byType(NavigationRail), findsOneWidget);
-      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(CapsuleNavigation), findsOneWidget);
       await tester.pump(const Duration(milliseconds: 150));
       expect(tester.takeException(), isNull);
 
@@ -166,7 +167,7 @@ void main() {
 
       await tester.pump(const Duration(milliseconds: 301));
       expect(find.byType(NavigationRail), findsNothing);
-      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(CapsuleNavigation), findsOneWidget);
 
       tester.view.physicalSize = const Size(1200, 800);
       container.read(viewSizeProvider.notifier).value = const Size(1200, 800);
@@ -174,11 +175,11 @@ void main() {
 
       expect(find.text('count: 1'), findsOneWidget);
       expect(find.byType(NavigationRail), findsOneWidget);
-      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(CapsuleNavigation), findsOneWidget);
 
       await tester.pump(const Duration(milliseconds: 301));
       expect(find.byType(NavigationRail), findsOneWidget);
-      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byType(CapsuleNavigation), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -294,7 +295,7 @@ void main() {
       );
       await tester.pump();
       expect(find.byType(ToolsView), findsOneWidget);
-      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byType(CapsuleNavigation), findsOneWidget);
 
       for (var width = 520.0; width <= 1200; width += 20) {
         tester.view.physicalSize = Size(width, 800);
@@ -589,10 +590,10 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(CapsuleNavigation), findsOneWidget);
 
-    NavigationBar navBar() =>
-        tester.widget<NavigationBar>(find.byType(NavigationBar));
+    CapsuleNavigation navBar() =>
+        tester.widget<CapsuleNavigation>(find.byType(CapsuleNavigation));
 
     await tester.tap(find.byIcon(Icons.construction));
     await tester.pumpAndSettle();
@@ -602,7 +603,8 @@ void main() {
 
     bool focusInNav() {
       final context = FocusManager.instance.primaryFocus?.context;
-      return context?.findAncestorWidgetOfExactType<NavigationBar>() != null;
+      return context?.findAncestorWidgetOfExactType<CapsuleNavigation>() !=
+          null;
     }
 
     for (var i = 0; i < 20 && !focusInNav(); i++) {
