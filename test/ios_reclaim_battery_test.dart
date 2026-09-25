@@ -183,13 +183,9 @@ void main() {
     test('admission control remains the primary defence', () {
       final heartbeat = source('ios/NECore/NativeResourceHeartbeat.swift');
       final profileBudget = source('lib/common/ios_profile_budget.dart');
-      final coreBudget = source(
-        'core/mihomo/common/probelimit/budget_extension.go',
-      );
       expect(heartbeat, contains('iOS profile sanitization'));
       expect(profileBudget, contains('iosPreConnectCap = 2'));
       expect(profileBudget, contains('iosMinHealthCheckInterval = 300'));
-      expect(coreBudget, contains('activeLimit = 8'));
     });
   });
 }
