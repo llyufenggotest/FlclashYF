@@ -41,7 +41,7 @@ extension DashboardWidgetView on DashboardWidget {
       child: IntranetIP(),
     ),
     DashboardWidget.memoryInfo => const GridItem(
-      crossAxisCellCount: 4,
+      crossAxisCellCount: 8,
       child: MemoryInfo(),
     ),
     DashboardWidget.goroutineInfo => const GridItem(
