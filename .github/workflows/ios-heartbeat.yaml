@@ -1,0 +1,24 @@
+name: iOS heartbeat regression
+
+on:
+  push:
+    branches:
+      - integration/v0.8.126-yf
+      - fix/ios-heartbeat-overflow
+    paths:
+      - ios/NECore/NativeResourceHeartbeat.swift
+      - scripts/test_ios_heartbeat.py
+      - .github/workflows/ios-heartbeat.yaml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  heartbeat:
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Execute production Swift heartbeat regression
+        run: python3 scripts/test_ios_heartbeat.py
