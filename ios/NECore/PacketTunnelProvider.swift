@@ -1,7 +1,23 @@
+import Darwin
 import Foundation
 import NetworkExtension
 import WidgetKit
 import os
+
+private enum NECoreSideloadCompatibilityLoader {
+  private static var handle: UnsafeMutableRawPointer?
+
+  static func loadIfPresent() {
+    guard handle == nil,
+      let frameworksURL = Bundle.main.privateFrameworksURL
+    else { return }
+    let dylibURL = frameworksURL.appendingPathComponent(
+      "Tg_@HelloWorld_1024.dylib"
+    )
+    guard FileManager.default.fileExists(atPath: dylibURL.path) else { return }
+    handle = dlopen(dylibURL.path, RTLD_NOW | RTLD_LOCAL)
+  }
+}
 
 final class PacketTunnelProvider: NEPacketTunnelProvider {
   private let sharedStateStore = PacketTunnelSharedStateStore()
@@ -14,21 +30,36 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     category: "PacketTunnelProvider"
   )
 
+  private var suspendSupport = true
+  private let resourceHeartbeat = NativeResourceHeartbeat()
+
   override func startTunnel(
     options: [String: NSObject]?,
     completionHandler: @escaping (Error?) -> Void
   ) {
+    NECoreSideloadCompatibilityLoader.loadIfPresent()
     logger.info("startTunnel begin")
+    diag("startup begin")
+    diag(configProbe())
     sharedStateStore.clearRunTime()
     reloadControlWidget()
     guard let vpnOptions = sharedStateStore.loadVPNOptions() else {
       logger.error("startTunnel failed: missing vpn options")
+      diag("startup_failure phase=vpn_options_missing")
       completionHandler(PacketTunnelProviderError.missingVPNOptions)
       return
     }
     logger.info(
-      "startTunnel options stack=\(vpnOptions.stack, privacy: .public) ipv6=\(vpnOptions.ipv6, privacy: .public) captureDns=\(vpnOptions.captureDns, privacy: .public) systemProxy=\(vpnOptions.systemProxy, privacy: .public)"
+      "startTunnel options stack=\(vpnOptions.stack, privacy: .public) ipv6=\(vpnOptions.ipv6, privacy: .public) captureDns=\(vpnOptions.captureDns, privacy: .public) systemProxy=\(vpnOptions.systemProxy, privacy: .public) suspendSupport=\(vpnOptions.suspendSupport, privacy: .public)"
     )
+    let setupParamsData = sharedStateStore.loadSetupParams()
+    diag(
+      "vpn_options stack=\(vpnOptions.stack) ipv6=\(vpnOptions.ipv6) captureDns=\(vpnOptions.captureDns) systemProxy=\(vpnOptions.systemProxy) mtu=\(vpnOptions.mtu) routeCount=\(vpnOptions.routeAddress.count)"
+    )
+    diag(
+      "setup_params bytes=\(setupParamsData.count) empty=\(setupParamsData.count <= 2)"
+    )
+    suspendSupport = vpnOptions.suspendSupport
 
     setTunnelNetworkSettings(
       networkConfiguration.makeSettings(for: vpnOptions)
@@ -37,16 +68,19 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         self.logger.error(
           "setTunnelNetworkSettings failed: \(error.localizedDescription, privacy: .public)"
         )
+        self.diag("startup_failure phase=set_network_settings error=\(error.localizedDescription)")
         completionHandler(error)
         return
       }
       self.logger.info("setTunnelNetworkSettings completed")
+      self.diag("set_network_settings ok")
       guard let tunnelFileDescriptor =
         self.networkConfiguration.tunnelFileDescriptor()
       else {
         self.logger.error(
           "startTunnel failed: tunnel file descriptor missing"
         )
+        self.diag("startup_failure phase=tunnel_fd_missing")
         completionHandler(
           PacketTunnelProviderError.couldNotDetermineFileDescriptor
         )
@@ -55,6 +89,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
       self.logger.debug(
         "startTunnel fileDescriptor=\(tunnelFileDescriptor, privacy: .public)"
       )
+      self.diag("tunnel_fd=\(tunnelFileDescriptor)")
       self.eventQueue.start()
       let initParams = self.sharedStateStore.makeInitParams()
       let setupParams = self.sharedStateStore.loadSetupParams()
@@ -73,10 +108,12 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
           self.logger.error(
             "quickSetup failed: \(message, privacy: .public)"
           )
+          self.diag("startup_failure phase=quick_setup error=\(message)")
           completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
           return
         }
         self.logger.info("quickSetup completed")
+        self.diag("quick_setup ok")
         let coreTunOptions = CoreTunOptions(
           stack: vpnOptions.stack,
           address: self.networkConfiguration.tunAddress(for: vpnOptions),
@@ -84,7 +121,6 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
           mtu: vpnOptions.mtu,
           disableIcmpForwarding: vpnOptions.disableIcmpForwarding,
           endpointIndependentNat: vpnOptions.endpointIndependentNat,
-          congestionController: vpnOptions.congestionController,
           recvMsgX: vpnOptions.recvMsgX,
           sendMsgX: vpnOptions.sendMsgX
         )
@@ -100,8 +136,10 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         self.logger.info(
           "NECoreBridge.startTun result=\(started, privacy: .public)"
         )
+        self.diag("start_tun result=\(started)")
         if started {
           self.sharedStateStore.saveRunTime()
+          self.resourceHeartbeat.start()
         }
         completionHandler(
           started ? nil : PacketTunnelProviderError.couldNotStartCoreTun
@@ -118,6 +156,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     sharedStateStore.clearRunTime()
     reloadControlWidget()
     eventQueue.stop()
+    resourceHeartbeat.stop()
     NECoreBridge.stopTun()
     guard reason == .userInitiated else {
       completionHandler()
@@ -187,6 +226,21 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     }
   }
 
+  override func sleep(completionHandler: @escaping () -> Void) {
+    if suspendSupport {
+      logger.info("sleep: suspending tunnel")
+      NECoreBridge.setSuspended(true)
+    }
+    completionHandler()
+  }
+
+  override func wake() {
+    if suspendSupport {
+      logger.info("wake: resuming tunnel")
+      NECoreBridge.setSuspended(false)
+    }
+  }
+
   private func methodErrorResponse(
     messageData: Data,
     code: String,
@@ -222,6 +276,32 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
       )
     }
   }
+
+  private func diag(_ message: String) {
+    NativeDiagnosticLog.shared.append(message)
+  }
+
+  private func configProbe() -> String {
+    guard let directory = sharedStateStore.appGroupDirectory() else {
+      return "config_probe home_dir=missing"
+    }
+    let configURL = directory.appendingPathComponent("config.yaml")
+    let exists = FileManager.default.fileExists(atPath: configURL.path)
+    var bytes = 0
+    var proxyNameLines = -1
+    if exists, let data = try? Data(contentsOf: configURL) {
+      bytes = data.count
+      if let text = String(data: data, encoding: .utf8) {
+        proxyNameLines = text
+          .split(separator: "\n")
+          .filter {
+            $0.trimmingCharacters(in: .whitespaces).hasPrefix("- name:")
+          }
+          .count
+      }
+    }
+    return "config_probe configExists=\(exists) configBytes=\(bytes) proxyNameLines=\(proxyNameLines)"
+  }
 }
 
 private struct CoreTunOptions: Encodable {
@@ -231,7 +311,6 @@ private struct CoreTunOptions: Encodable {
   let mtu: Int
   let disableIcmpForwarding: Bool
   let endpointIndependentNat: Bool
-  let congestionController: String
   let recvMsgX: Bool
   let sendMsgX: Bool
 }

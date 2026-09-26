@@ -168,6 +168,11 @@ class AppPath {
     return join(mHomeDirPath, 'backup.zip');
   }
 
+  Future<String> get nativeDiagnosticLogPath async {
+    final mHomeDirPath = await homeDirPath;
+    return join(mHomeDirPath, 'ios-necore-native.log');
+  }
+
   Future<String> get restoreDirPath async {
     final mHomeDirPath = await homeDirPath;
     return join(mHomeDirPath, 'restore');
