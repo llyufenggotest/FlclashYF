@@ -91,6 +91,13 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
       )
       self.diag("tunnel_fd=\(tunnelFileDescriptor)")
       self.eventQueue.start()
+      self.diag(
+        "mem_before_quick_setup footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
+      )
+      NativeDiagnosticLog.shared.flush()
+      // Start sampling before the config load so a jetsam kill while the core
+      // builds rule-provider matchers leaves a footprint trail instead of silence.
+      self.resourceHeartbeat.start()
       let initParams = self.sharedStateStore.makeInitParams()
       let setupParams = self.sharedStateStore.loadSetupParams()
       self.logger.info(
@@ -113,7 +120,10 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
           return
         }
         self.logger.info("quickSetup completed")
-        self.diag("quick_setup ok")
+        self.diag(
+          "quick_setup ok footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
+        )
+        NativeDiagnosticLog.shared.flush()
         let coreTunOptions = CoreTunOptions(
           stack: vpnOptions.stack,
           address: self.networkConfiguration.tunAddress(for: vpnOptions),
@@ -126,9 +136,15 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         )
         guard let coreTunOptionsData = try? JSONEncoder().encode(coreTunOptions)
         else {
+          self.diag("startup_failure phase=tun_options_encode")
+          NativeDiagnosticLog.shared.flush()
           completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
           return
         }
+        self.diag(
+          "tun_start begin footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
+        )
+        NativeDiagnosticLog.shared.flush()
         let started = NECoreBridge.startTun(
           withFileDescriptor: tunnelFileDescriptor,
           options: coreTunOptionsData
@@ -136,10 +152,14 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         self.logger.info(
           "NECoreBridge.startTun result=\(started, privacy: .public)"
         )
-        self.diag("start_tun result=\(started)")
+        self.diag(
+          "start_tun result=\(started) footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
+        )
+        NativeDiagnosticLog.shared.flush()
         if started {
           self.sharedStateStore.saveRunTime()
-          self.resourceHeartbeat.start()
+        } else {
+          self.resourceHeartbeat.stop()
         }
         completionHandler(
           started ? nil : PacketTunnelProviderError.couldNotStartCoreTun
