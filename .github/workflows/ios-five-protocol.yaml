@@ -188,6 +188,8 @@ jobs:
           test -n "$latest"
           sudo xcode-select -s "$latest"
           xcodebuild -version
+      - name: Verify native heartbeat before packaging
+        run: python3 scripts/test_ios_heartbeat.py
       - name: Build IPA without Apple provisioning
         run: |
           flutter pub get
