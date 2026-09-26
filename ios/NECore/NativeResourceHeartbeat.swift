@@ -114,6 +114,7 @@ final class NativeResourceHeartbeat {
     lastLoggedUptime: TimeInterval,
     lastLoggedFootprintMB: Int
   ) -> Bool {
+    if lastLoggedFootprintMB == Int.min { return true }
     // Never throttle inside the reaction window. That window is keyed off the
     // *escalated* threshold, not the warning one: the trace put the steady-state
     // median at 38 MB, so exempting everything above the 30 MB warning line
