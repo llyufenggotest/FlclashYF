@@ -42,6 +42,11 @@ final class NativeDiagnosticLog: NSObject {
     }
   }
 
+  /// Block until queued writes land. The append queue is async so a jetsam kill
+  /// can swallow the last marker; the startup path flushes after each critical
+  /// marker so "which step were we on" survives an imminent termination.
+  func flush() { queue.sync {} }
+
   private func fileURL() -> URL? {
     FileManager.default.containerURL(
       forSecurityApplicationGroupIdentifier: PacketTunnelEnvironment.appGroupIdentifier

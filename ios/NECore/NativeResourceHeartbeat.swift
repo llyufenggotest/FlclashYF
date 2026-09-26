@@ -208,6 +208,11 @@ final class NativeResourceHeartbeat {
     timer = nil
   }
 
+  /// One-shot footprint read for startup markers, before the timer is running.
+  /// The heartbeat samples only after start_tun, so the memory-heavy config load
+  /// (rule-provider matchers) would otherwise be an unobserved window.
+  static func footprintSampleMB() -> Int { resourceUsage().footprintMB }
+
   private static func resourceUsage() -> (
     residentMB: Int,
     footprintMB: Int,
