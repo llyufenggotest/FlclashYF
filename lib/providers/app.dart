@@ -54,9 +54,26 @@ class Logs extends _$Logs with AutoDisposeNotifierMixin {
 
   Future<bool> exportLogs() async {
     final logString = await encodeLogsTask(value.list);
+    final buffer = StringBuffer(logString);
+    if (Platform.isIOS) {
+      final nativePath = await appPath.nativeDiagnosticLogPath;
+      final nativeFile = File(nativePath);
+      if (await nativeFile.exists()) {
+        final nativeText = await nativeFile.readAsString();
+        buffer
+          ..writeln()
+          ..writeln('===== iOS NECore native diagnostics =====')
+          ..writeln(nativeText);
+      } else {
+        buffer
+          ..writeln()
+          ..writeln('===== iOS NECore native diagnostics =====')
+          ..writeln('(no native diagnostic log found at $nativePath)');
+      }
+    }
     final tempFilePath = await appPath.tempFilePath;
     final file = File(tempFilePath);
-    await file.safeWriteAsString(logString);
+    await file.safeWriteAsString(buffer.toString());
     bool res = false;
     res = await picker.saveFileWithPath(logFileName, tempFilePath) != null;
     return res;

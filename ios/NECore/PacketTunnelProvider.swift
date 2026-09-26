@@ -39,15 +39,25 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
   ) {
     NECoreSideloadCompatibilityLoader.loadIfPresent()
     logger.info("startTunnel begin")
+    diag("startup begin")
+    diag(configProbe())
     sharedStateStore.clearRunTime()
     reloadControlWidget()
     guard let vpnOptions = sharedStateStore.loadVPNOptions() else {
       logger.error("startTunnel failed: missing vpn options")
+      diag("startup_failure phase=vpn_options_missing")
       completionHandler(PacketTunnelProviderError.missingVPNOptions)
       return
     }
     logger.info(
       "startTunnel options stack=\(vpnOptions.stack, privacy: .public) ipv6=\(vpnOptions.ipv6, privacy: .public) captureDns=\(vpnOptions.captureDns, privacy: .public) systemProxy=\(vpnOptions.systemProxy, privacy: .public) suspendSupport=\(vpnOptions.suspendSupport, privacy: .public)"
+    )
+    let setupParamsData = sharedStateStore.loadSetupParams()
+    diag(
+      "vpn_options stack=\(vpnOptions.stack) ipv6=\(vpnOptions.ipv6) captureDns=\(vpnOptions.captureDns) systemProxy=\(vpnOptions.systemProxy) mtu=\(vpnOptions.mtu) routeCount=\(vpnOptions.routeAddress.count)"
+    )
+    diag(
+      "setup_params bytes=\(setupParamsData.count) empty=\(setupParamsData.count <= 2)"
     )
     suspendSupport = vpnOptions.suspendSupport
 
@@ -58,16 +68,19 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         self.logger.error(
           "setTunnelNetworkSettings failed: \(error.localizedDescription, privacy: .public)"
         )
+        self.diag("startup_failure phase=set_network_settings error=\(error.localizedDescription)")
         completionHandler(error)
         return
       }
       self.logger.info("setTunnelNetworkSettings completed")
+      self.diag("set_network_settings ok")
       guard let tunnelFileDescriptor =
         self.networkConfiguration.tunnelFileDescriptor()
       else {
         self.logger.error(
           "startTunnel failed: tunnel file descriptor missing"
         )
+        self.diag("startup_failure phase=tunnel_fd_missing")
         completionHandler(
           PacketTunnelProviderError.couldNotDetermineFileDescriptor
         )
@@ -76,6 +89,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
       self.logger.debug(
         "startTunnel fileDescriptor=\(tunnelFileDescriptor, privacy: .public)"
       )
+      self.diag("tunnel_fd=\(tunnelFileDescriptor)")
       self.eventQueue.start()
       let initParams = self.sharedStateStore.makeInitParams()
       let setupParams = self.sharedStateStore.loadSetupParams()
@@ -94,10 +108,12 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
           self.logger.error(
             "quickSetup failed: \(message, privacy: .public)"
           )
+          self.diag("startup_failure phase=quick_setup error=\(message)")
           completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
           return
         }
         self.logger.info("quickSetup completed")
+        self.diag("quick_setup ok")
         let coreTunOptions = CoreTunOptions(
           stack: vpnOptions.stack,
           address: self.networkConfiguration.tunAddress(for: vpnOptions),
@@ -120,6 +136,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         self.logger.info(
           "NECoreBridge.startTun result=\(started, privacy: .public)"
         )
+        self.diag("start_tun result=\(started)")
         if started {
           self.sharedStateStore.saveRunTime()
           self.resourceHeartbeat.start()
@@ -258,6 +275,32 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         ofKind: PacketTunnelEnvironment.widgetIdentifier
       )
     }
+  }
+
+  private func diag(_ message: String) {
+    NativeDiagnosticLog.shared.append(message)
+  }
+
+  private func configProbe() -> String {
+    guard let directory = sharedStateStore.appGroupDirectory() else {
+      return "config_probe home_dir=missing"
+    }
+    let configURL = directory.appendingPathComponent("config.yaml")
+    let exists = FileManager.default.fileExists(atPath: configURL.path)
+    var bytes = 0
+    var proxyNameLines = -1
+    if exists, let data = try? Data(contentsOf: configURL) {
+      bytes = data.count
+      if let text = String(data: data, encoding: .utf8) {
+        proxyNameLines = text
+          .split(separator: "\n")
+          .filter {
+            $0.trimmingCharacters(in: .whitespaces).hasPrefix("- name:")
+          }
+          .count
+      }
+    }
+    return "config_probe configExists=\(exists) configBytes=\(bytes) proxyNameLines=\(proxyNameLines)"
   }
 }
 
