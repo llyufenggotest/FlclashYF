@@ -138,7 +138,9 @@ final class ServiceChannel {
       }
     case "getRunTime":
       Task {
-        result(await tunnelController.getRunTime())
+        let runTime = await tunnelController.getRunTime()
+        coreMessageRouter.updateTunnelState(runTime > 0 ? .running : .stopped)
+        result(runTime)
       }
     default:
       result(FlutterMethodNotImplemented)

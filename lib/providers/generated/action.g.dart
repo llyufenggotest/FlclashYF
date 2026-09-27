@@ -91,7 +91,7 @@ final class SetupActionProvider extends $NotifierProvider<SetupAction, void> {
   }
 }
 
-String _$setupActionHash() => r'df366d5f52b528e2390f6b7f666b27f188e643ec';
+String _$setupActionHash() => r'537635b3399f2b7292fc46ffb5fe653493d8023d';
 
 abstract class _$SetupAction extends $Notifier<void> {
   void build();
@@ -142,7 +142,7 @@ final class BackupActionProvider extends $NotifierProvider<BackupAction, void> {
   }
 }
 
-String _$backupActionHash() => r'93ea731952bd2f9b68791e2815cc331059908ed3';
+String _$backupActionHash() => r'ffca3a6f1f1b96c61561412e99b2410c7660311f';
 
 abstract class _$BackupAction extends $Notifier<void> {
   void build();
@@ -244,7 +244,7 @@ final class SystemActionProvider extends $NotifierProvider<SystemAction, void> {
   }
 }
 
-String _$systemActionHash() => r'fdcbbedd5fd34a270d75d3e57ead5b57b0708697';
+String _$systemActionHash() => r'abd51eb0040c5e54b23d3fca6cc1a62d7d727d28';
 
 abstract class _$SystemAction extends $Notifier<void> {
   void build();
@@ -398,7 +398,7 @@ final class ProxiesActionProvider
   }
 }
 
-String _$proxiesActionHash() => r'9e5cb143a39bf605b0523d6eb9a79f57382d17c5';
+String _$proxiesActionHash() => r'c89d993067af0e11d3116db615ea6d58f406e5a2';
 
 abstract class _$ProxiesAction extends $Notifier<void> {
   void build();
@@ -450,61 +450,9 @@ final class ProfilesActionProvider
   }
 }
 
-String _$profilesActionHash() => r'69f964f526f913a4fecdf5b035e36fb5110201d2';
+String _$profilesActionHash() => r'246dad77fc42e0b93a977812a5f3195570a82be0';
 
 abstract class _$ProfilesAction extends $Notifier<void> {
-  void build();
-  @$mustCallSuper
-  @override
-  WhenComplete runBuild() {
-    final ref = this.ref as $Ref<void, void>;
-    final element =
-        ref.element
-            as $ClassProviderElement<
-              AnyNotifier<void, void>,
-              void,
-              Object?,
-              Object?
-            >;
-    return element.handleCreate(ref, build);
-  }
-}
-
-@ProviderFor(ScriptsAction)
-final scriptsActionProvider = ScriptsActionProvider._();
-
-final class ScriptsActionProvider
-    extends $NotifierProvider<ScriptsAction, void> {
-  ScriptsActionProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'scriptsActionProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$scriptsActionHash();
-
-  @$internal
-  @override
-  ScriptsAction create() => ScriptsAction();
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(void value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<void>(value),
-    );
-  }
-}
-
-String _$scriptsActionHash() => r'69ef0800ba3bb8c7b5de44b772c2421ac06c71da';
-
-abstract class _$ScriptsAction extends $Notifier<void> {
   void build();
   @$mustCallSuper
   @override

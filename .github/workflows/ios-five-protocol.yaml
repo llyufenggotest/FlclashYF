@@ -81,6 +81,7 @@ jobs:
           flutter pub get
           dart format --output=none --set-exit-if-changed lib test setup.dart
           flutter analyze --no-fatal-infos
+          flutter test test/common/native_log_export_test.dart test/providers/logs_clear_test.dart test/views/logs_clear_test.dart test/providers/setup_restoration_test.dart
           flutter test test/common/fastup_subscription_test.dart test/common/protocol_edit_policy_test.dart test/common/uri_subscription_test.dart test/common/profile_template_test.dart test/common/desktop_profile_drop_test.dart test/ios_profile_budget_test.dart test/ios_reclaim_battery_test.dart test/core/protocol_contract_test.dart test/providers/action_test.dart test/views/add_profile_view_test.dart test/views/clipboard_import_dialog_test.dart test/views/profile_template_test.dart test/views/tools_profile_template_test.dart
 
       - name: Verify iOS sideload asset
