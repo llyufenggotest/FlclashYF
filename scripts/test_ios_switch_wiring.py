@@ -16,7 +16,9 @@ class SwitchWiring(unittest.TestCase):
         self.assertIn('SwitchDiagnostics.processID', source)
 
     def test_export_includes_both_processes(self):
-        source = (ROOT / 'lib/providers/app.dart').read_text()
+        provider = (ROOT / 'lib/providers/app.dart').read_text()
+        self.assertIn('nativeLogs.read()', provider)
+        source = (ROOT / 'lib/common/native_log_export.dart').read_text()
         self.assertIn('ios-switch-Runner.log', source)
         self.assertIn('ios-switch-NECore.log', source)
 
@@ -25,6 +27,12 @@ class SwitchWiring(unittest.TestCase):
             source = (ROOT / path).read_text()
             self.assertIn('recordCorePhase:', source)
             self.assertIn('SwitchDiagnostics', source)
+
+    def test_runtime_reply_seeds_route_before_flutter_hydration(self):
+        source = (ROOT / 'ios/Runner/ServiceChannel.swift').read_text()
+        body = source.split('case "getRunTime":', 1)[1].split('default:', 1)[0]
+        self.assertIn('coreMessageRouter.updateTunnelState', body)
+        self.assertLess(body.index('coreMessageRouter.updateTunnelState'), body.index('result(runTime)'))
 
     def test_packaging_runs_native_tests(self):
         source = (ROOT / '.github/workflows/ios-five-protocol.yaml').read_text()

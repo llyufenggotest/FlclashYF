@@ -90,6 +90,9 @@ class SetupAction extends _$SetupAction {
   bool get shouldRestoreServiceRunTime => system.isMobile;
 
   @protected
+  bool get shouldRestoreRunningService => system.isIOS;
+
+  @protected
   Future<DateTime?> readServiceRunTime() async => service?.getRunTime();
 
   Future<void> initStatus() async {
@@ -100,6 +103,15 @@ class SetupAction extends _$SetupAction {
     commonPrint.log('init status');
     if (shouldRestoreServiceRunTime) {
       await _updateStartTime();
+    }
+    if (shouldRestoreRunningService && _isRunning) {
+      globalState.needInitStatus = false;
+      _setLocalRunning(true);
+      await globalState.safeRun(() async {
+        await ref.read(proxiesActionProvider.notifier).updateGroups();
+        await ref.read(providersProvider.notifier).syncProviders();
+      });
+      return;
     }
     final shouldRun = _isRunning || ref.read(appSettingProvider).autoRun;
     if (shouldRun) {
@@ -477,6 +489,7 @@ class SetupAction extends _$SetupAction {
     final yamlString = realProfile?.yaml ?? '';
     final yamlMd5 = realProfile?.md5 ?? '';
     if (!profileFailed && yamlMd5 == globalState.lastConfigMd5 && !force) {
+      await globalState.safeRun(() async => await onUpdated?.call());
       return _SetupTaskResult.completed;
     }
     if (system.isAndroid) {

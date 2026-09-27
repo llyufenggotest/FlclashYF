@@ -68,6 +68,8 @@ var (
 )
 
 var (
+	applyHubConfig = hub.ApplyConfig
+
 	errConfigNotApplied    = errors.New("config is not applied")
 	errNotExternalProvider = errors.New("not external provider")
 )
@@ -381,6 +383,52 @@ func loadConfig(path string) (*config.Config, error) {
 	return executor.ParseWithBytes(buf)
 }
 
+func closeRejectedConfig(cfg *config.Config) {
+	retainedProxies := make(map[constant.Proxy]bool)
+	retainedProviders := make(map[cp.ProxyProvider]bool)
+	retain := func(proxies map[string]constant.Proxy, providers map[string]cp.ProxyProvider) {
+		for _, proxy := range proxies {
+			retainedProxies[proxy] = true
+		}
+		for _, provider := range providers {
+			if provider == nil {
+				continue
+			}
+			retainedProviders[provider] = true
+			for _, proxy := range provider.Proxies() {
+				retainedProxies[proxy] = true
+			}
+		}
+	}
+	retain(tunnel.AllProxies(), tunnel.ProvidersSnapshot())
+	if currentConfig != nil {
+		retain(currentConfig.Proxies, currentConfig.Providers)
+	}
+	proxies := make(map[constant.Proxy]bool)
+	for _, proxy := range cfg.Proxies {
+		proxies[proxy] = true
+	}
+	for _, provider := range cfg.Providers {
+		if provider == nil || retainedProviders[provider] {
+			continue
+		}
+		retainedProviders[provider] = true
+		for _, proxy := range provider.Proxies() {
+			proxies[proxy] = true
+		}
+		if closer, ok := provider.(interface{ Close() error }); ok {
+			_ = closer.Close()
+		}
+	}
+	for proxy := range proxies {
+		if proxy != nil && !retainedProxies[proxy] {
+			_ = proxy.Close()
+		}
+	}
+	// Rule-provider preflight owns its failed candidates; closing them again
+	// here would cross that ownership boundary. Provider Close never deletes caches.
+}
+
 func applyConfig(params *SetupParams) error {
 	diagnostic := beginConfigDiagnostics()
 	diagnosticSuccess := false
@@ -411,10 +459,14 @@ func applyConfig(params *SetupParams) error {
 		cfg = fallback
 	}
 
-	currentConfig = cfg
 	diagnostic.record(configPhaseHubApplyBegin, true)
-	hubErr := hub.ApplyConfig(cfg)
+	hubErr := applyHubConfig(cfg)
 	diagnostic.record(configPhaseHubApplyEnd, hubErr == nil)
+	if hubErr != nil {
+		closeRejectedConfig(cfg)
+		return hubErr
+	}
+	currentConfig = cfg
 	diagnostic.record(configPhaseSelectionBegin, true)
 	patchSelectGroup(params.SelectedMap)
 	diagnostic.record(configPhaseSelectionEnd, true)

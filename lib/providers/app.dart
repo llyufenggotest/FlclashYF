@@ -4,6 +4,8 @@ import 'dart:ui' show Locale;
 
 import 'package:dio/dio.dart';
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/log_buffer.dart';
+import 'package:fl_clash/common/native_log_export.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/config.dart';
@@ -26,9 +28,11 @@ class AuthorizedTunEnable extends _$AuthorizedTunEnable
 
 @Riverpod(keepAlive: true)
 class Logs extends _$Logs with AutoDisposeNotifierMixin {
+  bool hasCleared = false;
+
   @override
   FixedList<Log> build() {
-    return FixedList(maxLogsLength);
+    return LogBuffer();
   }
 
   void add(Log value) {
@@ -52,40 +56,24 @@ class Logs extends _$Logs with AutoDisposeNotifierMixin {
     value = nextState;
   }
 
+  Future<NativeLogExport?> get nativeLogExport async => Platform.isIOS
+      ? NativeLogExport(File(await appPath.nativeDiagnosticLogPath))
+      : null;
+
+  Future<void> clearLogs() async {
+    final cutoff = DateTime.now();
+    final nativeLogs = await nativeLogExport;
+    await nativeLogs?.clear(cutoff);
+    if (!ref.mounted) return;
+    hasCleared = true;
+    value = LogBuffer(revision: state.revision + 1);
+  }
+
   Future<bool> exportLogs() async {
     final logString = await encodeLogsTask(value.list);
     final buffer = StringBuffer(logString);
-    if (Platform.isIOS) {
-      final nativePath = await appPath.nativeDiagnosticLogPath;
-      final nativeFile = File(nativePath);
-      if (await nativeFile.exists()) {
-        final nativeText = await nativeFile.readAsString();
-        buffer
-          ..writeln()
-          ..writeln('===== iOS NECore native diagnostics =====')
-          ..writeln(nativeText);
-      } else {
-        buffer
-          ..writeln()
-          ..writeln('===== iOS NECore native diagnostics =====')
-          ..writeln('(no native diagnostic log found at $nativePath)');
-      }
-      for (final name in ['ios-switch-Runner.log', 'ios-switch-NECore.log']) {
-        buffer
-          ..writeln()
-          ..writeln('===== $name =====');
-        try {
-          final diagnosticFile = File('${nativeFile.parent.path}/$name');
-          buffer.writeln(
-            await diagnosticFile.exists()
-                ? await diagnosticFile.readAsString()
-                : '(not recorded)',
-          );
-        } catch (_) {
-          buffer.writeln('(diagnostic file could not be read)');
-        }
-      }
-    }
+    final nativeLogs = await nativeLogExport;
+    if (nativeLogs != null) buffer.write(await nativeLogs.read());
     final tempFilePath = await appPath.tempFilePath;
     final file = File(tempFilePath);
     await file.safeWriteAsString(buffer.toString());

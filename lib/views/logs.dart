@@ -45,6 +45,10 @@ class LogListController extends ValueNotifier<LogsState> {
     );
   }
 
+  void clearLogs() {
+    value = value.copyWith(logs: const []);
+  }
+
   void setAutoScrollToEnd(bool autoScrollToEnd) {
     value = value.copyWith(autoScrollToEnd: autoScrollToEnd);
   }
@@ -93,6 +97,11 @@ class _LogsViewState extends ConsumerState<LogsView> {
         ),
       ),
       IconButton(
+        tooltip: context.appLocalizations.clear,
+        onPressed: _handleClear,
+        icon: const Icon(Icons.delete_sweep_outlined),
+      ),
+      IconButton(
         tooltip: context.appLocalizations.exportLogs,
         onPressed: () {
           _handleExport();
@@ -125,7 +134,11 @@ class _LogsViewState extends ConsumerState<LogsView> {
     _logListening = true;
     unawaited(
       _core.startLogNotify().then((logs) {
-        if (!mounted || !_logListening) return;
+        if (!mounted ||
+            !_logListening ||
+            ref.read(logsProvider.notifier).hasCleared) {
+          return;
+        }
         ref
             .read(logsProvider.notifier)
             .addLogs(
@@ -139,6 +152,20 @@ class _LogsViewState extends ConsumerState<LogsView> {
     if (!_logListening) return;
     _logListening = false;
     _core.stopLogNotify();
+  }
+
+  Future<void> _handleClear() async {
+    final l10n = context.appLocalizations;
+    final confirmed = await dialogs.showMessage(
+      context: context,
+      title: l10n.clear,
+      message: TextSpan(text: l10n.deleteTip(l10n.logs)),
+    );
+    if (confirmed != true || !mounted) return;
+    await globalState.safeRun<void>(() async {
+      await ref.read(logsProvider.notifier).clearLogs();
+      if (mounted) _listController.clearLogs();
+    }, title: l10n.clear);
   }
 
   Future<void> _handleExport() async {

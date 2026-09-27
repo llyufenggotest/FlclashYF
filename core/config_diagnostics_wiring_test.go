@@ -23,8 +23,9 @@ func TestConfigDiagnosticApplyStageWiring(t *testing.T) {
 		"diagnostic.record(configPhaseParseBegin, true)", "cfg, err := loadConfig(",
 		"diagnostic.record(configPhaseParseEnd, err == nil)",
 		"if err != nil", "fallback, fallbackErr :=", "return err",
-		"currentConfig = cfg", "diagnostic.record(configPhaseHubApplyBegin, true)",
-		"hubErr := hub.ApplyConfig(cfg)", "diagnostic.record(configPhaseHubApplyEnd, hubErr == nil)",
+		"diagnostic.record(configPhaseHubApplyBegin, true)",
+		"hubErr := applyHubConfig(cfg)", "diagnostic.record(configPhaseHubApplyEnd, hubErr == nil)",
+		"if hubErr != nil", "closeRejectedConfig(cfg)", "return hubErr", "currentConfig = cfg",
 		"diagnostic.record(configPhaseSelectionBegin, true)", "patchSelectGroup(params.SelectedMap)",
 		"diagnostic.record(configPhaseSelectionEnd, true)",
 		"diagnostic.record(configPhaseListenersBegin, true)", "updateListeners(cfg)",
@@ -39,9 +40,6 @@ func TestConfigDiagnosticApplyStageWiring(t *testing.T) {
 			t.Fatalf("missing or misordered apply stage: %s", token)
 		}
 		remaining = remaining[index+len(token):]
-	}
-	if strings.Contains(source, "return hubErr") {
-		t.Fatal("diagnostics changed the ignored hub error behavior")
 	}
 }
 
