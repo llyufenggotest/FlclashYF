@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10240053000000000000001 /* SwitchDiagnostics.swift in Runner Sources */ = {isa = PBXBuildFile; fileRef = A10240053000000000000003 /* SwitchDiagnostics.swift */; };
+		A10240053000000000000002 /* SwitchDiagnostics.swift in NECore Sources */ = {isa = PBXBuildFile; fileRef = A10240053000000000000003 /* SwitchDiagnostics.swift */; };
 		0573B366304032E200768CF4 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 0573B365304032E200768CF4 /* AppIcon.icon */; };
 		0590E25F2FFA555500321CD8 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 0590E25C2FFA53B300321CD8 /* Localizable.xcstrings */; };
 		0590E2622FFA577300321CD8 /* ShortcutProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0590E2612FFA576B00321CD8 /* ShortcutProvider.swift */; };
@@ -117,6 +119,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A10240053000000000000003 /* SwitchDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/SwitchDiagnostics.swift; sourceTree = SOURCE_ROOT; };
 		0573B365304032E200768CF4 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		0590E25C2FFA53B300321CD8 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		0590E2612FFA576B00321CD8 /* ShortcutProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutProvider.swift; sourceTree = "<group>"; };
@@ -645,6 +648,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10240053000000000000002 /* SwitchDiagnostics.swift in NECore Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -674,6 +678,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10240053000000000000001 /* SwitchDiagnostics.swift in Runner Sources */,
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,

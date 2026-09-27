@@ -8,7 +8,6 @@ final class NativeDiagnosticLog: NSObject {
   private let queue = DispatchQueue(label: "com.follow.clash.necore-diagnostics")
   private let maxBytes: UInt64 = 4 * 1024 * 1024
   private let fileName = "ios-necore-native.log"
-  private let tunnelAttemptIDKey = "tunnelAttemptID"
 
   private override init() {}
 
@@ -23,9 +22,10 @@ final class NativeDiagnosticLog: NSObject {
   }
 
   func append(_ message: String) {
+    let attempt = SwitchDiagnostics.processID
     queue.async { [weak self] in
       guard let self, let url = self.fileURL(),
-        let data = "\(ISO8601DateFormatter().string(from: Date())) [attempt=\(self.attemptID())] [NECore] \(message)\n".data(using: .utf8)
+        let data = "\(ISO8601DateFormatter().string(from: Date())) [attempt=\(attempt)] [NECore] \(message)\n".data(using: .utf8)
       else { return }
       do {
         try self.rotateIfNeeded(url: url, incomingBytes: UInt64(data.count))
@@ -70,11 +70,6 @@ final class NativeDiagnosticLog: NSObject {
     let start = tail.index(after: newline)
     guard start < tail.endIndex else { return Data() }
     return Data(tail[start...])
-  }
-
-  private func attemptID() -> String {
-    UserDefaults(suiteName: PacketTunnelEnvironment.appGroupIdentifier)?
-      .string(forKey: tunnelAttemptIDKey) ?? "none"
   }
 
   private static func sanitize(_ message: String) -> String {

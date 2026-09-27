@@ -70,6 +70,21 @@ class Logs extends _$Logs with AutoDisposeNotifierMixin {
           ..writeln('===== iOS NECore native diagnostics =====')
           ..writeln('(no native diagnostic log found at $nativePath)');
       }
+      for (final name in ['ios-switch-Runner.log', 'ios-switch-NECore.log']) {
+        buffer
+          ..writeln()
+          ..writeln('===== $name =====');
+        try {
+          final diagnosticFile = File('${nativeFile.parent.path}/$name');
+          buffer.writeln(
+            await diagnosticFile.exists()
+                ? await diagnosticFile.readAsString()
+                : '(not recorded)',
+          );
+        } catch (_) {
+          buffer.writeln('(diagnostic file could not be read)');
+        }
+      }
     }
     final tempFilePath = await appPath.tempFilePath;
     final file = File(tempFilePath);

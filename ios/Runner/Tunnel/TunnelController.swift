@@ -1,7 +1,6 @@
 import Foundation
 import NetworkExtension
 import UIKit
-import os
 
 @MainActor
 final class TunnelController {
@@ -11,10 +10,8 @@ final class TunnelController {
 
   private var tunnelStatusObserver: NSObjectProtocol?
   private var appActiveObserver: NSObjectProtocol?
-  private let logger = Logger(
-    subsystem: Bundle.main.bundleIdentifier ?? "com.follow.clash",
-    category: "TunnelController"
-  )
+  private var appBackgroundObserver: NSObjectProtocol?
+  private var appForegroundObserver: NSObjectProtocol?
 
   init(
     sharedStateStore: SharedStateStore,
@@ -46,6 +43,12 @@ final class TunnelController {
     if let appActiveObserver {
       NotificationCenter.default.removeObserver(appActiveObserver)
     }
+    if let appBackgroundObserver {
+      NotificationCenter.default.removeObserver(appBackgroundObserver)
+    }
+    if let appForegroundObserver {
+      NotificationCenter.default.removeObserver(appForegroundObserver)
+    }
   }
 
   func startObserving() {
@@ -56,6 +59,9 @@ final class TunnelController {
         queue: .main
       ) { [weak self] notification in
         Task { @MainActor in
+          SwitchDiagnostics.record("tunnel_status", fields: [
+            "status": (notification.object as? NEVPNConnection).map { String($0.status.rawValue) } ?? "unknown",
+          ])
           self?.coordinator.handleTunnelStatusNotification(notification)
         }
       }
@@ -71,14 +77,34 @@ final class TunnelController {
         }
       }
     }
+    if appBackgroundObserver == nil {
+      appBackgroundObserver = NotificationCenter.default.addObserver(
+        forName: UIApplication.didEnterBackgroundNotification,
+        object: nil,
+        queue: .main
+      ) { _ in
+        SwitchDiagnostics.record("app_background")
+      }
+    }
+    if appForegroundObserver == nil {
+      appForegroundObserver = NotificationCenter.default.addObserver(
+        forName: UIApplication.willEnterForegroundNotification,
+        object: nil,
+        queue: .main
+      ) { _ in
+        SwitchDiagnostics.record("app_foreground")
+      }
+    }
     coordinator.requestStatusRefresh(notifyExternal: false)
   }
 
   func start() {
+    SwitchDiagnostics.record("tunnel_start_requested")
     coordinator.submitTunnelRequest(target: .running)
   }
 
   func stop() {
+    SwitchDiagnostics.record("tunnel_stop_requested")
     coordinator.submitTunnelRequest(target: .stopped)
   }
 
@@ -93,32 +119,67 @@ final class TunnelController {
   }
 
   func sendProviderMessage(_ data: Data) async throws -> String {
+    let started = ProcessInfo.processInfo.systemUptime
+    let requestID = SwitchDiagnostics.requestID(data)
+    let method = SwitchDiagnostics.method(data)
+    var connection: NEVPNConnection?
+    var statusBefore = "unknown"
+    func record(_ event: String, responseBytes: Int = 0, errorType: String = "none") {
+      SwitchDiagnostics.record(event, fields: [
+        "method": method,
+        "request_id": requestID,
+        "request_bytes": String(data.count),
+        "response_bytes": String(responseBytes),
+        "elapsed_ms": String(Int((ProcessInfo.processInfo.systemUptime - started) * 1000)),
+        "status_before": statusBefore,
+        "status_after": connection.map { String($0.status.rawValue) } ?? "unknown",
+        "error_type": errorType,
+      ])
+    }
+    record("provider_request_begin")
     let manager: NETunnelProviderManager?
     do {
       manager = try await managerStore.loadManager(createIfNeeded: false)
     } catch {
+      record("provider_request_failure", errorType: "manager_load_failed")
       throw ProviderMessageError(
         code: "network_extension_error",
         message: error.localizedDescription
       )
     }
+    connection = manager?.connection
+    statusBefore = connection.map { String($0.status.rawValue) } ?? "unavailable"
     guard let manager,
       manager.connection.status.tunnelState == .running,
       let session = manager.connection as? NETunnelProviderSession
     else {
+      record("provider_request_failure", errorType: "network_extension_unavailable")
       throw ProviderMessageError(
         code: "network_extension_unavailable",
         message: "network extension is not running"
       )
     }
 
+    record("provider_request_send")
     return try await withCheckedThrowingContinuation { continuation in
       do {
         try session.sendProviderMessage(data) { response in
           Task { @MainActor in
-            guard let response,
-              let message = String(data: response, encoding: .utf8)
-            else {
+            record("provider_request_reply", responseBytes: response?.count ?? 0,
+              errorType: response == nil ? "nil_response" : "none")
+            guard let response else {
+              record("provider_request_failure", errorType: "nil_response")
+              continuation.resume(
+                throwing: ProviderMessageError(
+                  code: "empty_response",
+                  message: "empty network extension response"
+                )
+              )
+              return
+            }
+            guard let message = String(data: response, encoding: .utf8) else {
+              record("provider_request_failure", responseBytes: response.count,
+                errorType: "invalid_utf8")
               continuation.resume(
                 throwing: ProviderMessageError(
                   code: "empty_response",
@@ -131,6 +192,7 @@ final class TunnelController {
           }
         }
       } catch {
+        record("provider_request_failure", errorType: "send_failed")
         continuation.resume(
           throwing: ProviderMessageError(
             code: "network_extension_error",
@@ -146,7 +208,9 @@ final class TunnelController {
       let manager = try await managerStore.loadManager(createIfNeeded: false)
       return manager?.connection.status.tunnelState == .running
     } catch {
-      log("isCoreActive failed: \(error.localizedDescription)")
+      SwitchDiagnostics.record("core_active_check_failure", fields: [
+        "error_type": "manager_load_failed",
+      ])
       return false
     }
   }
@@ -156,9 +220,5 @@ final class TunnelController {
       return 0
     }
     return sharedStateStore.runTime()
-  }
-
-  private func log(_ message: String) {
-    logger.debug("\(message, privacy: .public)")
   }
 }

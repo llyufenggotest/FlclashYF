@@ -80,6 +80,19 @@ static void IOSCoreSystemLog(const char *level, const char *message) {
   if (message == NULL) {
     return;
   }
+  if (level != NULL && strcmp(level, "diagnostic") == 0) {
+    @autoreleasepool {
+      Class diagnostics = NSClassFromString(@"SwitchDiagnostics");
+      SEL selector = @selector(recordCorePhase:);
+      NSString *record = [[NSString alloc] initWithUTF8String:message];
+      if (record != nil && [diagnostics respondsToSelector:selector]) {
+        void (*recordCorePhase)(id, SEL, NSString *) =
+            (void (*)(id, SEL, NSString *))[diagnostics methodForSelector:selector];
+        recordCorePhase(diagnostics, selector, record);
+      }
+    }
+    return;
+  }
   os_log_with_type(
       IOSCoreLogger(),
       IOSCoreLogType(level),
