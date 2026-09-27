@@ -406,12 +406,18 @@ func loadConfig(path string) (*config.Config, error) {
 }
 
 func applyConfig(params *SetupParams) error {
+	diagnostic := beginConfigDiagnostics()
+	diagnosticSuccess := false
+	defer func() { diagnostic.record(configPhaseComplete, diagnosticSuccess) }()
 	runtime.GC()
 	configMu.Lock()
 	defer configMu.Unlock()
+	diagnostic.record(configPhaseLockAcquired, true)
 
 	setTestURL(params.TestURL)
+	diagnostic.record(configPhaseParseBegin, true)
 	cfg, err := loadConfig(filepath.Join(constant.Path.HomeDir(), "config.yaml"))
+	diagnostic.record(configPhaseParseEnd, err == nil)
 	if err != nil {
 		// The fallback is what keeps the listeners serving while the host
 		// reports the error, but it applies a config with no proxies in it.
@@ -430,14 +436,23 @@ func applyConfig(params *SetupParams) error {
 	}
 
 	currentConfig = cfg
-	hub.ApplyConfig(cfg)
+	diagnostic.record(configPhaseHubApplyBegin, true)
+	hubErr := hub.ApplyConfig(cfg)
+	diagnostic.record(configPhaseHubApplyEnd, hubErr == nil)
+	diagnostic.record(configPhaseSelectionBegin, true)
 	patchSelectGroup(params.SelectedMap)
+	diagnostic.record(configPhaseSelectionEnd, true)
+	diagnostic.record(configPhaseListenersBegin, true)
 	updateListeners(cfg)
+	diagnostic.record(configPhaseListenersEnd, true)
 	reconcileGeoUpdater()
 
+	diagnostic.record(configPhaseReclaimBegin, true)
 	if features.WithLowMemory {
 		debug.FreeOSMemory()
 	}
+	diagnostic.record(configPhaseReclaimEnd, true)
+	diagnosticSuccess = err == nil && hubErr == nil
 	return err
 }
 

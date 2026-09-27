@@ -53,7 +53,14 @@ final class CoreMessageRouter {
   }
 
   func updateTunnelState(_ state: TunnelTarget) {
+    let previousRoute = currentRoute
     currentRoute = state == .running ? .networkExtension : .app
+    if previousRoute != currentRoute {
+      SwitchDiagnostics.record("core_route_changed", fields: [
+        "route_before": diagnosticRoute(previousRoute),
+        "route_after": diagnosticRoute(currentRoute),
+      ])
+    }
     notificationCoordinator.setDesiredRoute(currentRoute)
   }
 
@@ -161,9 +168,13 @@ final class CoreMessageRouter {
       guard selectedRoute == .networkExtension else {
         throw error
       }
-      log(
-        "route fallback networkExtension -> app: \(error.localizedDescription)"
-      )
+      SwitchDiagnostics.record("core_route_fallback", fields: [
+        "method": SwitchDiagnostics.method(data),
+        "request_id": SwitchDiagnostics.requestID(data),
+        "route_before": "network_extension",
+        "route_after": "app",
+        "error_type": "network_extension_request_failed",
+      ])
       let response = try await sendCoreMessage(data, route: .app)
       return (response, .app)
     }
@@ -237,11 +248,21 @@ final class CoreMessageRouter {
       appData = data
     }
 
-    let appResponse = try await sendCoreMessage(appData, route: .app)
+    let appResponse = try await sendConfigurationPhase(
+      appData,
+      route: .app,
+      parentRequestID: SwitchDiagnostics.requestID(data)
+    )
     guard networkExtensionActive,
       currentRoute == .networkExtension,
       methodResponseHasEmptyStringResult(appResponse)
     else {
+      SwitchDiagnostics.record("config_ne_apply_skipped", fields: [
+        "method": SwitchDiagnostics.method(data),
+        "request_id": SwitchDiagnostics.requestID(data),
+        "reason": !networkExtensionActive ? "network_extension_inactive"
+          : currentRoute != .networkExtension ? "route_changed" : "app_result_not_empty_success",
+      ])
       return appResponse
     }
 
@@ -252,19 +273,84 @@ final class CoreMessageRouter {
         with: false
       )
       : data
-    return try await sendCoreMessage(
+    return try await sendConfigurationPhase(
       networkExtensionData,
-      route: .networkExtension
+      route: .networkExtension,
+      parentRequestID: SwitchDiagnostics.requestID(data)
     )
+  }
+
+  private func sendConfigurationPhase(
+    _ data: Data,
+    route: CoreRoute,
+    parentRequestID: String
+  ) async throws -> String {
+    let started = ProcessInfo.processInfo.systemUptime
+    let routeBefore = diagnosticRoute(currentRoute)
+    var fields = [
+      "method": SwitchDiagnostics.method(data),
+      "request_id": SwitchDiagnostics.requestID(data),
+      "parent_request_id": parentRequestID,
+      "request_bytes": String(data.count),
+      "response_bytes": "0",
+      "elapsed_ms": "0",
+      "route_before": routeBefore,
+      "route_after": routeBefore,
+      "error_type": "none",
+      "outcome": "pending",
+    ]
+    SwitchDiagnostics.record(
+      route == .app ? "config_app_apply_begin" : "config_ne_apply_begin",
+      fields: fields
+    )
+    defer {
+      fields["elapsed_ms"] = String(Int((ProcessInfo.processInfo.systemUptime - started) * 1000))
+      fields["route_after"] = diagnosticRoute(currentRoute)
+      SwitchDiagnostics.record(
+        route == .app ? "config_app_apply_end" : "config_ne_apply_end",
+        fields: fields
+      )
+    }
+    do {
+      let response = try await sendCoreMessage(data, route: route)
+      let success = methodResponseHasEmptyStringResult(response)
+      fields["response_bytes"] = String(response.utf8.count)
+      fields["outcome"] = success ? "success" : "not_empty_success"
+      fields["error_type"] = success ? "none" : "configuration_result_failed"
+      return response
+    } catch {
+      fields["outcome"] = "failure"
+      fields["error_type"] = "configuration_request_failed"
+      throw error
+    }
   }
 
   private func sendCoreMessage(
     _ data: Data,
     route: CoreRoute
   ) async throws -> String {
+    let started = ProcessInfo.processInfo.systemUptime
+    let requestID = SwitchDiagnostics.requestID(data)
+    let method = SwitchDiagnostics.method(data)
+    let routeBefore = diagnosticRoute(currentRoute)
+    func record(_ event: String, responseBytes: Int = 0, errorType: String = "none") {
+      SwitchDiagnostics.record(event, fields: [
+        "method": method,
+        "request_id": requestID,
+        "route": diagnosticRoute(route),
+        "route_before": routeBefore,
+        "route_after": diagnosticRoute(currentRoute),
+        "request_bytes": String(data.count),
+        "response_bytes": String(responseBytes),
+        "elapsed_ms": String(Int((ProcessInfo.processInfo.systemUptime - started) * 1000)),
+        "error_type": errorType,
+      ])
+    }
+    record("core_request_begin")
     switch route {
     case .app:
       guard let methodCall = String(data: data, encoding: .utf8) else {
+        record("core_request_failure", errorType: "invalid_utf8")
         throw CoreRoutingError(
           code: "invalid_method_call",
           message: "invalid method call"
@@ -277,15 +363,29 @@ final class CoreMessageRouter {
         }
       }
       guard let response else {
+        record("core_request_reply", errorType: "nil_response")
+        record("core_request_failure", errorType: "nil_response")
         throw CoreRoutingError(
           code: "empty_response",
           message: "empty app core response"
         )
       }
+      record("core_request_reply", responseBytes: response.utf8.count)
       return response
     case .networkExtension:
-      return try await tunnelController.sendProviderMessage(data)
+      do {
+        let response = try await tunnelController.sendProviderMessage(data)
+        record("core_request_reply", responseBytes: response.utf8.count)
+        return response
+      } catch {
+        record("core_request_failure", errorType: "network_extension_request_failed")
+        throw error
+      }
     }
+  }
+
+  private func diagnosticRoute(_ route: CoreRoute) -> String {
+    route == .networkExtension ? "network_extension" : "app"
   }
 
   private func route(

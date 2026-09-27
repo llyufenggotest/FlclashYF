@@ -8,6 +8,9 @@ on:
     paths:
       - ios/NECore/NativeResourceHeartbeat.swift
       - scripts/test_ios_heartbeat.py
+      - ios/Shared/SwitchDiagnostics.swift
+      - scripts/test_ios_switch_diagnostics.py
+      - scripts/test_ios_switch_wiring.py
       - .github/workflows/ios-heartbeat.yaml
   workflow_dispatch:
 
@@ -21,4 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Execute production Swift heartbeat regression
-        run: python3 scripts/test_ios_heartbeat.py
+        run: |
+          python3 scripts/test_ios_heartbeat.py
+          python3 scripts/test_ios_switch_diagnostics.py
+          python3 scripts/test_ios_switch_wiring.py

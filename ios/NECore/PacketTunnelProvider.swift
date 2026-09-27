@@ -32,11 +32,33 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
 
   private var suspendSupport = true
   private let resourceHeartbeat = NativeResourceHeartbeat()
+  private var memoryPressureSource: DispatchSourceMemoryPressure?
+
+  private func startMemoryPressureDiagnostics() {
+    memoryPressureSource?.cancel()
+    let source = DispatchSource.makeMemoryPressureSource(
+      eventMask: [.warning, .critical],
+      queue: DispatchQueue(label: "com.follow.clash.memory-pressure-diagnostics")
+    )
+    source.setEventHandler { [weak self] in
+      guard let source = self?.memoryPressureSource else { return }
+      SwitchDiagnostics.record("os_memory_pressure", fields: ["status": String(source.data.rawValue)])
+    }
+    memoryPressureSource = source
+    source.resume()
+  }
 
   override func startTunnel(
     options: [String: NSObject]?,
     completionHandler: @escaping (Error?) -> Void
   ) {
+    SwitchDiagnostics.record("tunnel_start", fields: ["attempt_id": SwitchDiagnostics.processID])
+    startMemoryPressureDiagnostics()
+    let originalCompletion = completionHandler
+    let completionHandler: (Error?) -> Void = { error in
+      SwitchDiagnostics.record("tunnel_start_complete", fields: ["success": String(error == nil)])
+      originalCompletion(error)
+    }
     NECoreSideloadCompatibilityLoader.loadIfPresent()
     logger.info("startTunnel begin")
     diag("startup begin")
@@ -172,6 +194,9 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     with reason: NEProviderStopReason,
     completionHandler: @escaping () -> Void
   ) {
+    SwitchDiagnostics.record("tunnel_stop", fields: ["reason": String(reason.rawValue)])
+    memoryPressureSource?.cancel()
+    memoryPressureSource = nil
     logger.info("stopTunnel reason=\(reason.rawValue, privacy: .public)")
     sharedStateStore.clearRunTime()
     reloadControlWidget()
@@ -218,19 +243,39 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     _ messageData: Data,
     completionHandler: ((Data?) -> Void)?
   ) {
+    let receivedAt = ProcessInfo.processInfo.systemUptime
+    let requestID = SwitchDiagnostics.requestID(messageData)
+    let method = SwitchDiagnostics.method(messageData)
+    SwitchDiagnostics.record("rpc_received", fields: [
+      "request_id": requestID, "method": method, "request_bytes": String(messageData.count),
+    ])
+    if method == "setupConfig" || method == "updateConfig" {
+      _ = configProbe()
+    }
     logger.debug(
       "handleAppMessage bytes=\(messageData.count, privacy: .public)"
     )
     eventQueue.markCoreResponsive()
     guard let completionHandler else {
+      SwitchDiagnostics.record("rpc_missing_completion", fields: ["request_id": requestID, "method": method])
       logger.warning("handleAppMessage ignored: missing completion handler")
       return
+    }
+    let reply: (Data?) -> Void = { response in
+      SwitchDiagnostics.record("rpc_reply", fields: [
+        "request_id": requestID, "method": method,
+        "response_bytes": String(response?.count ?? 0),
+        "status": response == nil ? "nil_response" : "response",
+        "elapsed_ms": String(Int((ProcessInfo.processInfo.systemUptime - receivedAt) * 1000)),
+      ])
+      completionHandler(response)
     }
 
     NECoreBridge.invokeMethod(messageData) { response in
       guard let response else {
+        SwitchDiagnostics.record("rpc_core_empty", fields: ["request_id": requestID, "method": method])
         self.logger.warning("handleAppMessage empty core response")
-        completionHandler(
+        reply(
           self.methodErrorResponse(
             messageData: messageData,
             code: "empty_response",
@@ -242,11 +287,12 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
       self.logger.debug(
         "handleAppMessage response bytes=\(response.count, privacy: .public)"
       )
-      completionHandler(response)
+      reply(response)
     }
   }
 
   override func sleep(completionHandler: @escaping () -> Void) {
+    SwitchDiagnostics.record("tunnel_sleep")
     if suspendSupport {
       logger.info("sleep: suspending tunnel")
       NECoreBridge.setSuspended(true)
@@ -255,6 +301,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
   }
 
   override func wake() {
+    SwitchDiagnostics.record("tunnel_wake")
     if suspendSupport {
       logger.info("wake: resuming tunnel")
       NECoreBridge.setSuspended(false)
@@ -310,6 +357,9 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     var bytes = 0
     var proxyNameLines = -1
     if exists, let data = try? Data(contentsOf: configURL) {
+      SwitchDiagnostics.record("config_snapshot", fields: [
+        "profile_digest": SwitchDiagnostics.requestID(data), "request_bytes": String(data.count),
+      ])
       bytes = data.count
       if let text = String(data: data, encoding: .utf8) {
         proxyNameLines = text
