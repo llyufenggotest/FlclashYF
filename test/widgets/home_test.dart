@@ -5,6 +5,7 @@ import 'package:fl_clash/l10n/l10n.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/pages/home.dart';
 import 'package:fl_clash/providers/providers.dart';
+import 'package:fl_clash/widgets/capsule_navigation.dart';
 import 'package:fl_clash/widgets/pop_scope.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -122,8 +123,8 @@ void main() {
 
     final context = tester.element(find.byType(HomePage));
     final container = ProviderScope.containerOf(context);
-    final navigationBar = tester.widget<NavigationBar>(
-      find.byType(NavigationBar),
+    final navigationBar = tester.widget<CapsuleNavigation>(
+      find.byType(CapsuleNavigation),
     );
 
     expect(container.read(currentPageLabelProvider), PageLabel.profiles);
@@ -141,8 +142,8 @@ void main() {
 
     final context = tester.element(find.byType(HomePage));
     final container = ProviderScope.containerOf(context);
-    final navigationBar = tester.widget<NavigationBar>(
-      find.byType(NavigationBar),
+    final navigationBar = tester.widget<CapsuleNavigation>(
+      find.byType(CapsuleNavigation),
     );
 
     expect(container.read(currentPageLabelProvider), PageLabel.tools);
@@ -165,8 +166,8 @@ void main() {
     await tester.drag(pageView, Offset(-pageWidth * 0.8, 0));
     await tester.pumpAndSettle();
 
-    final navigationBar = tester.widget<NavigationBar>(
-      find.byType(NavigationBar),
+    final navigationBar = tester.widget<CapsuleNavigation>(
+      find.byType(CapsuleNavigation),
     );
     expect(container.read(currentPageLabelProvider), PageLabel.dashboard);
     expect(navigationBar.selectedIndex, 0);

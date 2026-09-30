@@ -1,11 +1,18 @@
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/enum/enum.dart';
+import 'package:fl_clash/widgets/focus.dart';
 import 'package:material_ui/material_ui.dart';
 
 class CapsuleNavigationItem {
-  const CapsuleNavigationItem({required this.icon, required this.label});
+  const CapsuleNavigationItem({
+    required this.icon,
+    required this.label,
+    this.pageLabel,
+  });
 
   final Widget icon;
   final String label;
+  final PageLabel? pageLabel;
 }
 
 class CapsuleNavigation extends StatelessWidget {
@@ -88,32 +95,37 @@ class _CapsuleNavigationButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = selected ? colorScheme.primary : colorScheme.onSurfaceVariant;
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: item.label,
-      child: InkWell(
-        onTap: onPressed,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconTheme.merge(
-                data: IconThemeData(color: color, size: 24),
-                child: item.icon,
+    return NavDestinationAnchor(
+      label: item.pageLabel,
+      child: Focus(
+        child: Semantics(
+          button: true,
+          selected: selected,
+          label: item.label,
+          child: InkWell(
+            onTap: onPressed,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconTheme.merge(
+                    data: IconThemeData(color: color, size: 24),
+                    child: item.icon,
+                  ),
+                  const SizedBox(height: 2),
+                  Flexible(
+                    child: Text(
+                      item.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: textStyle?.copyWith(color: color),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 2),
-              Flexible(
-                child: Text(
-                  item.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: textStyle?.copyWith(color: color),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

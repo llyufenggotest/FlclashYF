@@ -124,6 +124,7 @@ class _HomeShell extends ConsumerWidget {
                     CapsuleNavigationItem(
                       icon: item.icon,
                       label: item.label.label,
+                      pageLabel: item.label,
                     ),
                 ],
                 onSelected: (index) {

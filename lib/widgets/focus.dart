@@ -181,13 +181,9 @@ class PageTraversalPolicy extends OrderedTraversalPolicy {
 }
 
 class NavDestinationAnchor extends StatelessWidget {
-  const NavDestinationAnchor({
-    super.key,
-    required this.label,
-    required this.child,
-  });
+  const NavDestinationAnchor({super.key, this.label, required this.child});
 
-  final PageLabel label;
+  final PageLabel? label;
   final Widget child;
 
   @override
@@ -236,7 +232,9 @@ bool focusIsInNavigation() {
   if (focusContext == null) {
     return false;
   }
-  return focusContext.findAncestorWidgetOfExactType<NavigationBar>() != null ||
+  return focusContext.findAncestorWidgetOfExactType<NavDestinationAnchor>() !=
+          null ||
+      focusContext.findAncestorWidgetOfExactType<NavigationBar>() != null ||
       focusContext.findAncestorWidgetOfExactType<NavigationRail>() != null;
 }
 
@@ -248,11 +246,20 @@ bool focusNavigationDestination(BuildContext context, PageLabel label) {
     }
     final widget = element.widget;
     if (widget is NavDestinationAnchor && widget.label == label) {
-      final node = Focus.maybeOf(element);
-      if (node != null && node.canRequestFocus) {
-        target = node;
-        return;
+      void findFocus(Element child) {
+        if (target != null) return;
+        if (child.widget is Focus) {
+          final node = Focus.maybeOf(child);
+          if (node != null && node.canRequestFocus) {
+            target = node;
+            return;
+          }
+        }
+        child.visitChildren(findFocus);
       }
+
+      element.visitChildren(findFocus);
+      if (target != null) return;
     }
     element.visitChildren(visit);
   }

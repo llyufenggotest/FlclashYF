@@ -21,7 +21,7 @@ void main() {
     await testDatabase.close();
   });
 
-  testWidgets('settings lists the profile template next to basic config', (
+  testWidgets('settings lists the profile template after advanced config', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -32,14 +32,14 @@ void main() {
     );
     await tester.pump();
 
-    final basic = find.text('Basic configuration');
+    final advanced = find.text('Advanced configuration');
     final template = find.text('Profile template');
-    expect(basic, findsOneWidget);
+    expect(advanced, findsOneWidget);
     expect(template, findsOneWidget);
 
-    final basicY = tester.getTopLeft(basic).dy;
+    final advancedY = tester.getTopLeft(advanced).dy;
     final templateY = tester.getTopLeft(template).dy;
-    expect(templateY, greaterThan(basicY));
+    expect(templateY, greaterThan(advancedY));
 
     await tester.tap(template);
     await tester.pump();

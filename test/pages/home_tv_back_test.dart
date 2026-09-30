@@ -4,6 +4,7 @@ import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/pages/home.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
+import 'package:fl_clash/widgets/capsule_navigation.dart';
 import 'package:fl_clash/widgets/focus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -101,7 +102,7 @@ void main() {
     _requestFocus(
       tester,
       find.descendant(
-        of: find.byType(NavigationBar),
+        of: find.byType(CapsuleNavigation),
         matching: find.byIcon(Icons.space_dashboard),
       ),
     );
@@ -239,7 +240,7 @@ Future<_Harness> _pumpHome(
     ),
   );
   await tester.pumpAndSettle();
-  expect(find.byType(NavigationBar), findsOneWidget);
+  expect(find.byType(CapsuleNavigation), findsOneWidget);
   return harness;
 }
 
