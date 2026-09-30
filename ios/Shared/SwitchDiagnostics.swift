@@ -33,7 +33,7 @@ final class SwitchDiagnostics: NSObject {
     "provider_request_begin", "provider_request_send", "provider_request_reply",
     "provider_request_failure", "core_active_check_failure", "config_ne_apply_skipped",
     "config_app_apply_begin", "config_app_apply_end", "config_ne_apply_begin", "config_ne_apply_end",
-    "tunnel_start_requested", "tunnel_stop_requested", "tunnel_reconfigure_begin",
+    "configuration_apply_state", "tunnel_start_requested", "tunnel_stop_requested", "tunnel_reconfigure_begin",
     "tunnel_reconfigure_end", "tunnel_reconfigure_failure",
   ]
   private static let phases: Set<String> = [

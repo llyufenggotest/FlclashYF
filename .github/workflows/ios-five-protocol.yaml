@@ -193,6 +193,7 @@ jobs:
         run: |
           python3 scripts/test_ios_heartbeat.py
           python3 scripts/test_ios_switch_diagnostics.py
+          python3 scripts/test_ios_provider_retry.py
           python3 scripts/test_ios_switch_wiring.py
       - name: Build IPA without Apple provisioning
         run: |

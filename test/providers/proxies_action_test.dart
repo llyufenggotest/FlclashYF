@@ -74,9 +74,9 @@ void main() {
       overrides: [
         coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
         profilesProvider.overrideWith(() => TestProfiles([?profile])),
-        currentProfileIdProvider.overrideWithBuild((_, _) => profile?.id),
       ],
     );
+    container.read(currentProfileIdProvider.notifier).value = profile?.id;
     addTearDown(container.dispose);
     return container;
   }
@@ -178,7 +178,7 @@ void main() {
     );
 
     test(
-      'clears the groups once retry is exhausted after core throws',
+      'keeps the last groups once retry is exhausted after core throws',
       () async {
         when(core.getProxies).thenThrow(StateError('core down'));
         final container = buildContainer(profile: _selectedProfile('HK-01'));
@@ -188,13 +188,53 @@ void main() {
 
         await actionOf(container).updateGroups();
 
-        expect(container.read(groupsProvider), isEmpty);
+        expect(container.read(groupsProvider).map((group) => group.name), [
+          'Stale',
+        ]);
         expect(container.read(currentProfileProvider)?.selectedMap, {
           'Proxy': 'HK-01',
         });
         verify(core.getProxies).called(3);
       },
     );
+
+    test('a stale profile response cannot replace the active groups', () async {
+      final release = Completer<ProxiesData>();
+      var calls = 0;
+      when(core.getProxies).thenAnswer((_) {
+        calls++;
+        if (calls == 1) {
+          return release.future;
+        }
+        return Future.value(const ProxiesData(proxies: {}, all: []));
+      });
+      final container = buildContainer(profile: _selectedProfile('HK-01'));
+      container.read(groupsProvider.notifier).value = [
+        _group('Current', const []),
+      ];
+
+      final refresh = actionOf(container).updateGroups();
+      await Future<void>.delayed(Duration.zero);
+      container.read(currentProfileIdProvider.notifier).value = null;
+      release.complete(
+        const ProxiesData(
+          all: ['Old', 'HK-01'],
+          proxies: {
+            'Old': {
+              'name': 'Old',
+              'type': 'Selector',
+              'all': ['HK-01'],
+            },
+            'HK-01': {'name': 'HK-01', 'type': 'ss'},
+          },
+        ),
+      );
+      await refresh;
+
+      expect(container.read(groupsProvider).map((group) => group.name), [
+        'Current',
+      ]);
+    });
 
     test('a core status change alone does not clear the groups', () {
       final container = buildContainer();

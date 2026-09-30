@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/log_buffer.dart';
 import 'package:fl_clash/common/native_log_export.dart';
+import 'package:fl_clash/core/method.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/plugins/service.dart';
@@ -138,8 +139,18 @@ class DnsQueries extends _$DnsQueries with AutoDisposeNotifierMixin {
 
 @Riverpod(keepAlive: true)
 class Providers extends _$Providers with AutoDisposeNotifierMixin {
+  int _syncGeneration = 0;
+  int? _publishedProfileId;
+
   @override
   List<ExternalProvider> build() {
+    ref.listen(currentProfileIdProvider, (previous, next) {
+      _syncGeneration++;
+      if (previous != next) {
+        _publishedProfileId = null;
+        value = [];
+      }
+    });
     return [];
   }
 
@@ -152,7 +163,39 @@ class Providers extends _$Providers with AutoDisposeNotifierMixin {
   }
 
   Future<void> syncProviders() async {
-    value = await ref.read(coreHandlerProvider).getExternalProviders();
+    final profileId = ref.read(currentProfileIdProvider);
+    final generation = _syncGeneration;
+    if (_publishedProfileId == null && generation == 0 && value.isNotEmpty) {
+      _publishedProfileId = profileId;
+    }
+    try {
+      final providers = await ref
+          .read(coreHandlerProvider)
+          .getExternalProviders();
+      if (generation != _syncGeneration ||
+          ref.read(currentProfileIdProvider) != profileId) {
+        return;
+      }
+      if (providers.isEmpty &&
+          value.isNotEmpty &&
+          _publishedProfileId == profileId) {
+        commonPrint.log(
+          'syncProviders: retaining last providers after empty read',
+          logLevel: LogLevel.debug,
+        );
+        return;
+      }
+      value = providers;
+      _publishedProfileId = profileId;
+    } catch (error) {
+      if (!isCoreUnavailableError(error)) {
+        rethrow;
+      }
+      commonPrint.log(
+        'syncProviders: retaining last providers while Core is unavailable',
+        logLevel: LogLevel.debug,
+      );
+    }
   }
 }
 

@@ -109,6 +109,23 @@ class SetupAction extends _$SetupAction {
   @protected
   Future<DateTime?> readServiceRunTime() async => service?.getRunTime();
 
+  Future<void> _hydrateRunningState() async {
+    await ref.read(proxiesActionProvider.notifier).updateGroups();
+    await ref.read(providersProvider.notifier).syncProviders();
+  }
+
+  Future<void> restoreForegroundState() async {
+    if (!shouldRestoreRunningService) {
+      return;
+    }
+    await _updateStartTime();
+    if (!_isRunning || ref.read(groupsProvider).isNotEmpty) {
+      return;
+    }
+    _setLocalRunning(true);
+    await globalState.safeRun(_hydrateRunningState);
+  }
+
   Future<void> initStatus() async {
     if (!globalState.needInitStatus) {
       commonPrint.log('init status cancel');
@@ -121,10 +138,7 @@ class SetupAction extends _$SetupAction {
     if (shouldRestoreRunningService && _isRunning) {
       globalState.needInitStatus = false;
       _setLocalRunning(true);
-      await globalState.safeRun(() async {
-        await ref.read(proxiesActionProvider.notifier).updateGroups();
-        await ref.read(providersProvider.notifier).syncProviders();
-      });
+      await globalState.safeRun(_hydrateRunningState);
       return;
     }
     final shouldRun = _isRunning || ref.read(appSettingProvider).autoRun;

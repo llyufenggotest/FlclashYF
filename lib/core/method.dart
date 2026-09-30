@@ -15,7 +15,6 @@ enum CoreMethod {
   changeProxy,
   getTraffic,
   getTotalTraffic,
-  getNodeTraffic,
   resetTraffic,
   asyncTestDelay,
   getConnections,
@@ -35,8 +34,6 @@ enum CoreMethod {
   stopLogNotify,
   startRequestNotify,
   stopRequestNotify,
-  startDnsNotify,
-  stopDnsNotify,
   startListener,
   stopListener,
   getMemory,
@@ -49,6 +46,7 @@ enum CoreMethod {
   generateAgeKeyPair,
   convertAgeSecretKeyToPublicKey,
   decryptAgeConfig,
+  convertUriSubscription,
 }
 
 class CoreMethodCall {
@@ -149,8 +147,14 @@ class CoreMethodException implements Exception {
     this.details,
   });
 
-  bool get isCoreUnavailable =>
-      const {'transport_disconnected', 'transport_error'}.contains(code);
+  bool get isCoreUnavailable => const {
+    'transport_disconnected',
+    'transport_error',
+    'network_extension_unavailable',
+    'network_extension_timeout',
+    'profile_switching',
+    'stale_profile',
+  }.contains(code);
 
   @override
   String toString() => 'CoreMethodException($code, $message, $details)';
@@ -164,4 +168,17 @@ LogLevel coreFailureLogLevel(Object? error) {
     return LogLevel.warning;
   }
   return error.isCoreUnavailable ? LogLevel.debug : LogLevel.warning;
+}
+
+/// True when the failure only means "the core could not answer right now".
+/// These are expected during stop, subscription switches, and extension
+/// reloads, so they must not be surfaced to the user as an error dialog.
+bool isCoreUnavailableError(Object? error) {
+  if (error is TimeoutException) {
+    return true;
+  }
+  if (error is CoreMethodException) {
+    return error.isCoreUnavailable;
+  }
+  return false;
 }

@@ -247,6 +247,41 @@ void main() {
     expect(core.calls, ['groups', 'providers']);
   });
 
+  test(
+    'foreground resume rehydrates a live tunnel without applying config',
+    () async {
+      container.read(groupsProvider.notifier).value = [];
+      container.read(providersProvider.notifier).value = [];
+
+      await action.restoreForegroundState();
+
+      expect(core.calls, ['groups', 'providers']);
+      expect(container.read(groupsProvider).single.name, 'Proxy');
+      expect(container.read(providersProvider).single.name, 'subscription');
+      expect(container.read(runTimeProvider), isNotNull);
+    },
+  );
+
+  test('foreground resume does nothing when the tunnel is stopped', () async {
+    action.runtime = null;
+
+    await action.restoreForegroundState();
+
+    expect(core.calls, isEmpty);
+    expect(container.read(runTimeProvider), isNull);
+  });
+
+  test('foreground resume keeps an already hydrated proxy page', () async {
+    container.read(groupsProvider.notifier).value = const [
+      Group(name: 'Existing', type: GroupType.Selector),
+    ];
+
+    await action.restoreForegroundState();
+
+    expect(core.calls, isEmpty);
+    expect(container.read(groupsProvider).single.name, 'Existing');
+  });
+
   test('completed restoration is not repeated', () async {
     await action.initStatus();
     core.calls.clear();
