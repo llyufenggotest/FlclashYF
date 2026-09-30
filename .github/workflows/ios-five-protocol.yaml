@@ -16,6 +16,7 @@ on:
       - main
       - integration/flclash-yf
       - integration/v0.8.126-yf
+      - integration/v0.8.127-yf
     tags:
       - 'v*'
 
