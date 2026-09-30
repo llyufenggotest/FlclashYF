@@ -98,6 +98,7 @@ class _CapsuleNavigationButton extends StatelessWidget {
     return NavDestinationAnchor(
       label: item.pageLabel,
       child: Focus(
+        skipTraversal: true,
         child: Semantics(
           button: true,
           selected: selected,
