@@ -133,11 +133,12 @@ class _LogsViewState extends ConsumerState<LogsView> {
   void _startListening() {
     if (_logListening) return;
     _logListening = true;
+    final revision = ref.read(logsProvider).revision;
     unawaited(
       _core.startLogNotify().then((logs) {
         if (!mounted ||
             !_logListening ||
-            ref.read(logsProvider.notifier).hasCleared) {
+            ref.read(logsProvider).revision != revision) {
           return;
         }
         ref
