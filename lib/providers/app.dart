@@ -29,8 +29,6 @@ class AuthorizedTunEnable extends _$AuthorizedTunEnable
 
 @Riverpod(keepAlive: true)
 class Logs extends _$Logs with AutoDisposeNotifierMixin {
-  bool hasCleared = false;
-
   @override
   FixedList<Log> build() {
     return LogBuffer();
@@ -66,7 +64,6 @@ class Logs extends _$Logs with AutoDisposeNotifierMixin {
     final nativeLogs = await nativeLogExport;
     await nativeLogs?.clear(cutoff);
     if (!ref.mounted) return;
-    hasCleared = true;
     value = LogBuffer(revision: state.revision + 1);
   }
 

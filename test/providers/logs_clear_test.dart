@@ -76,6 +76,5 @@ void main() {
       throwsA(isA<FileSystemException>()),
     );
     expect(container.read(logsProvider).list.single.payload, 'retained');
-    expect(notifier.hasCleared, isFalse);
   });
 }

@@ -100,6 +100,59 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('reopening after clear accepts a new Core backlog', (
+    tester,
+  ) async {
+    final core = _Core();
+    final firstBacklog = Completer<List<Log>>();
+    var startCount = 0;
+    when(() => core.startLogNotify()).thenAnswer((_) {
+      startCount++;
+      if (startCount == 1) return firstBacklog.future;
+      return Future.value([Log.app('post-clear backlog')]);
+    });
+    when(() => core.stopLogNotify()).thenAnswer((_) async {});
+    final container = ProviderContainer(
+      overrides: [
+        coreHandlerProvider.overrideWithValue(core),
+        coreStatusProvider.overrideWithBuild((_, _) => CoreStatus.connected),
+        viewSizeProvider.overrideWithBuild((_, _) => const Size(800, 600)),
+        patchClashConfigProvider.overrideWithValue(
+          const PatchClashConfig(logLevel: LogLevel.debug),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    globalState.container = container;
+    globalState.isBackground.value = false;
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const TestApp(child: LogsView()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final l10n = tester.element(find.byType(LogsView)).appLocalizations;
+    await tester.tap(find.byTooltip(l10n.clear));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(l10n.confirm));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    firstBacklog.complete([Log.app('pre-clear backlog')]);
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const TestApp(child: LogsView()),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 301));
+    await tester.pumpAndSettle();
+    expect(find.text('pre-clear backlog'), findsNothing);
+    expect(find.text('post-clear backlog'), findsOneWidget);
+  });
+
   testWidgets(
     'clear confirms, cancels safely and clears paused retained logs',
     (tester) async {
