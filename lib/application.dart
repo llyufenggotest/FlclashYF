@@ -15,7 +15,6 @@ import 'package:fl_clash/plugins/app.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'pages/pages.dart';
@@ -56,6 +55,10 @@ Widget buildManagerStack({
   );
 }
 
+const _tooltipTheme = TooltipThemeData(
+  waitDuration: Duration(milliseconds: 500),
+);
+
 PageTransitionsTheme buildPageTransitionsTheme({
   required bool predictiveBack,
   required bool isMobile,
@@ -71,7 +74,8 @@ PageTransitionsTheme buildPageTransitionsTheme({
       TargetPlatform.windows: pageTransitions,
       TargetPlatform.linux: pageTransitions,
       TargetPlatform.macOS: pageTransitions,
-      TargetPlatform.iOS: commonCupertinoPageTransitions,
+      TargetPlatform.iOS:
+          const PageTransitionsTheme().builders[TargetPlatform.iOS]!,
     },
   );
 }
@@ -104,7 +108,6 @@ class ApplicationState extends ConsumerState<Application> {
       profilesProvider,
       (_, _) => _profileAutoUpdater.reschedule(),
     );
-    SystemNavigator.setFrameworkHandlesBack(true);
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
       if (globalState.navigatorKey.currentContext != null) {
         await bootstrap.attach();
@@ -191,7 +194,6 @@ class ApplicationState extends ConsumerState<Application> {
               child: MaterialApp(
                 debugShowCheckedModeBanner: false,
                 navigatorKey: globalState.navigatorKey,
-                onNavigationNotification: (_) => true,
                 localizationsDelegates: const [
                   AppLocalizations.delegate,
                   ...GlobalMaterialLocalizations.delegates,
@@ -221,6 +223,7 @@ class ApplicationState extends ConsumerState<Application> {
                   useMaterial3: true,
                   pageTransitionsTheme: pageTransitionsTheme,
                   colorScheme: _getAppColorScheme(brightness: Brightness.light),
+                  tooltipTheme: _tooltipTheme,
                 ).withAppShapes,
                 darkTheme: ThemeData(
                   useMaterial3: true,
@@ -228,6 +231,7 @@ class ApplicationState extends ConsumerState<Application> {
                   colorScheme: _getAppColorScheme(
                     brightness: Brightness.dark,
                   ).toPureBlack(themeProps.pureBlack),
+                  tooltipTheme: _tooltipTheme,
                 ).withAppShapes,
                 home: child!,
               ),

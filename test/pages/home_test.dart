@@ -8,7 +8,7 @@ import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/pages/home.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
-import 'package:fl_clash/views/application_setting.dart';
+import 'package:fl_clash/views/config/general.dart';
 import 'package:fl_clash/views/tools.dart';
 import 'package:fl_clash/widgets/capsule_navigation.dart';
 import 'package:fl_clash/widgets/widgets.dart';
@@ -21,6 +21,87 @@ import 'package:flutter_test/flutter_test.dart';
 import '../helpers/test_app.dart';
 
 void main() {
+  for (final isMobile in [true, false]) {
+    testWidgets('Android root back ownership in mobile=$isMobile layout', (
+      tester,
+    ) async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      final calls = <bool>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'SystemNavigator.setFrameworkHandlesBack') {
+            calls.add(call.arguments as bool);
+          }
+          return null;
+        },
+      );
+      addTearDown(() {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        );
+      });
+      final container = ProviderContainer(
+        overrides: [isMobileViewProvider.overrideWithValue(isMobile)],
+      );
+      addTearDown(container.dispose);
+      final nestedKey = GlobalKey<NavigatorState>();
+      final guarded = ValueNotifier(false);
+      addTearDown(guarded.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: HomeBackScopeContainer(
+              child: Navigator(
+                key: nestedKey,
+                onGenerateRoute: (_) => MaterialPageRoute<void>(
+                  builder: (_) => ValueListenableBuilder(
+                    valueListenable: guarded,
+                    builder: (_, value, _) => PopScope(
+                      canPop: !value,
+                      child: const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(calls.last, isFalse);
+
+      guarded.value = true;
+      await tester.pumpAndSettle();
+      expect(calls.last, isTrue);
+      guarded.value = false;
+      await tester.pumpAndSettle();
+      expect(calls.last, isFalse);
+
+      nestedKey.currentState!.push(
+        MaterialPageRoute<void>(builder: (_) => const SizedBox.shrink()),
+      );
+      await tester.pumpAndSettle();
+      expect(calls.last, isTrue);
+      nestedKey.currentState!.pop();
+      await tester.pumpAndSettle();
+      expect(calls.last, isFalse);
+
+      container
+          .read(appSettingProvider.notifier)
+          .update((state) => state.copyWith(minimizeOnExit: false));
+      await tester.pumpAndSettle();
+      expect(calls.last, isTrue);
+      container
+          .read(appSettingProvider.notifier)
+          .update((state) => state.copyWith(minimizeOnExit: true));
+      await tester.pumpAndSettle();
+      expect(calls.last, isFalse);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+  }
+
   setUp(() {
     navigationPort = navigation;
     addTearDown(() => navigationPort = null);
@@ -387,27 +468,38 @@ void main() {
       );
       await tester.pump();
 
-      final applicationItem = find.text('Application');
+      final generalItem = find.text('General');
       await tester.scrollUntilVisible(
-        applicationItem,
+        generalItem,
         500,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(applicationItem);
+      await tester.tap(generalItem);
       await tester.pumpAndSettle();
-      expect(find.byType(ApplicationSettingView), findsOneWidget);
+      expect(find.byType(GeneralView), findsOneWidget);
 
       final logItem = find.text('Logcat');
+      final generalScrollable = find.descendant(
+        of: find.byType(GeneralView),
+        matching: find.byType(Scrollable),
+      );
       await tester.scrollUntilVisible(
         logItem,
         500,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: generalScrollable,
       );
+      final overflow =
+          tester.getRect(logItem).bottom -
+          tester.view.physicalSize.height / tester.view.devicePixelRatio;
+      if (overflow > 0) {
+        await tester.drag(generalScrollable, Offset(0, -(overflow + 24)));
+        await tester.pump();
+      }
       await tester.tap(logItem);
       await tester.pumpAndSettle();
 
       expect(container.read(appSettingProvider).openLogs, isTrue);
-      expect(find.byType(ApplicationSettingView), findsOneWidget);
+      expect(find.byType(GeneralView), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

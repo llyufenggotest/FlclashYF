@@ -213,8 +213,14 @@ void TrayPlugin::IndexMenuItems(flutter::EncodableList& items) {
 }
 
 void TrayPlugin::MaterializeMenu(HMENU menu) {
+  open_menus_.insert(menu);
   const auto deferred = deferred_menus_.find(menu);
   if (deferred == deferred_menus_.end()) {
+    for (const auto& [key, location] : menu_items_) {
+      if (location.menu == menu) {
+        ApplyMenuItemUpdate(*menu_entries_.at(key));
+      }
+    }
     return;
   }
   const auto* items = deferred->second;
@@ -352,6 +358,7 @@ void TrayPlugin::SetMenu(const flutter::EncodableList& items) {
     menu_ = ::CreatePopupMenu();
   }
   persistent_menu_items_.clear();
+  open_menus_.clear();
   deferred_menus_.clear();
   menu_entries_.clear();
   menu_model_ = items;
@@ -375,6 +382,7 @@ void TrayPlugin::Hide() {
   }
   menu_items_.clear();
   deferred_menus_.clear();
+  open_menus_.clear();
   menu_entries_.clear();
   menu_model_.clear();
   persistent_menu_items_.clear();
@@ -415,10 +423,12 @@ bool TrayPlugin::OpenMenu(bool bring_app_to_front) {
   ::SetForegroundWindow(window);
   TrayMenuSession session(window, persistent_menu_items_,
                            [this](int command) { SendMenuSelection(command); },
-                           [this](HMENU menu) { MaterializeMenu(menu); });
+                           [this](HMENU menu) { MaterializeMenu(menu); },
+                           [this](HMENU menu) { open_menus_.erase(menu); });
   const int command = ::TrackPopupMenu(
       menu_, TPM_BOTTOMALIGN | TPM_LEFTALIGN | TPM_RETURNCMD | TPM_RIGHTBUTTON,
       cursor.x, cursor.y, 0, window, nullptr);
+  open_menus_.clear();
   ::PostMessageW(window, WM_NULL, 0, 0);
 
   if (command != 0) {
@@ -451,7 +461,8 @@ bool TrayPlugin::ApplyMenuItemUpdate(
     return false;
   }
   const auto location = menu_items_.find(*key);
-  if (location == menu_items_.end()) {
+  if (location == menu_items_.end() ||
+      open_menus_.count(location->second.menu) == 0) {
     UpdateMenuEntry(*entry->second, arguments);
     return true;
   }

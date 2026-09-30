@@ -4,9 +4,12 @@ import 'dart:math';
 import 'package:defer_pointer/defer_pointer.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/widgets/activate_box.dart';
+import 'package:fl_clash/widgets/card.dart';
 import 'package:fl_clash/widgets/grid.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
+import 'package:flutter/services.dart';
 
 /// Kept in one notifier so a builder that reads part of it also rebuilds when
 /// the rest changes.
@@ -41,9 +44,9 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
 
   static const _hoverDelay = Duration(milliseconds: 120);
 
-  /// Matches the default CommonCard shape, so the lift's shadow traces the card
-  /// it is drawn behind.
-  static const _cardShape = AppShape.md;
+  /// Dashboard tiles pass [AppCorner.lg]. The shadow is a separate box behind
+  /// the tile, so it has to name that shape itself.
+  static const _cardShape = AppShape.lg;
 
   late final ValueNotifier<List<GridItem>> _childrenNotifier;
   List<GridItem> children = [];
@@ -59,6 +62,7 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
 
   /// One stable key per slot, so item elements survive a reorder.
   final List<GlobalKey> _itemKeys = [];
+  final List<FocusNode> _itemFocusNodes = [];
 
   Size _containerSize = Size.zero;
   int _targetIndex = -1;
@@ -74,8 +78,16 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
   Timer? _hoverTimer;
 
   final ValueNotifier<_DragState> _dragNotifier = ValueNotifier(_idleDrag);
+  int? _heldIndex;
+  int? _liftIndex;
+  int? _topIndex;
+  int? _fadeOutIndex;
+  List<GridItem>? _heldOrigin;
+  bool _heldMoved = false;
 
   late AnimationController _transformController;
+  late CurvedAnimation _reorderCurveAnimation;
+  late AnimationController _liftController;
   Map<int, Animation<Offset>> _transformAnimationMap = {};
 
   Future<bool> get isTransformCompleter =>
@@ -106,7 +118,13 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
     _transformController = AnimationController(
       vsync: this,
       duration: _reorderDuration,
+    )..addStatusListener(_handleReorderStatus);
+    _reorderCurveAnimation = CurvedAnimation(
+      parent: _transformController,
+      curve: _reorderCurve,
     );
+    _liftController = AnimationController(vsync: this, duration: midDuration)
+      ..addStatusListener(_handleLiftStatus);
     _resetDragState();
   }
 
@@ -160,10 +178,16 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
     children = const [];
     _pendingChildren = null;
     _itemKeys.clear();
+    for (final node in _itemFocusNodes) {
+      node.dispose();
+    }
+    _itemFocusNodes.clear();
     _sizes = [];
     _offsets = [];
     _transformAnimationMap.clear();
     _landingAnimation = null;
+    _reorderCurveAnimation.dispose();
+    _liftController.dispose();
     _landingController.dispose();
     _shakeController.dispose();
     _transformController.dispose();
@@ -173,7 +197,135 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
   }
 
   void handleAdd(GridItem gridItem) {
+    _clearHold();
+    _lowerLift();
+    _topIndex = null;
     _childrenNotifier.value = [..._childrenNotifier.value, gridItem];
+  }
+
+  bool get isHolding => _heldIndex != null;
+
+  /// Restores the order from before the keyboard hold. Returns false when
+  /// nothing is held, so the edit layer can exit instead.
+  bool cancelHeldMove() {
+    final origin = _heldOrigin;
+    final held = _heldIndex;
+    if (held == null || origin == null) {
+      return false;
+    }
+    final item = _childrenNotifier.value[held];
+    final restoreIndex = origin.indexOf(item);
+    _clearHold();
+    if (restoreIndex >= 0) {
+      _liftIndex = restoreIndex;
+      _topIndex = restoreIndex;
+    }
+    _lowerLift();
+    _slideChildren(List<GridItem>.of(origin));
+    if (!_transformController.isAnimating) {
+      setState(() => _topIndex = null);
+    }
+    if (restoreIndex >= 0) {
+      _requestSlotFocus(restoreIndex);
+    }
+    return true;
+  }
+
+  void _clearHold() {
+    _heldIndex = null;
+    _heldOrigin = null;
+    _heldMoved = false;
+  }
+
+  void _handleReorderStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed || !mounted || _heldIndex != null) {
+      return;
+    }
+    if (_topIndex == null) {
+      return;
+    }
+    setState(() => _topIndex = null);
+  }
+
+  void _handleLiftStatus(AnimationStatus status) {
+    if (status != AnimationStatus.dismissed || !mounted || _heldIndex != null) {
+      return;
+    }
+    if (_liftIndex == null) {
+      return;
+    }
+    setState(() => _liftIndex = null);
+  }
+
+  void _raiseLift(int index) {
+    _liftIndex = index;
+    _liftController.forward();
+  }
+
+  void _lowerLift() {
+    if (_liftController.value == 0) {
+      _liftIndex = null;
+      return;
+    }
+    _liftController.reverse();
+  }
+
+  bool _ensureSlotMetrics() {
+    if (_transformController.isAnimating &&
+        _sizes.length == length &&
+        _offsets.length == length &&
+        !_containerSize.isEmpty) {
+      return true;
+    }
+    return _captureLayout();
+  }
+
+  /// Commits [next] immediately and slides from the pixels on screen, so a
+  /// second move can start from the in-flight translation.
+  void _slideChildren(List<GridItem> next) {
+    final current = _childrenNotifier.value;
+    if (!listEquals(current, next)) {
+      if (_ensureSlotMetrics() &&
+          _sizes.length == current.length &&
+          _offsets.length == current.length) {
+        final visuals = <GridItem, Offset>{
+          for (var i = 0; i < current.length; i++)
+            current[i]:
+                _offsets[i] + (_transformAnimationMap[i]?.value ?? Offset.zero),
+        };
+        final sizes = <GridItem, Size>{
+          for (var i = 0; i < current.length; i++) current[i]: _sizes[i],
+        };
+        final nextSizes = [for (final item in next) sizes[item]!];
+        final geometry = _packSlots(next, nextSizes);
+        final newOffsets = <Offset>[
+          for (final slot in geometry.slots)
+            Offset(slot.crossAxisIndex * geometry.stride, slot.mainAxisOffset),
+        ];
+        final map = <int, Animation<Offset>>{};
+        for (var i = 0; i < next.length; i++) {
+          final begin = visuals[next[i]]! - newOffsets[i];
+          if (begin.distance < 0.5) {
+            continue;
+          }
+          map[i] = Tween<Offset>(
+            begin: begin,
+            end: Offset.zero,
+          ).animate(_reorderCurveAnimation);
+        }
+        _offsets = newOffsets;
+        _sizes = nextSizes;
+        _transformAnimationMap = map;
+        if (map.isNotEmpty) {
+          _transformController.forward(from: 0);
+        } else {
+          _transformController.value = 0;
+        }
+      } else {
+        _transformAnimationMap = {};
+      }
+    }
+    _childrenNotifier.value = next;
   }
 
   void _stopAutoScroll() {
@@ -194,6 +346,12 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
       _itemKeys.add(
         GlobalKey(debugLabel: 'super_grid_item_${_itemKeys.length}'),
       );
+    }
+    while (_itemFocusNodes.length < length) {
+      _itemFocusNodes.add(FocusNode());
+    }
+    while (_itemFocusNodes.length > length) {
+      _itemFocusNodes.removeLast().dispose();
     }
     if (_itemKeys.length > length) {
       _itemKeys.removeRange(length, _itemKeys.length);
@@ -239,6 +397,17 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
     return true;
   }
 
+  GridGeometry _packSlots(List<GridItem> items, List<Size> sizes) {
+    return packGridSlots(
+      crossAxisCellCounts: [for (final item in items) item.crossAxisCellCount],
+      mainAxisExtents: [for (final size in sizes) size.height],
+      crossAxisCount: crossCount,
+      crossAxisExtent: _containerSize.width,
+      crossAxisSpacing: widget.crossAxisSpacing,
+      mainAxisSpacing: widget.mainAxisSpacing,
+    );
+  }
+
   Future<bool> _transform() async {
     if (_sizes.length != length ||
         _offsets.length != length ||
@@ -246,23 +415,11 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
       return false;
     }
     final items = _childrenNotifier.value;
-    final geometry = packGridSlots(
-      crossAxisCellCounts: [
-        for (final index in _tempIndexList) items[index].crossAxisCellCount,
-      ],
-      mainAxisExtents: [
-        for (final index in _tempIndexList) _sizes[index].height,
-      ],
-      crossAxisCount: crossCount,
-      crossAxisExtent: _containerSize.width,
-      crossAxisSpacing: widget.crossAxisSpacing,
-      mainAxisSpacing: widget.mainAxisSpacing,
+    final geometry = _packSlots(
+      [for (final index in _tempIndexList) items[index]],
+      [for (final index in _tempIndexList) _sizes[index]],
     );
 
-    final transformCurve = CurvedAnimation(
-      parent: _transformController,
-      curve: _reorderCurve,
-    );
     final transformAnimationMap = <int, Animation<Offset>>{};
     for (var slotIndex = 0; slotIndex < _tempIndexList.length; slotIndex++) {
       final index = _tempIndexList[slotIndex];
@@ -279,7 +436,7 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
         // jump back to its resting place.
         begin: _transformAnimationMap[index]?.value ?? Offset.zero,
         end: nextOffset - _offsets[index],
-      ).animate(transformCurve);
+      ).animate(_reorderCurveAnimation);
     }
     _transformAnimationMap = transformAnimationMap;
 
@@ -292,6 +449,10 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
   }
 
   void _handleDragStarted(int index) {
+    _clearHold();
+    _liftController.stop();
+    _liftIndex = null;
+    _topIndex = null;
     _resetDragState();
     if (!_captureLayout()) {
       return;
@@ -333,8 +494,8 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
     nextChildren.insert(_targetIndex, nextChildren.removeAt(dragIndex));
     children = nextChildren;
 
-    const tolerance = Tolerance(distance: 0.001, velocity: 0.01);
-    const spring = SpringDescription(mass: 1, stiffness: 180, damping: 18);
+    const tolerance = Tolerance(distance: 0.1, velocity: 0.1);
+    const spring = SpringDescription(mass: 1, stiffness: 720, damping: 36);
     final simulation = SpringSimulation(spring, 0, 1, 0, tolerance: tolerance);
     _landingAnimation = Tween<Offset>(
       begin: details.offset - _parentOffset,
@@ -412,7 +573,13 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
     if (_pendingChildren != null || _isDragging) {
       return;
     }
-    if (!_captureLayout()) {
+    _fadeOutIndex = null;
+    _clearHold();
+    _liftController.stop();
+    _liftIndex = null;
+    _topIndex = null;
+    if (!_ensureSlotMetrics()) {
+      setState(() {});
       return;
     }
     final slotIndex = _tempIndexList.indexOf(index);
@@ -431,6 +598,153 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
     _childrenNotifier.value = nextChildren;
     _pendingChildren = null;
     _resetDragState();
+  }
+
+  void _toggleHold(int index) {
+    if (_isDragging || _pendingChildren != null || _fadeOutIndex != null) {
+      return;
+    }
+    if (_heldIndex == null) {
+      _heldOrigin = List<GridItem>.of(_childrenNotifier.value);
+      _heldIndex = index;
+      _heldMoved = false;
+      _topIndex = index;
+      _raiseLift(index);
+      setState(() {});
+      _requestSlotFocus(index);
+      return;
+    }
+    if (_heldIndex != index) {
+      return;
+    }
+    if (_heldMoved) {
+      _clearHold();
+      _lowerLift();
+      if (!_transformController.isAnimating) {
+        _topIndex = null;
+      }
+      setState(() {});
+      return;
+    }
+    _clearHold();
+    setState(() => _fadeOutIndex = index);
+  }
+
+  KeyEventResult _onGridKey(FocusNode node, KeyEvent event) {
+    if (_heldIndex == null ||
+        (event is! KeyDownEvent && event is! KeyRepeatEvent)) {
+      return KeyEventResult.ignored;
+    }
+    final direction = switch (event.logicalKey) {
+      LogicalKeyboardKey.arrowRight => TraversalDirection.right,
+      LogicalKeyboardKey.arrowLeft => TraversalDirection.left,
+      LogicalKeyboardKey.arrowDown => TraversalDirection.down,
+      LogicalKeyboardKey.arrowUp => TraversalDirection.up,
+      _ => null,
+    };
+    if (direction == null) {
+      if (event.logicalKey == LogicalKeyboardKey.tab) {
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+    _moveHeld(direction);
+    return KeyEventResult.handled;
+  }
+
+  void _moveHeld(TraversalDirection direction) {
+    final from = _heldIndex;
+    if (from == null) {
+      return;
+    }
+    final target = _neighborIndex(from, direction);
+    if (target == null || target == from) {
+      return;
+    }
+    _heldMoved = true;
+    final next = List<GridItem>.of(_childrenNotifier.value);
+    final item = next[from];
+    next[from] = next[target];
+    next[target] = item;
+    _heldIndex = target;
+    _liftIndex = target;
+    _topIndex = target;
+    _slideChildren(next);
+    _requestSlotFocus(target);
+  }
+
+  int? _neighborIndex(int from, TraversalDirection direction) {
+    if (!_ensureSlotMetrics()) {
+      return null;
+    }
+    final items = _childrenNotifier.value;
+    final geometry = _packSlots(items, _sizes);
+    if (from < 0 || from >= geometry.slots.length) {
+      return null;
+    }
+    final heldSlot = geometry.slots[from];
+    final heldCross = heldSlot.crossAxisIndex.toDouble();
+    final heldSpan = items[from].crossAxisCellCount.clamp(1, crossCount);
+    final heldMain = heldSlot.mainAxisOffset;
+    final heldMainEnd = heldMain + _sizes[from].height;
+    int? best;
+    var bestPrimary = double.infinity;
+    var bestSecondary = double.infinity;
+    for (var index = 0; index < geometry.slots.length; index++) {
+      if (index == from) {
+        continue;
+      }
+      final slot = geometry.slots[index];
+      final span = items[index].crossAxisCellCount.clamp(1, crossCount);
+      final cross = slot.crossAxisIndex.toDouble();
+      final crossEnd = cross + span;
+      final main = slot.mainAxisOffset;
+      final mainEnd = main + _sizes[index].height;
+      final primary = switch (direction) {
+        TraversalDirection.right => cross - (heldCross + heldSpan),
+        TraversalDirection.left => heldCross - crossEnd,
+        TraversalDirection.down => main - heldMainEnd,
+        TraversalDirection.up => heldMain - mainEnd,
+      };
+      final secondary = switch (direction) {
+        TraversalDirection.right ||
+        TraversalDirection.left => (main - heldMain).abs(),
+        TraversalDirection.down ||
+        TraversalDirection.up => (cross - heldCross).abs(),
+      };
+      if (primary < -0.5) {
+        continue;
+      }
+      if (primary < bestPrimary - 0.5 ||
+          (primary <= bestPrimary + 0.5 && secondary < bestSecondary)) {
+        best = index;
+        bestPrimary = primary;
+        bestSecondary = secondary;
+      }
+    }
+    return best;
+  }
+
+  void _requestSlotFocus(int index) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && index >= 0 && index < _itemFocusNodes.length) {
+        _itemFocusNodes[index].requestFocus();
+      }
+    });
+  }
+
+  /// A carried card hides every other close button. The keyboard hold keeps
+  /// its own until the order changes; the pointer preview has none, so a drag
+  /// shows none.
+  bool _showsDelete(int index, _DragState drag) {
+    if (drag.index != -1) {
+      return false;
+    }
+    final held = _heldIndex;
+    if (held == null) {
+      return true;
+    }
+    return held == index && !_heldMoved;
   }
 
   /// [t] is 1 while the item is held and eases to 0 as it settles, so the drag
@@ -463,35 +777,27 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
   }
 
   Widget _buildTransform(Widget rawChild, int index) {
-    return ValueListenableBuilder(
-      valueListenable: _dragNotifier,
-      builder: (_, drag, child) {
-        // The landing widget paints it on the way home; hold its space open.
-        if (drag.landing && drag.index == index) {
-          return _buildDragSizeBox(const SizedBox.shrink());
-        }
-        return child!;
+    return AnimatedBuilder(
+      animation: _transformController.view,
+      builder: (_, child) {
+        return Transform.translate(
+          offset: _transformAnimationMap[index]?.value ?? Offset.zero,
+          child: child,
+        );
       },
-      child: AnimatedBuilder(
-        animation: _transformController.view,
-        builder: (_, child) {
-          return Transform.translate(
-            offset: _transformAnimationMap[index]?.value ?? Offset.zero,
-            child: child,
-          );
-        },
-        child: rawChild,
-      ),
+      child: rawChild,
     );
   }
 
-  Widget _buildShake(Widget child, int index) {
+  Widget _buildShake(Widget child, int index, {required bool active}) {
     return AnimatedBuilder(
       animation: _shakeController,
       builder: (_, child) {
         // An irregular phase step keeps neighbours from shaking in unison.
         final phase = index * 1.7;
-        final angle = sin(_shakeController.value * 2 * pi + phase) * 0.01;
+        final angle = active
+            ? sin(_shakeController.value * 2 * pi + phase) * 0.01
+            : 0.0;
         return Transform.rotate(angle: angle, child: child!);
       },
       child: child,
@@ -516,21 +822,13 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
       },
     );
 
-    final decoratedTarget = ValueListenableBuilder(
-      valueListenable: _dragNotifier,
-      builder: (_, drag, child) {
-        if (drag.landing || drag.index == index) {
-          return child!;
-        }
-        return _buildShake(
-          _DeletableContainer(
-            onDelete: () {
-              _handleDelete(index);
-            },
-            child: child!,
-          ),
-          index,
-        );
+    final liftedCard = AnimatedBuilder(
+      animation: _liftController,
+      builder: (_, child) {
+        final t = _liftIndex == index
+            ? Curves.easeInOutCubic.transform(_liftController.value)
+            : 0.0;
+        return _buildLiftedSurface(child!, t);
       },
       child: target,
     );
@@ -539,7 +837,7 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
     void onDragUpdate(DragUpdateDetails details) => _handleDragUpdate(details);
     void onDragEnd(DraggableDetails details) => _handleDragEnd(details);
 
-    return system.isDesktop
+    final draggable = system.isDesktop
         ? Draggable(
             childWhenDragging: childWhenDragging,
             data: index,
@@ -547,7 +845,7 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
             onDragStarted: onDragStarted,
             onDragUpdate: onDragUpdate,
             onDragEnd: onDragEnd,
-            child: decoratedTarget,
+            child: liftedCard,
           )
         : LongPressDraggable(
             childWhenDragging: childWhenDragging,
@@ -556,8 +854,39 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
             onDragStarted: onDragStarted,
             onDragUpdate: onDragUpdate,
             onDragEnd: onDragEnd,
-            child: decoratedTarget,
+            child: liftedCard,
           );
+
+    return ValueListenableBuilder(
+      valueListenable: _dragNotifier,
+      builder: (_, drag, child) {
+        // Keep this element in place for the whole drag. The ghost and the
+        // landing placeholder replace only the card, so the close button can
+        // finish fading out and fade back in when the card settles.
+        final slot = drag.landing && drag.index == index
+            ? _buildDragSizeBox(const SizedBox.shrink())
+            : child!;
+        return _buildShake(
+          _DeletableContainer(
+            focusNode: _itemFocusNodes[index],
+            content: item,
+            showDelete: _showsDelete(index, drag),
+            deleteArmed: _heldIndex == index && !_heldMoved,
+            fadeOut: _fadeOutIndex == index,
+            onDelete: () {
+              _handleDelete(index);
+            },
+            onActivate: () {
+              _toggleHold(index);
+            },
+            child: slot,
+          ),
+          index,
+          active: !drag.landing,
+        );
+      },
+      child: draggable,
+    );
   }
 
   Widget _builderItem(int index) {
@@ -627,45 +956,66 @@ class SuperGridState extends State<SuperGrid> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return DeferredPointerHandler(
-      // Delete buttons sit outside their item's bounds and the landing widget
-      // casts a shadow past the grid, so nothing here may be clipped.
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          ValueListenableBuilder(
-            valueListenable: _dragNotifier,
-            builder: (_, drag, child) {
-              // Freeze interaction with the grid while an item is landing.
-              return drag.landing ? ActivateBox(child: child!) : child!;
-            },
-            child: ValueListenableBuilder(
-              valueListenable: _childrenNotifier,
-              builder: (_, children, _) {
-                return Grid(
-                  axisDirection: AxisDirection.down,
-                  crossAxisCount: crossCount,
-                  crossAxisSpacing: widget.crossAxisSpacing,
-                  mainAxisSpacing: widget.mainAxisSpacing,
-                  children: [
-                    for (int i = 0; i < children.length; i++) _builderItem(i),
-                  ],
-                );
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onKeyEvent: _onGridKey,
+      child: DeferredPointerHandler(
+        // Delete buttons sit outside their item's bounds and the landing widget
+        // casts a shadow past the grid, so nothing here may be clipped.
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            ValueListenableBuilder(
+              valueListenable: _dragNotifier,
+              builder: (_, drag, child) {
+                // Freeze interaction with the grid while an item is landing.
+                return drag.landing ? ActivateBox(child: child!) : child!;
               },
+              child: ValueListenableBuilder(
+                valueListenable: _childrenNotifier,
+                builder: (_, children, _) {
+                  return Grid(
+                    axisDirection: AxisDirection.down,
+                    crossAxisCount: crossCount,
+                    crossAxisSpacing: widget.crossAxisSpacing,
+                    mainAxisSpacing: widget.mainAxisSpacing,
+                    foregroundIndex: _topIndex,
+                    children: [
+                      for (int i = 0; i < children.length; i++) _builderItem(i),
+                    ],
+                  );
+                },
+              ),
             ),
-          ),
-          _buildLandingWidget(),
-        ],
+            _buildLandingWidget(),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _DeletableContainer extends StatefulWidget {
+  final FocusNode focusNode;
   final Widget child;
+  final Widget content;
+  final bool showDelete;
+  final bool deleteArmed;
+  final bool fadeOut;
   final VoidCallback onDelete;
+  final VoidCallback onActivate;
 
-  const _DeletableContainer({required this.child, required this.onDelete});
+  const _DeletableContainer({
+    required this.focusNode,
+    required this.content,
+    required this.showDelete,
+    required this.deleteArmed,
+    required this.fadeOut,
+    required this.onDelete,
+    required this.onActivate,
+    required this.child,
+  });
 
   @override
   State<_DeletableContainer> createState() => _DeletableContainerState();
@@ -676,12 +1026,12 @@ class _DeletableContainerState extends State<_DeletableContainer>
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
-  bool _deleteButtonVisible = true;
+  bool _deleting = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: commonDuration);
+    _controller = AnimationController(vsync: this, duration: midDuration);
     _scaleAnimation = Tween(
       begin: 1.0,
       end: 0.4,
@@ -695,19 +1045,32 @@ class _DeletableContainerState extends State<_DeletableContainer>
   @override
   void didUpdateWidget(_DeletableContainer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.child != widget.child) {
+    // A parent rebuild builds a new child widget. Only a different card resets.
+    if (!identical(oldWidget.content, widget.content)) {
       setState(() {
         _controller.value = 0;
-        _deleteButtonVisible = true;
+        _deleting = false;
       });
+      return;
+    }
+    if (widget.fadeOut && !oldWidget.fadeOut) {
+      unawaited(_handleDel());
     }
   }
 
   Future<void> _handleDel() async {
-    setState(() {
-      _deleteButtonVisible = false;
-    });
-    await _controller.forward(from: 0);
+    if (_deleting) {
+      return;
+    }
+    setState(() => _deleting = true);
+    try {
+      await _controller.forward(from: 0).orCancel;
+    } on TickerCanceled {
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
     widget.onDelete();
   }
 
@@ -730,31 +1093,144 @@ class _DeletableContainerState extends State<_DeletableContainer>
               child: Opacity(opacity: _fadeAnimation.value, child: child!),
             );
           },
-          child: widget.child,
+          child: CardPressOverride(
+            onPressed: widget.onActivate,
+            focusNode: widget.focusNode,
+            child: widget.child,
+          ),
         ),
-        if (_deleteButtonVisible)
-          Positioned(
-            top: -8,
-            right: -8,
-            child: DeferPointer(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: IconButton.filled(
-                  tooltip: context.appLocalizations.remove,
-                  iconSize: 20,
-                  padding: const EdgeInsets.all(2),
-                  style: IconButton.styleFrom(
-                    backgroundColor: context.colorScheme.primary,
-                    foregroundColor: context.colorScheme.onPrimary,
-                  ),
-                  onPressed: _handleDel,
-                  icon: const Icon(Icons.close),
-                ),
+        Positioned(
+          top: -8,
+          right: -8,
+          child: _CloseButton(
+            shown: !_deleting && widget.showDelete,
+            armed: widget.deleteArmed,
+            onPressed: _handleDel,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CloseButton extends StatefulWidget {
+  final bool shown;
+  final bool armed;
+  final VoidCallback? onPressed;
+
+  const _CloseButton({
+    required this.shown,
+    required this.armed,
+    this.onPressed,
+  });
+
+  @override
+  State<_CloseButton> createState() => _CloseButtonState();
+}
+
+class _CloseButtonState extends State<_CloseButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final CurvedAnimation _presence;
+  late final Animation<double> _scale;
+  bool _hovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: midDuration,
+      value: widget.shown ? 1 : 0,
+    );
+    _presence = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    _scale = Tween<double>(begin: 0.5, end: 1).animate(_presence);
+  }
+
+  @override
+  void didUpdateWidget(_CloseButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.shown == oldWidget.shown) {
+      return;
+    }
+    if (widget.shown) {
+      _controller.forward();
+    } else {
+      _controller.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _presence.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final show = widget.shown;
+    final button = SizedBox(
+      width: 24,
+      height: 24,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: AnimatedContainer(
+              duration: animateDuration,
+              decoration: ShapeDecoration(
+                color: widget.armed || _hovered
+                    ? context.colorScheme.error
+                    : context.colorScheme.primary,
+                shape: AppShape.circle,
               ),
             ),
           ),
-      ],
+          IconButton.filled(
+            tooltip: context.appLocalizations.remove,
+            iconSize: 20,
+            padding: const EdgeInsets.all(2),
+            onHover: (hovered) {
+              if (_hovered == hovered) {
+                return;
+              }
+              setState(() => _hovered = hovered);
+            },
+            style: ButtonStyle(
+              animationDuration: midDuration,
+              backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
+              overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+              foregroundColor: WidgetStateProperty.resolveWith(
+                (states) => widget.armed || states.contains(WidgetState.hovered)
+                    ? context.colorScheme.onError
+                    : context.colorScheme.onPrimary,
+              ),
+            ),
+            onPressed: widget.onPressed,
+            icon: const Icon(Icons.close),
+          ),
+        ],
+      ),
+    );
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (_, child) {
+        if (!show && _presence.value == 0) {
+          return const SizedBox.shrink();
+        }
+        return IgnorePointer(
+          ignoring: !show,
+          child: FadeTransition(
+            opacity: _presence,
+            child: ScaleTransition(scale: _scale, child: child),
+          ),
+        );
+      },
+      child: DeferPointer(child: ExcludeFocus(child: button)),
     );
   }
 }

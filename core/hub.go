@@ -22,7 +22,6 @@ import (
 	"github.com/metacubex/mihomo/adapter"
 	"github.com/metacubex/mihomo/adapter/outbound"
 	"github.com/metacubex/mihomo/adapter/outboundgroup"
-	"github.com/metacubex/mihomo/adapter/provider"
 	"github.com/metacubex/mihomo/common/convert"
 	"github.com/metacubex/mihomo/common/observable"
 	"github.com/metacubex/mihomo/common/utils"
@@ -32,6 +31,7 @@ import (
 	"github.com/metacubex/mihomo/config"
 	"github.com/metacubex/mihomo/constant"
 	"github.com/metacubex/mihomo/constant/features"
+	"github.com/metacubex/mihomo/dns"
 	"github.com/metacubex/mihomo/hub/executor"
 	"github.com/metacubex/mihomo/listener"
 	"github.com/metacubex/mihomo/log"
@@ -62,9 +62,18 @@ var (
 	requestNotifyLen     int
 )
 
+var (
+	dnsNotifyMu      sync.Mutex
+	dnsNotifyEnabled bool
+	dnsNotifyCache   [maxCachedDnsNotify]DnsQuery
+	dnsNotifyStart   int
+	dnsNotifyLen     int
+)
+
 const (
 	maxCachedLogNotify     = 100
 	maxCachedRequestNotify = 100
+	maxCachedDnsNotify     = 100
 )
 
 type StampedLogEvent struct {
@@ -942,47 +951,6 @@ func handleSideLoadExternalProvider(providerName string, data []byte) *MethodErr
 	return nil
 }
 
-// defaultRefreshHealthChecks re-probes every proxy provider off the calling
-// thread. Providers coalesce concurrent checks internally, so an extra call
-// costs nothing when one is already running.
-func defaultRefreshHealthChecks() {
-	safeGoDetached("refreshHealthChecks", func() {
-		for name, p := range tunnel.ProvidersSnapshot() {
-			log.Debugln("[APP] re-checking provider %s after resume", name)
-			p.HealthCheck()
-		}
-	})
-}
-
-var refreshHealthChecks = defaultRefreshHealthChecks
-
-func handleSuspend(suspended bool) bool {
-	wasSuspended := isSuspended.Swap(suspended)
-	provider.SuspendHealthCheck(suspended)
-	if suspended {
-		tunnel.OnSuspend()
-		return true
-	}
-
-	tunnel.OnRunning()
-	// Scheduled provider health checks are suppressed while suspended, so
-	// refresh immediately instead of waiting for the next interval. Do not probe
-	// while the listeners are stopped: the service also resumes the core on its
-	// way down.
-	if wasSuspended && isRunning.Load() {
-		refreshHealthChecks()
-	}
-	return true
-}
-
-// A failure measured while the device is dozing says nothing about the node -
-// the app had no network at all - and publishing it repaints the entire list as
-// Timeout for a user who is not even looking. Successes still are worth having,
-// whenever they happen.
-func shouldPublishDelay(delay uint16) bool {
-	return delay != 0 || !isSuspended.Load()
-}
-
 func startLogLocked() {
 	ctx, cancel := context.WithCancel(context.Background())
 	subscriber := log.Subscribe()
@@ -1119,6 +1087,37 @@ func handleStopRequestNotify() {
 	requestNotifyMu.Lock()
 	defer requestNotifyMu.Unlock()
 	requestNotifyEnabled = false
+}
+
+func handleStartDnsNotify() []DnsQuery {
+	dnsNotifyMu.Lock()
+	defer dnsNotifyMu.Unlock()
+	queries := make([]DnsQuery, dnsNotifyLen)
+	for i := 0; i < dnsNotifyLen; i++ {
+		index := (dnsNotifyStart + i) % maxCachedDnsNotify
+		queries[i] = dnsNotifyCache[index]
+	}
+	dnsNotifyStart = 0
+	dnsNotifyLen = 0
+	dnsNotifyEnabled = true
+	return queries
+}
+
+func handleStopDnsNotify() {
+	dnsNotifyMu.Lock()
+	defer dnsNotifyMu.Unlock()
+	dnsNotifyEnabled = false
+}
+
+func cacheDnsQuery(query DnsQuery) {
+	if dnsNotifyLen < maxCachedDnsNotify {
+		index := (dnsNotifyStart + dnsNotifyLen) % maxCachedDnsNotify
+		dnsNotifyCache[index] = query
+		dnsNotifyLen++
+		return
+	}
+	dnsNotifyCache[dnsNotifyStart] = query
+	dnsNotifyStart = (dnsNotifyStart + 1) % maxCachedDnsNotify
 }
 
 func handleGetMemory() uint64 {
@@ -1291,9 +1290,6 @@ func handleSetupConfig(params *SetupParams) string {
 
 func init() {
 	adapter.UrlTestHook = func(url string, name string, delay uint16) {
-		if !shouldPublishDelay(delay) {
-			return
-		}
 		sendMessage(Message{
 			Type: DelayMessage,
 			Data: &Delay{
@@ -1301,6 +1297,20 @@ func init() {
 				Name:  name,
 				Value: delayValue(delay),
 			},
+		})
+	}
+	dns.DefaultQueryNotify = func(record dns.QueryRecord) {
+		query := newDnsQuery(record)
+		dnsNotifyMu.Lock()
+		if !dnsNotifyEnabled {
+			cacheDnsQuery(query)
+			dnsNotifyMu.Unlock()
+			return
+		}
+		dnsNotifyMu.Unlock()
+		sendMessage(Message{
+			Type: DnsMessage,
+			Data: query,
 		})
 	}
 	statistic.DefaultRequestNotify = func(c statistic.Tracker) {

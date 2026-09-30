@@ -56,11 +56,10 @@ var (
 	// configMu -> selectMu.
 	selectMu sync.Mutex
 
-	isInit      atomic.Bool
-	isRunning   atomic.Bool
-	isSuspended atomic.Bool
-	sdkVersion  atomic.Int32
-	testURL     atomic.Pointer[string]
+	isInit     atomic.Bool
+	isRunning  atomic.Bool
+	sdkVersion atomic.Int32
+	testURL    atomic.Pointer[string]
 
 	delayTestSlots = make(chan struct{}, delayTestConcurrency)
 
@@ -271,6 +270,9 @@ func patchTun(target *LC.Tun, params *tunSchema) {
 	}
 	if params.Stack != nil {
 		target.Stack = *params.Stack
+	}
+	if params.CongestionController != nil {
+		target.CongestionController = *params.CongestionController
 	}
 }
 

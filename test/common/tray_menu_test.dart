@@ -328,6 +328,53 @@ void main() {
     expect(labels, contains(l10n.systemProxy));
   });
 
+  test('shows hotkey shortcuts for mode, copy, delay, and update', () async {
+    container.listen(hotKeyActionsProvider, (_, _) {});
+    container.read(hotKeyActionsProvider.notifier).value = [
+      HotKeyAction(
+        action: HotAction.ruleMode,
+        key: PhysicalKeyboardKey.keyA.usbHidUsage,
+        modifiers: const {KeyboardModifier.control},
+      ),
+      HotKeyAction(
+        action: HotAction.copyEnv,
+        key: PhysicalKeyboardKey.keyC.usbHidUsage,
+        modifiers: const {KeyboardModifier.control, KeyboardModifier.shift},
+      ),
+    ];
+
+    await update(_trayState());
+
+    final l10n = currentAppLocalizations;
+    final items = _items(showCall());
+    final rule = items.singleWhere((item) => item['label'] == l10n.rule);
+    expect(rule['keyEquivalent'], 'a');
+    expect(rule['keyEquivalentModifiers'], ['control']);
+    final copy = items.singleWhere((item) => item['label'] == l10n.copyEnvVar);
+    expect(copy['keyEquivalent'], 'c');
+    expect(copy['keyEquivalentModifiers'], containsAll(['control', 'shift']));
+    expect(
+      items.map((item) => item['label']),
+      containsAll([l10n.actionDelayTest, l10n.actionUpdateProfiles]),
+    );
+
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    tray = AppTray.forPlatform(isMacOS: false, isWindows: true);
+    await update(_trayState());
+    expect(calls.where((call) => call.method == 'show').length, 2);
+    final windowsItems = _items(showCall());
+    expect(
+      windowsItems.map((item) => item['label']).toList(),
+      contains('${l10n.rule}\tCtrl+A'),
+    );
+    expect(
+      windowsItems.singleWhere(
+        (item) => item['label'] == '${l10n.copyEnvVar}\tCtrl+Shift+C',
+      ),
+      isNotNull,
+    );
+  });
+
   test('keeps the network speed title visible while stopped', () async {
     await update(_trayState(isStart: true, showNetworkSpeed: true));
 
@@ -666,6 +713,63 @@ void main() {
           );
         },
       );
+
+      test('shares delay updates by resolved proxy and test URL', () async {
+        final action = _TrayProxiesAction();
+        final shared = proxyGroup.copyWith(name: 'shared');
+        final differentUrl = proxyGroup.copyWith(
+          name: 'different',
+          testUrl: 'https://different.test',
+        );
+        final nested = proxyGroup.copyWith(
+          name: 'nested',
+          all: const [Proxy(name: 'A', type: 'ss')],
+        );
+        final parent = proxyGroup.copyWith(
+          name: 'parent',
+          testUrl: 'https://parent.test',
+          all: const [Proxy(name: 'nested', type: 'Selector')],
+        );
+        container.dispose();
+        container = ProviderContainer(
+          overrides: [
+            proxiesActionProvider.overrideWith(() => action),
+            groupsProvider.overrideWithValue([nested]),
+            selectedMapProvider.overrideWithValue({'nested': 'A'}),
+          ],
+        );
+        await update(
+          _trayState(groups: [proxyGroup, shared, differentUrl, parent]),
+        );
+        final submenu = _items(
+          showCall(),
+        ).singleWhere((item) => item['label'] == proxyGroup.name);
+        final finished = Completer<void>();
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(_channel, (call) async {
+              calls.add(call);
+              if (call.method == 'updateMenuItems') {
+                final updates = (call.arguments as Map)['updates'] as List;
+                if ((updates.first as Map)['enabled'] == true) {
+                  finished.complete();
+                }
+              }
+              return true;
+            });
+        await select((submenu['items'] as List).first as Map<Object?, Object?>);
+        await finished.future;
+        final updates = calls
+            .where((call) => call.method == 'updateMenuItems')
+            .expand((call) => (call.arguments as Map)['updates'] as List)
+            .cast<Map>()
+            .where((item) => item.containsKey('sublabel'));
+        expect(updates.map((item) => item['key']), [
+          for (final group in [proxyGroup, shared, parent])
+            for (final proxy in group.all)
+              'delay:${Uri.encodeComponent(group.name)}:${Uri.encodeComponent(proxy.name)}',
+        ]);
+        expect(updates.map((item) => item['sublabel']), everyElement('42 ms'));
+      });
 
       test('removes proxy submenus when groups become empty', () async {
         await update(_trayState(groups: [proxyGroup]));

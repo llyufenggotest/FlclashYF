@@ -5,6 +5,9 @@ import 'package:fl_clash/common/shape.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'tv_back.dart';
+import 'tv_layout.dart';
+
 class CommonDialog extends ConsumerWidget {
   final String title;
   final Widget? child;
@@ -13,6 +16,7 @@ class CommonDialog extends ConsumerWidget {
   final bool overrideScroll;
   final Color? backgroundColor;
   final double maxWidth;
+  final bool? isTV;
 
   const CommonDialog({
     super.key,
@@ -23,23 +27,50 @@ class CommonDialog extends ConsumerWidget {
     this.overrideScroll = false,
     this.backgroundColor,
     this.maxWidth = 300,
+    this.isTV,
   });
 
   @override
   Widget build(BuildContext context, ref) {
     final size = ref.watch(viewSizeProvider);
-    return AlertDialog(
+    final bool useTvBack = isTV ?? ref.watch(tvLayoutProvider);
+    final dialog = AlertDialog(
       title: Text(title),
       actions: actions,
       contentPadding: padding,
       backgroundColor: backgroundColor,
-      content: Container(
-        constraints: BoxConstraints(
-          maxHeight: min(size.height - 40, 500),
-          maxWidth: maxWidth,
+      content: ListTileTheme(
+        data: const ListTileThemeData(shape: AppShape.md),
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: min(size.height - 40, 500),
+            maxWidth: maxWidth,
+          ),
+          width: size.width - 40,
+          child: !overrideScroll ? SingleChildScrollView(child: child) : child,
         ),
-        width: size.width - 40,
-        child: !overrideScroll ? SingleChildScrollView(child: child) : child,
+      ),
+    );
+    if (!useTvBack) {
+      return dialog;
+    }
+    return TvBackHost(
+      child: Builder(
+        builder: (context) {
+          return PopScope(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, _) {
+              if (didPop || ModalRoute.of(context)?.isCurrent != true) {
+                return;
+              }
+              if (TvBackScope.consume(context)) {
+                return;
+              }
+              Navigator.of(context).pop();
+            },
+            child: dialog,
+          );
+        },
       ),
     );
   }

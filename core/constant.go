@@ -55,14 +55,15 @@ type UpdateParams struct {
 }
 
 type tunSchema struct {
-	RecvMsgX     *bool              `yaml:"recvmsgx" json:"recvmsgx"`
-	SendMsgX     *bool              `yaml:"sendmsgx" json:"sendmsgx"`
-	Enable       bool               `yaml:"enable" json:"enable"`
-	Device       *string            `yaml:"device" json:"device"`
-	Stack        *constant.TUNStack `yaml:"stack" json:"stack"`
-	DNSHijack    *[]string          `yaml:"dns-hijack" json:"dns-hijack"`
-	AutoRoute    *bool              `yaml:"auto-route" json:"auto-route"`
-	RouteAddress *[]netip.Prefix    `yaml:"route-address" json:"route-address,omitempty"`
+	RecvMsgX             *bool              `yaml:"recvmsgx" json:"recvmsgx"`
+	SendMsgX             *bool              `yaml:"sendmsgx" json:"sendmsgx"`
+	Enable               bool               `yaml:"enable" json:"enable"`
+	Device               *string            `yaml:"device" json:"device"`
+	Stack                *constant.TUNStack `yaml:"stack" json:"stack"`
+	DNSHijack            *[]string          `yaml:"dns-hijack" json:"dns-hijack"`
+	AutoRoute            *bool              `yaml:"auto-route" json:"auto-route"`
+	RouteAddress         *[]netip.Prefix    `yaml:"route-address" json:"route-address,omitempty"`
+	CongestionController *string            `yaml:"congestion-controller" json:"congestion-controller"`
 }
 
 type SideLoadParams struct {
@@ -228,6 +229,8 @@ const (
 	stopLogNotifyMethod                  CoreMethod = "stopLogNotify"
 	startRequestNotifyMethod             CoreMethod = "startRequestNotify"
 	stopRequestNotifyMethod              CoreMethod = "stopRequestNotify"
+	startDnsNotifyMethod                 CoreMethod = "startDnsNotify"
+	stopDnsNotifyMethod                  CoreMethod = "stopDnsNotify"
 	startListenerMethod                  CoreMethod = "startListener"
 	stopListenerMethod                   CoreMethod = "stopListener"
 	updateDnsMethod                      CoreMethod = "updateDns"
@@ -288,6 +291,7 @@ const (
 	LogMessage       MessageType = "log"
 	DelayMessage     MessageType = "delay"
 	RequestMessage   MessageType = "request"
+	DnsMessage       MessageType = "dns"
 	LoadedMessage    MessageType = "loaded"
 	GeoUpdateMessage MessageType = "geoUpdate"
 )

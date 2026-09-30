@@ -99,13 +99,13 @@ struct PacketTunnelVPNOptions: Decodable {
   let ipv6: Bool
   let captureDns: Bool
   let systemProxy: Bool
-  let suspendSupport: Bool
   let bypassDomain: [String]
   let stack: String
   let mtu: Int
   let routeAddress: [String]
   let disableIcmpForwarding: Bool
   let endpointIndependentNat: Bool
+  let congestionController: String
   let recvMsgX: Bool
   let sendMsgX: Bool
   let includeAllNetworks: Bool
@@ -120,13 +120,13 @@ struct PacketTunnelVPNOptions: Decodable {
     case ipv6
     case captureDns
     case systemProxy
-    case suspendSupport
     case bypassDomain
     case stack
     case mtu
     case routeAddress
     case disableIcmpForwarding
     case endpointIndependentNat
+    case congestionController
     case recvMsgX
     case sendMsgX
     case includeAllNetworks
@@ -143,10 +143,6 @@ struct PacketTunnelVPNOptions: Decodable {
     ipv6 = try container.decode(Bool.self, forKey: .ipv6)
     captureDns = try container.decode(Bool.self, forKey: .captureDns)
     systemProxy = try container.decode(Bool.self, forKey: .systemProxy)
-    suspendSupport = try container.decodeIfPresent(
-      Bool.self,
-      forKey: .suspendSupport
-    ) ?? true
     bypassDomain = try container.decodeIfPresent(
       [String].self,
       forKey: .bypassDomain
@@ -165,6 +161,10 @@ struct PacketTunnelVPNOptions: Decodable {
       Bool.self,
       forKey: .endpointIndependentNat
     ) ?? false
+    congestionController = try container.decodeIfPresent(
+      String.self,
+      forKey: .congestionController
+    ) ?? ""
     recvMsgX = try container.decodeIfPresent(Bool.self, forKey: .recvMsgX) ?? true
     sendMsgX = try container.decodeIfPresent(Bool.self, forKey: .sendMsgX) ?? false
     includeAllNetworks = try container.decodeIfPresent(

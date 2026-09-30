@@ -16,6 +16,7 @@ extension PageLabelL10n on PageLabel {
       PageLabel.resources => appLocalizations.resources,
       PageLabel.networking => appLocalizations.networking,
       PageLabel.connections => appLocalizations.connections,
+      PageLabel.dnsQueries => appLocalizations.dnsQueries,
     };
   }
 
@@ -27,10 +28,24 @@ extension PageLabelL10n on PageLabel {
       PageLabel.resources => appLocalizations.resourcesDesc,
       PageLabel.networking => appLocalizations.networkingDesc,
       PageLabel.connections => appLocalizations.connectionsDesc,
+      PageLabel.dnsQueries => appLocalizations.dnsQueriesDesc,
       PageLabel.dashboard ||
       PageLabel.proxies ||
       PageLabel.profiles ||
       PageLabel.tools => null,
+    };
+  }
+}
+
+extension DnsQueryInitiatorL10n on DnsQueryInitiator {
+  String get label {
+    final appLocalizations = currentAppLocalizations;
+    return switch (this) {
+      DnsQueryInitiator.app => appLocalizations.app,
+      DnsQueryInitiator.rule => appLocalizations.rule,
+      DnsQueryInitiator.direct => appLocalizations.direct,
+      DnsQueryInitiator.proxy => appLocalizations.proxy,
+      DnsQueryInitiator.other => appLocalizations.other,
     };
   }
 }
@@ -76,6 +91,13 @@ extension HotActionL10n on HotAction {
       HotAction.mode => appLocalizations.actionMode,
       HotAction.proxy => appLocalizations.actionProxy,
       HotAction.tun => appLocalizations.actionTun,
+      HotAction.ruleMode => appLocalizations.actionRuleMode,
+      HotAction.globalMode => appLocalizations.actionGlobalMode,
+      HotAction.directMode => appLocalizations.actionDirectMode,
+      HotAction.delayTest => appLocalizations.actionDelayTest,
+      HotAction.updateProfiles => appLocalizations.actionUpdateProfiles,
+      HotAction.copyEnv => appLocalizations.copyEnvVar,
+      HotAction.exit => appLocalizations.exit,
     };
   }
 }

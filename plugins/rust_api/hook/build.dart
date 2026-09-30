@@ -65,7 +65,11 @@ Map<String, String> _cargoEnvironment(BuildInput input) {
       '${llvmRoot.path}${Platform.pathSeparator}$name',
     );
     if (directory.existsSync() && directory.listSync().any(_isLibclang)) {
-      return {'LIBCLANG_PATH': directory.path};
+      return {
+        'LIBCLANG_PATH': directory.path,
+        if (Platform.isWindows)
+          'PATH': '${llvmRoot.path}\\bin;${Platform.environment['PATH'] ?? ''}',
+      };
     }
   }
   throw StateError(

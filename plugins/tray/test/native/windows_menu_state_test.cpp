@@ -48,6 +48,7 @@ class Fixture {
                             &flutter::StandardMethodCodec::GetInstance())) {
     plugin.SetMenu(
         {Value(Node("selected", 101, true)), Value(Node("other", 102, false))});
+    plugin.MaterializeMenu(plugin.menu_);
   }
 
   void Update(const char* key, Map fields) {

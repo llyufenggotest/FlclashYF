@@ -1,3 +1,4 @@
+import 'package:fl_clash/enum/enum.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
@@ -45,6 +46,52 @@ class _PageFocusScopeState extends State<PageFocusScope> {
 }
 
 class PageTraversalPolicy extends OrderedTraversalPolicy {
+  FocusScopeNode? _overlayFocusBoundary(FocusNode node) {
+    var scope = node.nearestScope;
+    while (scope != null && scope != FocusManager.instance.rootScope) {
+      final route = _routeOf(scope);
+      if (route != null &&
+          !route.opaque &&
+          !identical(route, _routeOf(scope.enclosingScope))) {
+        return scope;
+      }
+      scope = scope.enclosingScope;
+    }
+    return null;
+  }
+
+  ModalRoute<dynamic>? _routeOf(FocusScopeNode? scope) {
+    final focusContext = scope?.context;
+    if (focusContext == null) {
+      return null;
+    }
+    return ModalRoute.of(focusContext);
+  }
+
+  bool _moveInsideOverlay(
+    FocusScopeNode boundary, {
+    required bool directional,
+    required bool Function() move,
+  }) {
+    final previous = directional
+        ? boundary.directionalTraversalEdgeBehavior
+        : boundary.traversalEdgeBehavior;
+    if (directional) {
+      boundary.directionalTraversalEdgeBehavior = TraversalEdgeBehavior.stop;
+    } else {
+      boundary.traversalEdgeBehavior = TraversalEdgeBehavior.stop;
+    }
+    try {
+      return move();
+    } finally {
+      if (directional) {
+        boundary.directionalTraversalEdgeBehavior = previous;
+      } else {
+        boundary.traversalEdgeBehavior = previous;
+      }
+    }
+  }
+
   FocusNode? _findPrimaryAction(FocusScopeNode scope) {
     for (final node in scope.traversalDescendants) {
       final context = node.context;
@@ -74,12 +121,17 @@ class PageTraversalPolicy extends OrderedTraversalPolicy {
 
   @override
   bool inDirection(FocusNode currentNode, TraversalDirection direction) {
+    final boundary = _overlayFocusBoundary(currentNode);
+    if (boundary != null) {
+      return _moveInsideOverlay(
+        boundary,
+        directional: true,
+        move: () => super.inDirection(currentNode, direction),
+      );
+    }
     final isDownRight =
         direction == TraversalDirection.down ||
         direction == TraversalDirection.right;
-    if (isDownRight && _isInPrimaryAction(currentNode)) {
-      return _escapeToEnclosingScope(currentNode, true);
-    }
     final scope = currentNode.nearestScope;
     final before = scope?.focusedChild;
     final moved = super.inDirection(currentNode, direction);
@@ -87,6 +139,9 @@ class PageTraversalPolicy extends OrderedTraversalPolicy {
       return true;
     }
     if (isDownRight) {
+      if (_isInPrimaryAction(currentNode)) {
+        return _escapeToEnclosingScope(currentNode, true);
+      }
       final primaryAction = scope == null ? null : _findPrimaryAction(scope);
       if (primaryAction != null && primaryAction.canRequestFocus) {
         primaryAction.requestFocus();
@@ -98,6 +153,15 @@ class PageTraversalPolicy extends OrderedTraversalPolicy {
   }
 
   bool _moveOrEscape(FocusNode currentNode, bool forward) {
+    final boundary = _overlayFocusBoundary(currentNode);
+    if (boundary != null) {
+      return _moveInsideOverlay(
+        boundary,
+        directional: false,
+        move: () =>
+            forward ? super.next(currentNode) : super.previous(currentNode),
+      );
+    }
     final scope = currentNode.nearestScope;
     final before = scope?.focusedChild;
     final moved = forward
@@ -114,6 +178,88 @@ class PageTraversalPolicy extends OrderedTraversalPolicy {
 
   @override
   bool previous(FocusNode currentNode) => _moveOrEscape(currentNode, false);
+}
+
+class NavDestinationAnchor extends StatelessWidget {
+  const NavDestinationAnchor({
+    super.key,
+    required this.label,
+    required this.child,
+  });
+
+  final PageLabel label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => child;
+}
+
+bool _isEditableContext(BuildContext focusContext) {
+  return focusContext.widget is EditableText ||
+      focusContext.findAncestorWidgetOfExactType<EditableText>() != null ||
+      focusContext.widget is Slider ||
+      focusContext.findAncestorWidgetOfExactType<Slider>() != null;
+}
+
+bool releaseEditableFocus() {
+  final node = FocusManager.instance.primaryFocus;
+  final focusContext = node?.context;
+  if (focusContext == null || !_isEditableContext(focusContext)) {
+    return false;
+  }
+  final scope = node?.enclosingScope;
+  if (scope == null) {
+    return false;
+  }
+  scope.requestScopeFocus();
+  return true;
+}
+
+bool editableFocusWithin(BuildContext boundary) {
+  final focusContext = FocusManager.instance.primaryFocus?.context;
+  if (focusContext == null || !_isEditableContext(focusContext)) {
+    return false;
+  }
+  var within = false;
+  focusContext.visitAncestorElements((element) {
+    if (identical(element, boundary)) {
+      within = true;
+      return false;
+    }
+    return true;
+  });
+  return within;
+}
+
+bool focusIsInNavigation() {
+  final focusContext = FocusManager.instance.primaryFocus?.context;
+  if (focusContext == null) {
+    return false;
+  }
+  return focusContext.findAncestorWidgetOfExactType<NavigationBar>() != null ||
+      focusContext.findAncestorWidgetOfExactType<NavigationRail>() != null;
+}
+
+bool focusNavigationDestination(BuildContext context, PageLabel label) {
+  FocusNode? target;
+  void visit(Element element) {
+    if (target != null) {
+      return;
+    }
+    final widget = element.widget;
+    if (widget is NavDestinationAnchor && widget.label == label) {
+      final node = Focus.maybeOf(element);
+      if (node != null && node.canRequestFocus) {
+        target = node;
+        return;
+      }
+    }
+    element.visitChildren(visit);
+  }
+
+  context.visitChildElements(visit);
+  target?.requestFocus();
+  return target != null;
 }
 
 class FocusEntryOnArrow extends StatefulWidget {

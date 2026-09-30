@@ -6,9 +6,7 @@ import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/views/about.dart';
 import 'package:fl_clash/views/access.dart';
-import 'package:fl_clash/views/application_setting.dart';
 import 'package:fl_clash/views/backup_and_restore.dart';
-import 'package:fl_clash/views/config/config.dart';
 import 'package:fl_clash/views/config/profile_template.dart';
 import 'package:fl_clash/views/hotkey.dart';
 import 'package:fl_clash/widgets/widgets.dart';
@@ -17,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' show dirname, join;
 
 import 'config/advanced.dart';
+import 'config/general.dart';
 import 'developer.dart';
 import 'theme.dart';
 
@@ -35,85 +34,66 @@ class _ToolViewState extends ConsumerState<ToolsView> {
       title: Text(navigationItem.label.label),
       subtitle: description != null ? Text(description) : null,
       widget: navigationItem.builder(context),
-      maxWidth: 400,
-      forceFull: false,
     );
   }
 
-  Widget _buildNavigationMenu(List<NavigationItem> navigationItems) {
-    return Column(
-      children: [
-        for (final navigationItem in navigationItems) ...[
-          _buildNavigationMenuItem(navigationItem),
-          navigationItems.last != navigationItem
-              ? const Divider(height: 0)
-              : Container(),
-        ],
-      ],
-    );
+  List<Widget> _otherItems(bool enableDeveloperMode) {
+    return [
+      const _DisclaimerItem(),
+      if (enableDeveloperMode) const _DeveloperItem(),
+      const _InfoItem(),
+    ];
   }
 
-  List<Widget> _getOtherList(bool enableDeveloperMode) {
-    return generateSection(
-      title: context.appLocalizations.other,
-      items: [
-        const _DisclaimerItem(),
-        if (enableDeveloperMode) const _DeveloperItem(),
-        const _InfoItem(),
-      ],
-    );
-  }
-
-  List<Widget> _getSettingList() {
-    return generateSection(
-      title: context.appLocalizations.settings,
-      items: [
-        const _LocaleItem(),
-        const _ThemeItem(),
-        const _BackupItem(),
-        if (system.isDesktop) const _HotkeyItem(),
-        if (system.isWindows) const _LoopbackItem(),
-        if (system.isAndroid) const _AccessItem(),
-        const _ConfigItem(),
-        const _ProfileTemplateItem(),
-        const _AdvancedConfigItem(),
-        const _SettingItem(),
-      ],
-    );
+  List<Widget> _settingItems() {
+    return [
+      const _GeneralItem(),
+      const _LocaleItem(),
+      const _ThemeItem(),
+      const _AdvancedConfigItem(),
+      const _ProfileTemplateItem(),
+      if (system.isDesktop) const _HotkeyItem(),
+      if (system.isWindows) const _LoopbackItem(),
+      if (system.isAndroid) const _AccessItem(),
+      const _BackupItem(),
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
-    final appSetting = ref.watch(
-      appSettingProvider.select(
-        (state) => (locale: state.locale, developerMode: state.developerMode),
-      ),
+    final developerMode = ref.watch(
+      appSettingProvider.select((state) => state.developerMode),
     );
-    final items = [
-      Consumer(
-        builder: (_, ref, _) {
-          final state = ref.watch(moreToolsSelectorStateProvider);
-          if (state.navigationItems.isEmpty) {
-            return Container();
-          }
-          return Column(
-            children: [
-              ListHeader(title: context.appLocalizations.more),
-              _buildNavigationMenu(state.navigationItems),
-            ],
-          );
-        },
-      ),
-      ..._getSettingList(),
-      ..._getOtherList(appSetting.developerMode),
-    ];
+    final navigationItems = ref.watch(
+      moreToolsSelectorStateProvider.select((state) => state.navigationItems),
+    );
+    final appLocalizations = context.appLocalizations;
+    final hasMore = navigationItems.isNotEmpty;
     return CommonScaffold(
-      title: context.appLocalizations.tools,
-      body: ListView.builder(
+      title: appLocalizations.tools,
+      body: ListView(
         key: toolsStoreKey,
-        itemCount: items.length,
-        itemBuilder: (_, index) => items[index],
-        padding: const EdgeInsets.only(bottom: 20),
+        padding: sectionPagePadding,
+        children: [
+          if (hasMore)
+            generateSectionV3(
+              title: appLocalizations.more,
+              isFirst: true,
+              items: [
+                for (final navigationItem in navigationItems)
+                  _buildNavigationMenuItem(navigationItem),
+              ],
+            ),
+          generateSectionV3(
+            title: appLocalizations.settings,
+            isFirst: !hasMore,
+            items: _settingItems(),
+          ),
+          generateSectionV3(
+            title: appLocalizations.other,
+            items: _otherItems(developerMode),
+          ),
+        ],
       ),
     );
   }
@@ -225,16 +205,16 @@ class _AccessItem extends StatelessWidget {
   }
 }
 
-class _ConfigItem extends StatelessWidget {
-  const _ConfigItem();
+class _GeneralItem extends StatelessWidget {
+  const _GeneralItem();
 
   @override
   Widget build(BuildContext context) {
     return ListItem.open(
-      leading: const Icon(Icons.edit_outlined),
-      title: Text(context.appLocalizations.basicConfig),
-      subtitle: Text(context.appLocalizations.basicConfigDesc),
-      widget: const ConfigView(),
+      leading: const Icon(Icons.settings),
+      title: Text(context.appLocalizations.general),
+      subtitle: Text(context.appLocalizations.generalDesc),
+      widget: const GeneralView(),
     );
   }
 }
@@ -263,20 +243,6 @@ class _AdvancedConfigItem extends StatelessWidget {
       title: Text(context.appLocalizations.advancedConfig),
       subtitle: Text(context.appLocalizations.advancedConfigDesc),
       widget: const AdvancedConfigView(),
-    );
-  }
-}
-
-class _SettingItem extends StatelessWidget {
-  const _SettingItem();
-
-  @override
-  Widget build(BuildContext context) {
-    return ListItem.open(
-      leading: const Icon(Icons.settings_outlined),
-      title: Text(context.appLocalizations.application),
-      subtitle: Text(context.appLocalizations.applicationDesc),
-      widget: const ApplicationSettingView(),
     );
   }
 }

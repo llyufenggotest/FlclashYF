@@ -47,6 +47,9 @@ class SetupAction extends _$SetupAction {
     final setupResult = applyProfile(force: true);
     ref.read(logsProvider.notifier).value = FixedList(maxLogsLength);
     ref.read(requestsProvider.notifier).value = FixedList(maxRequestsLength);
+    ref.read(dnsQueriesProvider.notifier).value = FixedList(
+      maxDnsQueriesLength,
+    );
     try {
       return await setupResult;
     } catch (e, s) {
@@ -355,6 +358,7 @@ class SetupAction extends _$SetupAction {
       ),
     );
     final overrideDns = ref.read(overrideDnsProvider);
+    final overrideNtp = ref.read(overrideNtpProvider);
     final appendSystemDns = networkSetting.appendSystemDns;
     final routeMode = networkSetting.routeMode;
     final configMap = await _core.getConfig(profileId);
@@ -387,6 +391,7 @@ class SetupAction extends _$SetupAction {
         rawConfig: rawConfig,
         realPatchConfig: realPatchConfig,
         overrideDns: overrideDns,
+        overrideNtp: overrideNtp,
         appendSystemDns: appendSystemDns,
         addedRules: addedRules,
         defaultUA: defaultUA,

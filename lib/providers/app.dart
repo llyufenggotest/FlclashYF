@@ -111,6 +111,32 @@ class Requests extends _$Requests with AutoDisposeNotifierMixin {
 }
 
 @Riverpod(keepAlive: true)
+class DnsQueries extends _$DnsQueries with AutoDisposeNotifierMixin {
+  @override
+  FixedList<DnsQuery> build() {
+    return FixedList(maxDnsQueriesLength);
+  }
+
+  void addQuery(DnsQuery value) {
+    addQueries([value]);
+  }
+
+  void addQueries(List<DnsQuery> values) {
+    if (!ref.mounted || values.isEmpty) {
+      return;
+    }
+    var nextState = state;
+    for (final value in values) {
+      nextState = nextState.append(value);
+    }
+    if (nextState == state) {
+      return;
+    }
+    value = nextState;
+  }
+}
+
+@Riverpod(keepAlive: true)
 class Providers extends _$Providers with AutoDisposeNotifierMixin {
   int _syncGeneration = 0;
   int? _publishedProfileId;
@@ -676,6 +702,22 @@ class LocationPermissions extends _$LocationPermissions
   @override
   WifiSsidPermission build() {
     return WifiSsidPermission.denied;
+  }
+}
+
+@Riverpod(keepAlive: true)
+class HotKeyFailures extends _$HotKeyFailures with AutoDisposeNotifierMixin {
+  @override
+  Map<HotAction, String> build() {
+    return const {};
+  }
+}
+
+@Riverpod(keepAlive: true)
+class HotKeyRecording extends _$HotKeyRecording with AutoDisposeNotifierMixin {
+  @override
+  bool build() {
+    return false;
   }
 }
 

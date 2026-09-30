@@ -7,6 +7,7 @@ import 'package:fl_clash/widgets/capsule_navigation.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 
 typedef OnSelected = void Function(int index);
 
@@ -111,18 +112,25 @@ class _HomeShell extends ConsumerWidget {
           ),
           AnimatedVisibility.bottomNavigation(
             visible: isMobile,
-            child: CapsuleNavigation(
-              items: [
-                for (final item in navigationItems)
-                  CapsuleNavigationItem(
-                    icon: item.icon,
-                    label: item.label.label,
-                  ),
-              ],
-              onSelected: (index) {
-                onDestinationSelected(navigationItems[index].label);
-              },
-              selectedIndex: state.currentIndex,
+            child: MediaQuery.removePadding(
+              removeTop: true,
+              removeBottom: false,
+              removeLeft: true,
+              removeRight: true,
+              context: context,
+              child: CapsuleNavigation(
+                items: [
+                  for (final item in navigationItems)
+                    CapsuleNavigationItem(
+                      icon: item.icon,
+                      label: item.label.label,
+                    ),
+                ],
+                onSelected: (index) {
+                  onDestinationSelected(navigationItems[index].label);
+                },
+                selectedIndex: state.currentIndex,
+              ),
             ),
           ),
         ],
@@ -431,11 +439,37 @@ class _HomeBackScopeContainerState
     extends ConsumerState<HomeBackScopeContainer> {
   bool _canHandlePop = false;
 
+  bool _focusTvBack(BuildContext context) {
+    if (releaseEditableFocus()) {
+      return true;
+    }
+    if (focusIsInNavigation()) {
+      return false;
+    }
+    return focusNavigationDestination(
+      context,
+      ref.read(currentPageLabelProvider),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isMobile = ref.watch(isMobileViewProvider);
+    final isTV = ref.watch(tvLayoutProvider);
+    final backToDashboard = ref.watch(
+      appSettingProvider.select((state) => state.backToDashboard),
+    );
+    final pageLabel = ref.watch(currentPageLabelProvider);
     return CommonPopScope(
-      canPop: isMobile && !_canHandlePop,
+      canPop:
+          !isTV &&
+          !_canHandlePop &&
+          !(backToDashboard && pageLabel != PageLabel.dashboard) &&
+          (defaultTargetPlatform == TargetPlatform.android
+              ? ref.watch(
+                  appSettingProvider.select((state) => state.minimizeOnExit),
+                )
+              : isMobile),
       onPop: (context) async {
         final pageLabel = ref.read(currentPageLabelProvider);
         final realContext =
@@ -447,6 +481,27 @@ class _HomeBackScopeContainerState
             return false;
           }
         } else if (await navigator.maybePop()) {
+          return false;
+        }
+        if (!context.mounted) {
+          return false;
+        }
+        if (isTV && _focusTvBack(context)) {
+          return false;
+        }
+        final backToDashboard = ref.read(appSettingProvider).backToDashboard;
+        if (backToDashboard && pageLabel != PageLabel.dashboard) {
+          ref
+              .read(currentPageLabelProvider.notifier)
+              .toPage(PageLabel.dashboard);
+          if (isTV) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!context.mounted) {
+                return;
+              }
+              focusNavigationDestination(context, PageLabel.dashboard);
+            });
+          }
           return false;
         }
         await ref.read(systemActionProvider.notifier).handleClose();

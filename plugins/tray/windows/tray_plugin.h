@@ -77,6 +77,7 @@ class TrayPlugin : public flutter::Plugin {
   std::unordered_map<HMENU, const flutter::EncodableList*> deferred_menus_;
   std::unordered_map<std::string, MenuItemLocation> menu_items_;
   std::unordered_set<UINT> persistent_menu_items_;
+  std::unordered_set<HMENU> open_menus_;
   TrayMenuIcons menu_icons_;
   std::wstring tool_tip_;
   bool visible_ = false;

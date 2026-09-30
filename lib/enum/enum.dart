@@ -99,6 +99,50 @@ enum LogLevel { debug, info, warning, error, silent }
 
 enum LogSource { app, core }
 
+enum RecordTone { muted, neutral, warning, error }
+
+extension RecordToneExt on RecordTone {
+  Color? accentColor(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return switch (this) {
+      RecordTone.warning => colorScheme.tertiary,
+      RecordTone.error => colorScheme.error,
+      RecordTone.muted || RecordTone.neutral => null,
+    };
+  }
+
+  Color? tintColor(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return switch (this) {
+      RecordTone.warning => colorScheme.tertiaryContainer.withValues(
+        alpha: 0.2,
+      ),
+      RecordTone.error => colorScheme.errorContainer.withValues(alpha: 0.2),
+      RecordTone.muted || RecordTone.neutral => null,
+    };
+  }
+
+  Color labelColor(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return switch (this) {
+      RecordTone.muted => colorScheme.outline,
+      RecordTone.neutral => colorScheme.onSurfaceVariant,
+      RecordTone.warning => colorScheme.onTertiaryContainer,
+      RecordTone.error => colorScheme.onErrorContainer,
+    };
+  }
+
+  Color labelContainerColor(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return switch (this) {
+      RecordTone.muted => colorScheme.surfaceContainerHigh,
+      RecordTone.neutral => colorScheme.surfaceContainerHighest,
+      RecordTone.error => colorScheme.errorContainer,
+      RecordTone.warning => colorScheme.tertiaryContainer,
+    };
+  }
+}
+
 extension LogLevelExt on LogLevel {
   bool allows(LogLevel level) {
     return this != LogLevel.silent &&
@@ -189,6 +233,8 @@ enum TrackerInfoSortType {
 
 enum TunStack { mips, gvisor, system, mixed }
 
+enum TunCongestionController { cubic, reno, bbr, bbr3 }
+
 enum AccessControlMode { acceptSelected, rejectSelected }
 
 enum AccessSortType { none, name, time }
@@ -204,7 +250,9 @@ enum ResultType {
   error,
 }
 
-enum CoreEventType { log, delay, request, loaded, crash, geoUpdate }
+enum CoreEventType { log, delay, request, dns, loaded, crash, geoUpdate }
+
+enum DnsQueryInitiator { app, rule, direct, proxy, other }
 
 enum InvokeMessageType { protect, process }
 
@@ -250,7 +298,20 @@ enum KeyboardModifier {
   const KeyboardModifier(this.physicalKeys);
 }
 
-enum HotAction { start, view, mode, proxy, tun }
+enum HotAction {
+  start,
+  view,
+  mode,
+  proxy,
+  tun,
+  ruleMode,
+  globalMode,
+  directMode,
+  delayTest,
+  updateProfiles,
+  copyEnv,
+  exit,
+}
 
 enum ProxiesIconStyle { none, standard, icon }
 
@@ -290,6 +351,7 @@ enum FunctionTag {
   proxiesTabChange,
   logs,
   requests,
+  dnsQueries,
   autoScrollToEnd,
   loadedProvider,
   saveSharedFile,
@@ -368,6 +430,7 @@ enum PageLabel {
   resources,
   networking,
   connections,
+  dnsQueries,
 }
 
 enum RuleAction {
@@ -521,6 +584,7 @@ enum LoadingTag {
   backup_restore,
   access,
   proxies,
+  scripts,
   batteryOptimization,
 }
 

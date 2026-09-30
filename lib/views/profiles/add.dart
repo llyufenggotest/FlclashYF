@@ -76,6 +76,7 @@ class AddProfileView extends ConsumerWidget {
     final profilesAction = ref.read(profilesActionProvider.notifier);
     final name = await dialogs.showCommonDialog<String>(
       child: InputDialog(
+        autofocus: true,
         title: appLocalizations.newProfile,
         value: '',
         labelText: appLocalizations.name,
@@ -201,6 +202,19 @@ class _URLFormDialogState extends State<URLFormDialog> {
     await dialogs.showCommonDialog<void>(child: const AgeKeyGeneratorDialog());
   }
 
+  Future<void> _pasteUrlFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    var text = data?.text?.trim() ?? '';
+    if (text.isEmpty || !mounted) return;
+    if (text.length > TextInputLimits.url) {
+      text = text.substring(0, TextInputLimits.url);
+    }
+    _urlController.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
   @override
   void dispose() {
     _urlController.dispose();
@@ -236,6 +250,7 @@ class _URLFormDialogState extends State<URLFormDialog> {
             runSpacing: 16,
             children: [
               TextFormField(
+                autofocus: true,
                 keyboardType: TextInputType.url,
                 textInputAction: TextInputAction.done,
                 onFieldSubmitted: (_) => _handleAddProfileFormURL(),
@@ -243,7 +258,14 @@ class _URLFormDialogState extends State<URLFormDialog> {
                 maxLines: 5,
                 inputFormatters: TextInputLimits.limit(TextInputLimits.url),
                 controller: _urlController,
-                decoration: InputDecoration(labelText: appLocalizations.url),
+                decoration: InputDecoration(
+                  labelText: appLocalizations.url,
+                  suffixIcon: IconButton(
+                    tooltip: appLocalizations.paste,
+                    onPressed: _pasteUrlFromClipboard,
+                    icon: const Icon(Icons.paste),
+                  ),
+                ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return appLocalizations.emptyTip('').trim();

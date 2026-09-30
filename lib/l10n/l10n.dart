@@ -340,6 +340,41 @@ class AppLocalizations {
     );
   }
 
+  /// `Back to dashboard`
+  String get backToDashboard {
+    return Intl.message(
+      'Back to dashboard',
+      name: 'backToDashboard',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Return to the dashboard before exiting`
+  String get backToDashboardDesc {
+    return Intl.message(
+      'Return to the dashboard before exiting',
+      name: 'backToDashboardDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `TV mode`
+  String get tvMode {
+    return Intl.message('TV mode', name: 'tvMode', desc: '', args: []);
+  }
+
+  /// `Use the remote-friendly layout on this device`
+  String get tvModeDesc {
+    return Intl.message(
+      'Use the remote-friendly layout on this device',
+      name: 'tvModeDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Auto launch`
   String get autoLaunch {
     return Intl.message('Auto launch', name: 'autoLaunch', desc: '', args: []);
@@ -1145,6 +1180,26 @@ class AppLocalizations {
     return Intl.message('General', name: 'general', desc: '', args: []);
   }
 
+  /// `General settings for the app and core`
+  String get generalDesc {
+    return Intl.message(
+      'General settings for the app and core',
+      name: 'generalDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Startup and background`
+  String get startupAndBackground {
+    return Intl.message(
+      'Startup and background',
+      name: 'startupAndBackground',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Set the system HTTP proxy`
   String get systemProxyDesc {
     return Intl.message(
@@ -1233,6 +1288,71 @@ class AppLocalizations {
       desc: '',
       args: [],
     );
+  }
+
+  /// `DNS queries`
+  String get dnsQueries {
+    return Intl.message('DNS queries', name: 'dnsQueries', desc: '', args: []);
+  }
+
+  /// `Core DNS resolution records`
+  String get dnsQueriesDesc {
+    return Intl.message(
+      'Core DNS resolution records',
+      name: 'dnsQueriesDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Initiator`
+  String get initiator {
+    return Intl.message('Initiator', name: 'initiator', desc: '', args: []);
+  }
+
+  /// `Record type`
+  String get recordType {
+    return Intl.message('Record type', name: 'recordType', desc: '', args: []);
+  }
+
+  /// `Response code`
+  String get responseCode {
+    return Intl.message(
+      'Response code',
+      name: 'responseCode',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Answers`
+  String get answers {
+    return Intl.message('Answers', name: 'answers', desc: '', args: []);
+  }
+
+  /// `Cache`
+  String get cache {
+    return Intl.message('Cache', name: 'cache', desc: '', args: []);
+  }
+
+  /// `Yes`
+  String get yes {
+    return Intl.message('Yes', name: 'yes', desc: '', args: []);
+  }
+
+  /// `No`
+  String get no {
+    return Intl.message('No', name: 'no', desc: '', args: []);
+  }
+
+  /// `Error`
+  String get error {
+    return Intl.message('Error', name: 'error', desc: '', args: []);
+  }
+
+  /// `Proxy`
+  String get proxy {
+    return Intl.message('Proxy', name: 'proxy', desc: '', args: []);
   }
 
   /// `Find process`
@@ -1775,6 +1895,101 @@ class AppLocalizations {
     );
   }
 
+  /// `Override NTP`
+  String get overrideNtp {
+    return Intl.message(
+      'Override NTP',
+      name: 'overrideNtp',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `When enabled, the NTP options in the profile are overridden`
+  String get overrideNtpDesc {
+    return Intl.message(
+      'When enabled, the NTP options in the profile are overridden',
+      name: 'overrideNtpDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Update NTP-related settings`
+  String get ntpDesc {
+    return Intl.message(
+      'Update NTP-related settings',
+      name: 'ntpDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Take the time from an NTP server instead of the system clock`
+  String get ntpStatusDesc {
+    return Intl.message(
+      'Take the time from an NTP server instead of the system clock',
+      name: 'ntpStatusDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Sync interval (minutes)`
+  String get ntpInterval {
+    return Intl.message(
+      'Sync interval (minutes)',
+      name: 'ntpInterval',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Server`
+  String get server {
+    return Intl.message('Server', name: 'server', desc: '', args: []);
+  }
+
+  /// `Dialer proxy`
+  String get dialerProxy {
+    return Intl.message(
+      'Dialer proxy',
+      name: 'dialerProxy',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The outbound used to reach the NTP server`
+  String get dialerProxyDesc {
+    return Intl.message(
+      'The outbound used to reach the NTP server',
+      name: 'dialerProxyDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Write to system`
+  String get writeToSystem {
+    return Intl.message(
+      'Write to system',
+      name: 'writeToSystem',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Also set the system clock`
+  String get writeToSystemDesc {
+    return Intl.message(
+      'Also set the system clock',
+      name: 'writeToSystemDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Status`
   String get status {
     return Intl.message('Status', name: 'status', desc: '', args: []);
@@ -2010,6 +2225,66 @@ class AppLocalizations {
     return Intl.message('TUN', name: 'actionTun', desc: '', args: []);
   }
 
+  /// `Rule mode`
+  String get actionRuleMode {
+    return Intl.message(
+      'Rule mode',
+      name: 'actionRuleMode',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Global mode`
+  String get actionGlobalMode {
+    return Intl.message(
+      'Global mode',
+      name: 'actionGlobalMode',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Direct mode`
+  String get actionDirectMode {
+    return Intl.message(
+      'Direct mode',
+      name: 'actionDirectMode',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Test all delays`
+  String get actionDelayTest {
+    return Intl.message(
+      'Test all delays',
+      name: 'actionDelayTest',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Update profiles`
+  String get actionUpdateProfiles {
+    return Intl.message(
+      'Update profiles',
+      name: 'actionUpdateProfiles',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Copy environment variables`
+  String get copyEnvVar {
+    return Intl.message(
+      'Copy environment variables',
+      name: 'copyEnvVar',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Disclaimer`
   String get disclaimer {
     return Intl.message('Disclaimer', name: 'disclaimer', desc: '', args: []);
@@ -2080,6 +2355,51 @@ class AppLocalizations {
     );
   }
 
+  /// `Global hotkeys work even while the window is hidden. Tap an action to record its key combination.`
+  String get hotkeyDesc {
+    return Intl.message(
+      'Global hotkeys work even while the window is hidden. Tap an action to record its key combination.',
+      name: 'hotkeyDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Not registered, it may be taken by another app`
+  String get hotkeyUnavailable {
+    return Intl.message(
+      'Not registered, it may be taken by another app',
+      name: 'hotkeyUnavailable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Not set`
+  String get hotkeyNotSet {
+    return Intl.message('Not set', name: 'hotkeyNotSet', desc: '', args: []);
+  }
+
+  /// `Include at least one of {modifiers}`
+  String hotkeyNeedsModifier(Object modifiers) {
+    return Intl.message(
+      'Include at least one of $modifiers',
+      name: 'hotkeyNeedsModifier',
+      desc: '',
+      args: [modifiers],
+    );
+  }
+
+  /// `Already used by "{action}". Saving moves it here.`
+  String hotkeyConflictWith(Object action) {
+    return Intl.message(
+      'Already used by "$action". Saving moves it here.',
+      name: 'hotkeyConflictWith',
+      desc: '',
+      args: [action],
+    );
+  }
+
   /// `Remove`
   String get remove {
     return Intl.message('Remove', name: 'remove', desc: '', args: []);
@@ -2133,6 +2453,16 @@ class AppLocalizations {
   /// `Stack mode`
   String get stackMode {
     return Intl.message('Stack mode', name: 'stackMode', desc: '', args: []);
+  }
+
+  /// `Congestion control`
+  String get congestionController {
+    return Intl.message(
+      'Congestion control',
+      name: 'congestionController',
+      desc: '',
+      args: [],
+    );
   }
 
   /// `Network`
@@ -2305,16 +2635,6 @@ class AppLocalizations {
     return Intl.message(
       'Network interface used for outbound connections',
       name: 'interfaceNameDesc',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Copy environment variables`
-  String get copyEnvVar {
-    return Intl.message(
-      'Copy environment variables',
-      name: 'copyEnvVar',
       desc: '',
       args: [],
     );
@@ -3000,6 +3320,16 @@ class AppLocalizations {
     return Intl.message(
       'Import from URL',
       name: 'importUrl',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Start from scratch`
+  String get startFromScratch {
+    return Intl.message(
+      'Start from scratch',
+      name: 'startFromScratch',
       desc: '',
       args: [],
     );
@@ -6545,6 +6875,26 @@ class AppLocalizations {
     return Intl.message(
       'Path latency (latency first)',
       name: 'easyTierLatencyFirstPathLatency',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Public server`
+  String get easyTierPublicServer {
+    return Intl.message(
+      'Public server',
+      name: 'easyTierPublicServer',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Feature flags`
+  String get easyTierFeatureFlags {
+    return Intl.message(
+      'Feature flags',
+      name: 'easyTierFeatureFlags',
       desc: '',
       args: [],
     );

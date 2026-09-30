@@ -118,6 +118,7 @@ class SubscriptionInfoDetailView extends StatelessWidget {
         children: [
           generateSectionV3(
             title: appLocalizations.trafficUsage,
+            isFirst: true,
             items: [
               _buildItem(
                 label: appLocalizations.usedTraffic,
@@ -129,7 +130,6 @@ class SubscriptionInfoDetailView extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
           generateSectionV3(
             title: appLocalizations.expireTime,
             items: [_buildItem(value: expire)],

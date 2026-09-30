@@ -31,9 +31,11 @@ final baseInfoEdgeInsets = EdgeInsets.symmetric(
 final listHeaderPadding = EdgeInsets.only(
   left: 16.mAp,
   right: 8.mAp,
-  top: 24.mAp,
+  top: 20.mAp,
   bottom: 8.mAp,
 );
+
+const sectionPagePadding = EdgeInsets.fromLTRB(16, 0, 16, 16);
 const sheetAppBarHeight = 68.0;
 
 const watchExecution = false;
@@ -122,8 +124,10 @@ double getWidgetHeight(num lines) {
 
 const maxLogsLength = 5000;
 const maxRequestsLength = 2000;
+const maxDnsQueriesLength = 3000;
 const pausedMaxLogsLength = maxLogsLength * 2;
 const pausedMaxRequestsLength = maxRequestsLength * 2;
+const pausedMaxDnsQueriesLength = maxDnsQueriesLength * 2;
 
 const trafficSampleLength = 30;
 

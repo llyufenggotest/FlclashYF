@@ -122,6 +122,7 @@ Future<({String yaml, String md5})> _makeRealProfileTask(
   final profilesPath = data.profilesPath;
   final profileId = data.profileId;
   final overrideDns = data.overrideDns;
+  final overrideNtp = data.overrideNtp;
   final addedRules = data.addedRules;
   final appendSystemDns = data.appendSystemDns;
   final defaultUA = data.defaultUA;
@@ -202,6 +203,8 @@ Future<({String yaml, String md5})> _makeRealProfileTask(
   rawConfig['tun']['stack'] = realPatchConfig.tun.stack.name;
   rawConfig['tun']['route-address'] = realPatchConfig.tun.routeAddress;
   rawConfig['tun']['auto-route'] = realPatchConfig.tun.autoRoute;
+  rawConfig['tun']['congestion-controller'] =
+      realPatchConfig.tun.congestionController.name;
   rawConfig['geodata-loader'] = realPatchConfig.geodataLoader.name;
   rawConfig['geosite-matcher'] = effectiveGeositeMatcher(
     configured: realPatchConfig.geositeMatcher,
@@ -258,6 +261,13 @@ Future<({String yaml, String md5})> _makeRealProfileTask(
       'nameserver-policy': nameserverPolicy,
       'proxy-server-nameserver-policy': proxyServerNameserverPolicy,
     };
+  }
+  if (overrideNtp) {
+    final rawNtp = rawConfig['ntp'] is Map
+        ? Map<String, dynamic>.from(rawConfig['ntp'] as Map)
+        : <String, dynamic>{};
+    // Merged, not assigned: keys this model does not edit stay in the profile.
+    rawConfig['ntp'] = {...rawNtp, ...realPatchConfig.ntp.toJson()};
   }
   if (appendSystemDns) {
     final List<String> nameserver = List<String>.from(

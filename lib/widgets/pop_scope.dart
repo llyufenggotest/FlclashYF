@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:fl_clash/manager/back_manager.dart';
 import 'package:flutter/widgets.dart';
 
 import 'inherited.dart';
+import 'tv_back.dart';
 
 class CommonPopScopeAttemptNotification extends Notification {
   final Future<void> completion;
@@ -47,6 +49,9 @@ class CommonPopScope extends StatelessWidget {
               if (didPop) {
                 return;
               }
+              if (TvBackScope.consume(context)) {
+                return;
+              }
               final completion = _handlePop(context);
               CommonPopScopeAttemptNotification(completion).dispatch(context);
               await completion;
@@ -58,7 +63,10 @@ class CommonPopScope extends StatelessWidget {
 
 class BackLayerScope extends StatefulWidget {
   final Widget child;
-  final VoidCallback onBack;
+
+  /// Called when this layer is popped. Return true to keep capturing back.
+  final bool Function() onBack;
+  final VoidCallback? onDeactivate;
   @visibleForTesting
   final void Function(void Function(Duration) callback)?
   schedulePostFrameCallback;
@@ -66,6 +74,7 @@ class BackLayerScope extends StatefulWidget {
   const BackLayerScope({
     super.key,
     required this.onBack,
+    this.onDeactivate,
     required this.child,
     @visibleForTesting this.schedulePostFrameCallback,
   });
@@ -101,25 +110,56 @@ class _BackLayerScopeState extends State<BackLayerScope> {
         return;
       }
       if (!_isPageActive) {
-        widget.onBack();
+        if (widget.onDeactivate case final onDeactivate?) {
+          onDeactivate();
+        } else {
+          widget.onBack();
+        }
         return;
       }
       if (route == null) {
         return;
       }
-      final entry = LocalHistoryEntry(
-        impliesAppBarDismissal: false,
-        onRemove: _handleRemove,
-      );
-      _entry = entry;
-      route.addLocalHistoryEntry(entry);
+      _installEntry(route);
+    });
+  }
+
+  void _installEntry(ModalRoute<dynamic> route) {
+    if (_entry != null) {
+      return;
+    }
+    final entry = LocalHistoryEntry(
+      impliesAppBarDismissal: false,
+      onRemove: _handleRemove,
+    );
+    _entry = entry;
+    route.addLocalHistoryEntry(entry);
+    _notifyNavigation(route);
+  }
+
+  void _notifyNavigation(ModalRoute<dynamic> route) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final routeContext = route.subtreeContext;
+      if (routeContext == null || !routeContext.mounted || !route.isCurrent) {
+        return;
+      }
+      // Local history changes do not emit Flutter navigation notifications.
+      NavigationNotification(
+        canHandlePop: route.popDisposition == RoutePopDisposition.doNotPop,
+      ).dispatch(routeContext);
     });
   }
 
   void _handleRemove() {
     _entry = null;
+    if (_route case final route?) {
+      _notifyNavigation(route);
+    }
     if (!_isDetaching && mounted) {
-      widget.onBack();
+      final retain = widget.onBack();
+      if (retain && mounted && _isPageActive && _route != null) {
+        _installEntry(_route!);
+      }
     }
   }
 
@@ -144,6 +184,16 @@ class _BackLayerScopeState extends State<BackLayerScope> {
 
   @override
   Widget build(BuildContext context) {
-    return widget.child;
+    return Shortcuts(
+      shortcuts: backShortcuts,
+      child: Actions(
+        actions: {
+          BackIntent: CallbackAction<BackIntent>(
+            onInvoke: (_) => Navigator.of(context).maybePop(),
+          ),
+        },
+        child: widget.child,
+      ),
+    );
   }
 }

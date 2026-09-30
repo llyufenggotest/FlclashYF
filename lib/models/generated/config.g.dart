@@ -30,6 +30,8 @@ _AppSettingProps _$AppSettingPropsFromJson(Map<String, dynamic> json) =>
       showLabel: json['showLabel'] as bool? ?? false,
       disclaimerAccepted: json['disclaimerAccepted'] as bool? ?? false,
       minimizeOnExit: json['minimizeOnExit'] as bool? ?? true,
+      backToDashboard: json['backToDashboard'] as bool? ?? true,
+      tvMode: json['tvMode'] as bool? ?? false,
       hidden: json['hidden'] as bool? ?? false,
       collapseQuickSettingsPanel:
           json['collapseQuickSettingsPanel'] as bool? ?? true,
@@ -76,6 +78,8 @@ Map<String, dynamic> _$AppSettingPropsToJson(_AppSettingProps instance) =>
       'showLabel': instance.showLabel,
       'disclaimerAccepted': instance.disclaimerAccepted,
       'minimizeOnExit': instance.minimizeOnExit,
+      'backToDashboard': instance.backToDashboard,
+      'tvMode': instance.tvMode,
       'hidden': instance.hidden,
       'collapseQuickSettingsPanel': instance.collapseQuickSettingsPanel,
       'developerMode': instance.developerMode,
@@ -446,6 +450,7 @@ const _$DynamicSchemeVariantEnumMap = {
 _Config _$ConfigFromJson(Map<String, dynamic> json) => _Config(
   currentProfileId: (json['currentProfileId'] as num?)?.toInt(),
   overrideDns: json['overrideDns'] as bool? ?? false,
+  overrideNtp: json['overrideNtp'] as bool? ?? false,
   hotKeyActions:
       (json['hotKeyActions'] as List<dynamic>?)
           ?.map((e) => HotKeyAction.fromJson(e as Map<String, dynamic>))
@@ -492,6 +497,7 @@ _Config _$ConfigFromJson(Map<String, dynamic> json) => _Config(
 Map<String, dynamic> _$ConfigToJson(_Config instance) => <String, dynamic>{
   'currentProfileId': instance.currentProfileId,
   'overrideDns': instance.overrideDns,
+  'overrideNtp': instance.overrideNtp,
   'hotKeyActions': instance.hotKeyActions,
   'appSettingProps': instance.appSettingProps,
   'davProps': instance.davProps,

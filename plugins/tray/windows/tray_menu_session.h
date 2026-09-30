@@ -12,7 +12,8 @@ class TrayMenuSession {
  public:
   TrayMenuSession(HWND owner, const std::unordered_set<UINT>& persistent_items,
                   std::function<void(int)> on_selected,
-                  std::function<void(HMENU)> on_open);
+                  std::function<void(HMENU)> on_open,
+                  std::function<void(HMENU)> on_close = {});
   ~TrayMenuSession();
 
   TrayMenuSession(const TrayMenuSession&) = delete;
@@ -36,6 +37,7 @@ class TrayMenuSession {
   const std::unordered_set<UINT>& persistent_items_;
   std::function<void(int)> on_selected_;
   std::function<void(HMENU)> on_open_;
+  std::function<void(HMENU)> on_close_;
 };
 
 }  // namespace tray

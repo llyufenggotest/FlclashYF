@@ -105,6 +105,8 @@ abstract class AppSettingProps with _$AppSettingProps {
     @Default(false) bool showLabel,
     @Default(false) bool disclaimerAccepted,
     @Default(true) bool minimizeOnExit,
+    @Default(true) bool backToDashboard,
+    @Default(false) bool tvMode,
     @Default(false) bool hidden,
     @Default(true) bool collapseQuickSettingsPanel,
     @Default(false) bool developerMode,
@@ -325,6 +327,7 @@ abstract class Config with _$Config {
   const factory Config({
     int? currentProfileId,
     @Default(false) bool overrideDns,
+    @Default(false) bool overrideNtp,
     @Default([]) List<HotKeyAction> hotKeyActions,
     @JsonKey(fromJson: AppSettingProps.safeFromJson)
     @Default(defaultAppSettingProps)

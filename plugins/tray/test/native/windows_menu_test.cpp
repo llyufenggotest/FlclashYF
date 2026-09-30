@@ -107,7 +107,8 @@ int main() {
       tray::TrayMenuSession session(
           owner, plugin.persistent_menu_items_,
           [&](int id) { plugin.SendMenuSelection(id); },
-          [&](HMENU menu) { plugin.MaterializeMenu(menu); });
+          [&](HMENU menu) { plugin.MaterializeMenu(menu); },
+          [&](HMENU menu) { plugin.open_menus_.erase(menu); });
       ::SendMessageW(owner, WM_INITMENUPOPUP, reinterpret_cast<WPARAM>(first),
                      0);
       Check(::GetMenuItemCount(first) == 501, "first submenu not populated");
@@ -141,12 +142,36 @@ int main() {
       ::SendMessageW(owner, WM_INITMENUPOPUP, reinterpret_cast<WPARAM>(nested),
                      0);
       Check(Label(nested, 0) == L"香港 && A\t9 ms", "nested update lost");
+      ::SendMessageW(owner, WM_UNINITMENUPOPUP,
+                     reinterpret_cast<WPARAM>(first), 0);
+      Check(plugin.open_menus_.count(first) == 0, "closed menu stayed active");
+      Check(plugin.UpdateMenuItems(
+                {Value(Map{{Value("key"), Value("node-1024")},
+                           {Value("sublabel"), Value("77 ms")},
+                           {Value("sublabelStyle"), Value("badge")}}),
+                 Value(Map{{Value("key"), Value("node-5000")},
+                           {Value("sublabel"), Value("88 ms")}})}),
+            "cross-menu update rejected");
+      Check(Label(first, 0) == L"香港 && A\t17 ms",
+            "closed menu was refreshed eagerly");
+      Check(Label(nested, 0) == L"香港 && A\t88 ms",
+            "open menu did not refresh immediately");
+      ::SendMessageW(owner, WM_INITMENUPOPUP,
+                     reinterpret_cast<WPARAM>(first), 0);
+      Check(Label(first, 0) == L"香港 && A\t77 ms",
+            "reopened menu did not use cached delay");
+      Check(::GetMenuItemCount(first) == 501 &&
+                ::GetMenuItemID(first, 0) == 1024,
+            "refresh changed menu structure");
+      Check((::GetMenuState(first, 0, MF_BYPOSITION) & MF_CHECKED) != 0,
+            "refresh lost selection");
     }
     ::DestroyWindow(owner);
     plugin.SetMenu({Value(Group("New", {Value(Node(6000))}))});
     Check(!plugin.UpdateMenuItems({Value(update)}),
           "stale key survived rebuild");
     Check(plugin.deferred_menus_.size() == 1, "stale deferred menus survived");
+    Check(plugin.open_menus_.empty(), "rebuild retained open menus");
     plugin.Hide();
     Check(plugin.menu_entries_.empty() && plugin.deferred_menus_.empty(),
           "hide retained deferred state");

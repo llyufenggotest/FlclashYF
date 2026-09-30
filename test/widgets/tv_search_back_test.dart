@@ -138,13 +138,22 @@ void main() {
     await tester.enterText(find.byType(TextField), 'needle');
     expect(query, 'needle');
 
+    final homePopScope = find
+        .descendant(
+          of: find.byType(HomeBackScopeContainer),
+          matching: find.byWidgetPredicate((widget) => widget is PopScope),
+        )
+        .first;
+    expect(tester.widget<PopScope>(homePopScope).canPop, isFalse);
+
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
     expect(closeCount, 0, reason: 'back must not fall through to app close');
     expect(find.byType(TextField), findsNothing);
     expect(query, isEmpty);
-  });
+    expect(tester.widget<PopScope>(homePopScope).canPop, isTrue);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 }
 
 class _TestSystemAction extends SystemAction {

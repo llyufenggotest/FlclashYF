@@ -216,18 +216,6 @@ class DNSHijackingItem extends ConsumerWidget {
   }
 }
 
-class SuspendSupportItem extends ConsumerWidget {
-  const SuspendSupportItem({super.key});
-
-  @override
-  Widget build(BuildContext context, ref) => _vpnToggle(
-    title: (l) => l.suspendSupport,
-    subtitle: (l) => l.suspendSupportDesc,
-    select: (state) => state.suspendSupport,
-    update: (state, value) => state.copyWith(suspendSupport: value),
-  );
-}
-
 class StrictRouteItem extends ConsumerWidget {
   const StrictRouteItem({super.key});
 
@@ -318,6 +306,31 @@ class SendMsgXItem extends ConsumerWidget {
       (state, value) => state.copyWith.tun(sendMsgX: value),
     ),
   );
+}
+
+class TunCongestionControllerItem extends ConsumerWidget {
+  const TunCongestionControllerItem({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stack = ref.watch(
+      patchClashConfigProvider.select((state) => state.tun.stack),
+    );
+    if (stack != TunStack.mips) {
+      return Container();
+    }
+    return ConfigOptionsItem<TunCongestionController>(
+      title: (l) => l.congestionController,
+      options: TunCongestionController.values,
+      textBuilder: (controller) => controller.name,
+      selector: patchClashConfigProvider.select(
+        (state) => state.tun.congestionController,
+      ),
+      onChanged: _tunWriter(
+        (state, value) => state.copyWith.tun(congestionController: value),
+      ),
+    );
+  }
 }
 
 class TunStackItem extends ConsumerWidget {
@@ -577,6 +590,7 @@ List<Widget> networkOptionsItems({
     if (isDesktop) const TunDnsHijackItem(),
     const EndpointIndependentNatItem(),
     const TunStackItem(),
+    const TunCongestionControllerItem(),
     if (isMacOS || isIOS) ...[const RecvMsgXItem(), const SendMsgXItem()],
     const TunMtuItem(),
     // mihomo's DefaultSocketHook ignores interface-name on Android
@@ -597,47 +611,54 @@ class NetworkListView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final appLocalizations = context.appLocalizations;
     final version = ref.watch(versionProvider);
-    return generateListView([
-      if (system.isAndroid) const VPNItem(),
-      if (system.isMobile)
-        ...generateSection(
-          title: 'VPN',
-          items: [
-            const VpnSystemProxyItem(),
-            const BypassDomainItem(),
-            const AllowBypassItem(),
-            const Ipv6Item(),
-            const DNSHijackingItem(),
-            if (system.isAndroid) const SuspendSupportItem(),
-          ],
-        ),
-      if (system.isDesktop)
-        ...generateSection(
-          title: appLocalizations.system,
-          items: [const SystemProxyItem(), const BypassDomainItem()],
-        ),
-      ...generateSection(
-        title: appLocalizations.options,
-        items: networkOptionsItems(
-          isDesktop: system.isDesktop,
-          isMacOS: system.isMacOS,
-          isIOS: system.isIOS,
-        ),
-      ),
-      if (system.isIOS)
-        ...generateSection(
-          title: appLocalizations.networkExtension,
-          items: [
-            const IncludeAllNetworksItem(),
-            const EnforceRoutesItem(),
-            const ExcludeLocalNetworksItem(),
-            if (version >= 16) ...[
-              const ExcludeAPNsItem(),
-              const ExcludeCellularServicesItem(),
+    final leadingVpn = system.isAndroid;
+    return ListView(
+      padding: sectionPagePadding,
+      children: [
+        if (leadingVpn)
+          generateSectionV3(isFirst: true, items: const [VPNItem()]),
+        if (system.isMobile)
+          generateSectionV3(
+            title: 'VPN',
+            isFirst: !leadingVpn,
+            items: [
+              const VpnSystemProxyItem(),
+              const BypassDomainItem(),
+              const AllowBypassItem(),
+              const Ipv6Item(),
+              const DNSHijackingItem(),
             ],
-            if (version >= 17) const ExcludeDeviceCommunicationItem(),
-          ],
+          ),
+        if (system.isDesktop)
+          generateSectionV3(
+            title: appLocalizations.system,
+            isFirst: true,
+            items: const [SystemProxyItem(), BypassDomainItem()],
+          ),
+        generateSectionV3(
+          title: appLocalizations.options,
+          isFirst: !system.isMobile && !system.isDesktop,
+          items: networkOptionsItems(
+            isDesktop: system.isDesktop,
+            isMacOS: system.isMacOS,
+            isIOS: system.isIOS,
+          ),
         ),
-    ]);
+        if (system.isIOS)
+          generateSectionV3(
+            title: appLocalizations.networkExtension,
+            items: [
+              const IncludeAllNetworksItem(),
+              const EnforceRoutesItem(),
+              const ExcludeLocalNetworksItem(),
+              if (version >= 16) ...[
+                const ExcludeAPNsItem(),
+                const ExcludeCellularServicesItem(),
+              ],
+              if (version >= 17) const ExcludeDeviceCommunicationItem(),
+            ],
+          ),
+      ],
+    );
   }
 }

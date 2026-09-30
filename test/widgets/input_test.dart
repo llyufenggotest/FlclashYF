@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:fl_clash/common/navigator.dart';
+import 'package:fl_clash/common/shape.dart';
 import 'package:fl_clash/models/common.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/widgets/widgets.dart';
@@ -231,6 +232,13 @@ void main() {
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
+    final optionInk = tester.widget<InkWell>(
+      find.descendant(
+        of: find.byType(ListTile).first,
+        matching: find.byType(InkWell),
+      ),
+    );
+    expect(optionInk.customBorder, AppShape.md);
     await tester.tap(find.text('Two'));
     await tester.pumpAndSettle();
 
@@ -258,6 +266,7 @@ void main() {
                     labelText: 'Value',
                     suffixText: 'unit',
                     hintText: 'hint',
+                    autofocus: true,
                     validator: (value) => value == 'valid' ? null : 'Invalid',
                   ),
                 );
@@ -271,6 +280,10 @@ void main() {
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
+    expect(
+      tester.widget<EditableText>(find.byType(EditableText)).focusNode.hasFocus,
+      isTrue,
+    );
     await tester.tap(find.text('Submit'));
     await tester.pump();
     expect(find.text('Invalid'), findsOneWidget);
@@ -305,6 +318,7 @@ void main() {
                         title: 'Scalar',
                         valueField: Field(label: 'Value', value: ''),
                         valueMaxLength: 4,
+                        autofocus: true,
                       ),
                     );
                   },
@@ -320,6 +334,7 @@ void main() {
                         valueField: Field(label: 'Value', value: ''),
                         keyMaxLength: 3,
                         valueMaxLength: 4,
+                        autofocus: true,
                       ),
                     );
                   },
@@ -334,6 +349,10 @@ void main() {
 
     await tester.tap(find.text('Scalar'));
     await tester.pumpAndSettle();
+    expect(
+      tester.widget<EditableText>(find.byType(EditableText)).focusNode.hasFocus,
+      isTrue,
+    );
     await tester.tap(find.text('Confirm'));
     await tester.pump();
     expect(find.byType(AddDialog), findsOneWidget);
@@ -345,6 +364,13 @@ void main() {
     await tester.tap(find.text('Pair'));
     await tester.pumpAndSettle();
     final fields = find.byType(TextFormField);
+    expect(
+      tester
+          .widget<EditableText>(find.byType(EditableText).first)
+          .focusNode
+          .hasFocus,
+      isTrue,
+    );
     await tester.enterText(fields.first, 'key1');
     await tester.enterText(fields.last, 'value');
     await tester.tap(find.text('Confirm'));

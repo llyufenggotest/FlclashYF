@@ -17,6 +17,45 @@ import '../helpers/test_app.dart';
 class _Core extends Mock implements CoreController {}
 
 void main() {
+  for (final size in [const Size(390, 844), const Size(1440, 1000)]) {
+    testWidgets(
+      'logs page exposes the top clear action at ${size.width}px',
+      (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final container = ProviderContainer(
+          overrides: [
+            viewSizeProvider.overrideWithBuild((_, _) => size),
+            patchClashConfigProvider.overrideWithValue(
+              const PatchClashConfig(logLevel: LogLevel.debug),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        globalState.container = container;
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const TestApp(child: LogsView()),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final l10n = tester.element(find.byType(LogsView)).appLocalizations;
+        final clearAction = find.byTooltip(l10n.clear);
+        expect(clearAction, findsOneWidget);
+        expect(find.byIcon(Icons.delete_sweep_outlined), findsOneWidget);
+        final actionRect = tester.getRect(clearAction);
+        expect(actionRect.top, lessThan(100));
+        expect(actionRect.right, lessThanOrEqualTo(size.width));
+        await tester.tap(clearAction);
+        await tester.pumpAndSettle();
+        expect(find.text(l10n.confirm), findsOneWidget);
+      },
+    );
+  }
+
   testWidgets('a delayed initial backlog cannot resurrect cleared logs', (
     tester,
   ) async {

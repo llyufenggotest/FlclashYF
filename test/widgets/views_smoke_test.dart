@@ -11,7 +11,6 @@ import 'package:fl_clash/providers/state.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/config/advanced.dart';
 import 'package:fl_clash/views/config/dns.dart';
-import 'package:fl_clash/views/config/general.dart';
 import 'package:fl_clash/views/config/network.dart';
 import 'package:fl_clash/views/config/on_demand.dart';
 import 'package:fl_clash/views/config/rules.dart';
@@ -27,6 +26,7 @@ import 'package:fl_clash/views/proxies/tab.dart';
 import 'package:fl_clash/views/theme.dart';
 import 'package:fl_clash/views/views.dart';
 import 'package:fl_clash/widgets/inherited.dart';
+import 'package:fl_clash/widgets/list.dart';
 import 'package:fl_clash/widgets/paged_sheet.dart';
 import 'package:fl_clash/widgets/sheet.dart';
 import 'package:material_ui/material_ui.dart' as flutter;
@@ -44,6 +44,13 @@ import '../helpers/test_profiles.dart';
 Finder _portField(String label) =>
     find.ancestor(of: find.text(label), matching: find.byType(TextFormField));
 
+Finder _actionButton(String label) {
+  return find.descendant(
+    of: find.byType(FilledButton),
+    matching: find.widgetWithText(FilledButton, label),
+  );
+}
+
 class _MockCoreHandlerInterface extends Mock implements CoreHandlerInterface {}
 
 void main() {
@@ -60,14 +67,14 @@ void main() {
     'resources': const ResourcesView(),
     'networking': const NetworkingView(),
     'logs': const LogsView(),
+    'dns queries': const DnsQueriesView(),
     'tools': const ToolsView(),
-    'basic config': const ConfigView(),
+    'general': const GeneralView(),
     'dns config': const Scaffold(body: DnsListView()),
     'network config': const Scaffold(body: NetworkListView()),
     'advanced config': const AdvancedConfigView(),
     'on demand config': const OnDemandView(),
     'theme': const ThemeView(),
-    'application settings': const ApplicationSettingView(),
     'backup and restore': const BackupAndRestore(),
     'hotkeys': const HotKeyView(),
     'access control': const AccessView(),
@@ -368,18 +375,13 @@ void main() {
         await tester.tap(find.text('tailnet'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
-        expect(
-          find.widgetWithText(flutter.FilledButton, 'Initialize'),
-          findsOneWidget,
-        );
+        expect(_actionButton('Initialize'), findsOneWidget);
         expect(find.text('Network'), findsNothing);
         expect(find.text('device'), findsNothing);
         verifyNever(
           () => networkingCoreHandler!.activateOverlayNetwork(any(), any()),
         );
-        await tester.tap(
-          find.widgetWithText(flutter.FilledButton, 'Initialize'),
-        );
+        await tester.tap(_actionButton('Initialize'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
         verify(
@@ -391,16 +393,22 @@ void main() {
         expect(find.text('device'), findsOneWidget);
         expect(find.text('local-device'), findsOneWidget);
         expect(
-          tester.getTopLeft(find.text('Local').first).dy,
+          tester.getTopLeft(find.text('Nodes')).dy,
           lessThan(tester.getTopLeft(find.text('local-device')).dy),
         );
         expect(
           tester.getTopLeft(find.text('local-device')).dy,
-          lessThan(tester.getTopLeft(find.text('Nodes')).dy),
+          lessThan(tester.getTopLeft(find.text('device')).dy),
         );
         expect(
-          tester.getTopLeft(find.text('Nodes')).dy,
-          lessThan(tester.getTopLeft(find.text('device')).dy),
+          find.descendant(
+            of: find.ancestor(
+              of: find.text('local-device'),
+              matching: find.byType(DecorationListItem),
+            ),
+            matching: find.text('Local'),
+          ),
+          findsOneWidget,
         );
         expect(find.byIcon(Icons.desktop_windows_outlined), findsOneWidget);
         expect(find.byIcon(Icons.bolt), findsOneWidget);
@@ -453,10 +461,7 @@ void main() {
         globalState.navigatorKey.currentState!.pop();
         await tester.pumpAndSettle();
         expect(find.text('1234567890'), findsNothing);
-        expect(
-          find.widgetWithText(flutter.FilledButton, 'Sign in'),
-          findsOneWidget,
-        );
+        expect(_actionButton('Sign in'), findsOneWidget);
         expect(networkingRequests, isNotEmpty);
         expect(networkingRequests.last.targets, hasLength(1));
         expect(
@@ -540,13 +545,8 @@ void main() {
         await tester.tap(find.text('tailnet'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
-        expect(
-          find.widgetWithText(flutter.FilledButton, 'Sign in'),
-          findsNWidgets(2),
-        );
-        await tester.tap(
-          find.widgetWithText(flutter.FilledButton, 'Sign in').first,
-        );
+        expect(_actionButton('Sign in'), findsNWidgets(2));
+        await tester.tap(_actionButton('Sign in').first);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
         expect(
@@ -567,54 +567,39 @@ void main() {
         await tester.tap(find.byTooltip('Sync'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
-        expect(
-          find.widgetWithText(flutter.FilledButton, 'Sign out'),
-          findsOneWidget,
-        );
+        expect(_actionButton('Sign out'), findsOneWidget);
         expect(find.text('Health warnings'), findsOneWidget);
         expect(find.text('DERP unavailable'), findsOneWidget);
         tailscaleAuthKeyConfigured = true;
         await tester.tap(find.byTooltip('Sync'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
-        expect(
-          find.widgetWithText(flutter.FilledButton, 'Sign out'),
-          findsNothing,
-        );
+        expect(_actionButton('Sign out'), findsNothing);
         tailscaleAuthKeyConfigured = false;
         tailscaleState = OverlayNetworkState.needsApproval;
         tailscaleHealth = [];
         await tester.tap(find.byTooltip('Sync'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
-        expect(
-          find.widgetWithText(flutter.FilledButton, 'Sign out'),
-          findsOneWidget,
-        );
+        expect(_actionButton('Sign out'), findsOneWidget);
         tailscaleState = OverlayNetworkState.starting;
         await tester.tap(find.byTooltip('Sync'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
-        expect(
-          find.widgetWithText(flutter.FilledButton, 'Sign out'),
-          findsNothing,
-        );
+        expect(_actionButton('Sign out'), findsNothing);
         expect(find.textContaining('Connecting'), findsOneWidget);
         expect(find.text('Account'), findsNothing);
         tailscaleState = OverlayNetworkState.connected;
         await tester.tap(find.byTooltip('Sync'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
-        await tester.tap(find.widgetWithText(flutter.FilledButton, 'Sign out'));
+        await tester.tap(_actionButton('Sign out'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
         verify(
           () => networkingCoreHandler!.logoutTailscale('tailnet'),
         ).called(1);
-        expect(
-          find.widgetWithText(flutter.FilledButton, 'Sign in'),
-          findsNWidgets(2),
-        );
+        expect(_actionButton('Sign in'), findsNWidgets(2));
         tailscaleState = OverlayNetworkState.connected;
         await tester.tap(find.byTooltip('Sync'));
         await tester.pump();
@@ -622,13 +607,10 @@ void main() {
         when(
           () => networkingCoreHandler!.logoutTailscale(any()),
         ).thenThrow(StateError('logout failed'));
-        await tester.tap(find.widgetWithText(flutter.FilledButton, 'Sign out'));
+        await tester.tap(_actionButton('Sign out'));
         await tester.pump();
         expect(find.textContaining('logout failed'), findsOneWidget);
-        expect(
-          find.widgetWithText(flutter.FilledButton, 'Sign out'),
-          findsOneWidget,
-        );
+        expect(_actionButton('Sign out'), findsOneWidget);
       }
       if (entry.key == 'access control') {
         await tester.pump(const Duration(milliseconds: 301));
@@ -651,9 +633,8 @@ void main() {
   final toolDestinations = <String, Type>{
     'Theme': ThemeView,
     'Backup and restore': BackupAndRestore,
-    'Basic configuration': ConfigView,
     'Advanced configuration': AdvancedConfigView,
-    'Application': ApplicationSettingView,
+    'General': GeneralView,
   };
 
   for (final entry in toolDestinations.entries) {
@@ -686,6 +667,12 @@ void main() {
         500,
         scrollable: find.byType(Scrollable).first,
       );
+      if (entry.key == 'General') {
+        expect(
+          find.text('General settings for the app and core'),
+          findsOneWidget,
+        );
+      }
       await tester.tap(target);
       await tester.pumpAndSettle();
 

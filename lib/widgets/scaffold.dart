@@ -4,9 +4,11 @@ import 'package:fl_clash/widgets/pop_scope.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
 
+import 'button.dart';
 import 'chip.dart';
 import 'focus.dart';
 import 'inherited.dart';
+import 'tv_layout.dart';
 
 typedef OnKeywordsUpdateCallback = void Function(List<String> keywords);
 
@@ -164,11 +166,12 @@ class CommonScaffoldState extends State<CommonScaffold> {
     _updateSearchState((state) => state?.copyWith(query: null));
   }
 
-  void _handleExitAppBarLayer() {
+  bool _handleExitAppBarLayer() {
     handleExitSearching();
     if (_isEdit) {
       _appBarState.value.editState?.onExit();
     }
+    return false;
   }
 
   void _popAppBarLayer() {
@@ -288,6 +291,10 @@ class CommonScaffoldState extends State<CommonScaffold> {
         : button;
   }
 
+  Widget _buildTvFloatingActionButton() {
+    return FabFocusOutline(child: widget.floatingActionButton!);
+  }
+
   List<Widget> _buildActions(
     AppBarSearchState? searchState,
     List<Widget> actions,
@@ -313,7 +320,7 @@ class CommonScaffoldState extends State<CommonScaffold> {
             height: 48,
             child: CommonScaffoldFabExtendedProvider(
               isExtended: true,
-              child: widget.floatingActionButton!,
+              child: _buildTvFloatingActionButton(),
             ),
           ),
         ),
@@ -388,9 +395,12 @@ class CommonScaffoldState extends State<CommonScaffold> {
 
   @override
   Widget build(BuildContext context) {
+    return withTvLayout(context, isTV: widget.isTV, builder: _buildScaffold);
+  }
+
+  Widget _buildScaffold(BuildContext context, bool isTV) {
     assert(widget.appBar != null || widget.title != null);
     final backActionProvider = CommonScaffoldBackActionProvider.of(context);
-    final isTV = widget.isTV ?? system.isTV;
     final bottomInset = BottomInsetScope.of(context);
     final hasFab = !isTV && widget.floatingActionButton != null;
     final body = SafeArea(
@@ -407,7 +417,7 @@ class CommonScaffoldState extends State<CommonScaffold> {
                 order: const PrimaryFocusOrder(),
                 child: CommonScaffoldFabExtendedProvider(
                   isExtended: true,
-                  child: widget.floatingActionButton!,
+                  child: _buildTvFloatingActionButton(),
                 ),
               ),
             ),

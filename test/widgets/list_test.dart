@@ -1,4 +1,5 @@
 import 'package:fl_clash/common/navigator.dart';
+import 'package:fl_clash/common/system.dart';
 import 'package:fl_clash/models/config.dart';
 import 'package:fl_clash/providers/config.dart';
 import 'package:fl_clash/providers/app.dart';
@@ -19,6 +20,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           isMobileViewProvider.overrideWithValue(true),
+          versionProvider.overrideWithBuild((_, _) => 33),
           themeSettingProvider.overrideWithBuild(
             (_, _) => ThemeProps(predictiveBack: predictiveBack),
           ),
@@ -58,15 +60,20 @@ void main() {
     expect(route, isA<CommonRoute<dynamic>>());
   });
 
-  testWidgets('Android predictive back uses the themed page route', (
-    tester,
-  ) async {
-    final route = await openListItem(
-      tester,
-      platform: TargetPlatform.android,
-      predictiveBack: true,
-    );
+  testWidgets(
+    'Android predictive back uses the themed page route when supported',
+    (tester) async {
+      final route = await openListItem(
+        tester,
+        platform: TargetPlatform.android,
+        predictiveBack: true,
+      );
 
-    expect(route, isA<CommonRoute<dynamic>>());
-  });
+      if (system.isAndroid) {
+        expect(route, isA<CommonRoute<dynamic>>());
+      } else {
+        expect(route, isNot(isA<CommonRoute<dynamic>>()));
+      }
+    },
+  );
 }

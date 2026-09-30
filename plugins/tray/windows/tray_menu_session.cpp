@@ -11,11 +11,13 @@ thread_local TrayMenuSession* TrayMenuSession::current_ = nullptr;
 TrayMenuSession::TrayMenuSession(
     HWND owner, const std::unordered_set<UINT>& persistent_items,
     std::function<void(int)> on_selected,
-    std::function<void(HMENU)> on_open)
+    std::function<void(HMENU)> on_open,
+    std::function<void(HMENU)> on_close)
     : owner_(owner),
       persistent_items_(persistent_items),
       on_selected_(std::move(on_selected)),
-      on_open_(std::move(on_open)) {
+      on_open_(std::move(on_open)),
+      on_close_(std::move(on_close)) {
   subclassed_ = ::SetWindowSubclass(owner_, OwnerProc,
                                     reinterpret_cast<UINT_PTR>(this),
                                     reinterpret_cast<DWORD_PTR>(this)) != FALSE;
@@ -47,6 +49,8 @@ LRESULT CALLBACK TrayMenuSession::OwnerProc(HWND window, UINT message,
   auto* session = reinterpret_cast<TrayMenuSession*>(data);
   if (message == WM_INITMENUPOPUP && HIWORD(lparam) == 0) {
     session->on_open_(reinterpret_cast<HMENU>(wparam));
+  } else if (message == WM_UNINITMENUPOPUP && session->on_close_) {
+    session->on_close_(reinterpret_cast<HMENU>(wparam));
   } else if (message == WM_MENUSELECT) {
     const UINT flags = HIWORD(wparam);
     session->selected_menu_ = (flags == 0xffff || (flags & MF_POPUP) != 0)
