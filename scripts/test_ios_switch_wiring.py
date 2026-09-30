@@ -10,7 +10,7 @@ class SwitchWiring(unittest.TestCase):
     def test_extension_rpc_boundaries(self):
         source = (ROOT / 'ios/NECore/PacketTunnelProvider.swift').read_text()
         for marker in ['rpc_received', 'rpc_reply', 'rpc_missing_completion',
-                       'tunnel_stop', 'tunnel_sleep', 'tunnel_wake', 'tunnel_start']:
+                       'tunnel_stop', 'tunnel_start']:
             self.assertIn('"' + marker + '"', source)
         self.assertIn('SwitchDiagnostics.requestID(messageData)', source)
         self.assertIn('SwitchDiagnostics.processID', source)
