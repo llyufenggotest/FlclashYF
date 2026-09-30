@@ -127,7 +127,9 @@ class _AppStateManagerState extends ConsumerState<AppStateManager>
         globalState.handleForeground();
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
-          ref.read(setupActionProvider.notifier).tryCheckIp();
+          final setupAction = ref.read(setupActionProvider.notifier);
+          setupAction.tryCheckIp();
+          unawaited(setupAction.restoreForegroundState());
         });
         break;
       default:

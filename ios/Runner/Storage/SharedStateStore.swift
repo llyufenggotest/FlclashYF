@@ -4,6 +4,7 @@ final class SharedStateStore {
   private let sharedStateKey = "sharedState"
   private let setupParamsKey = "setupParams"
   private let runTimeKey = "runTime"
+  private let appliedConfigurationRequestKey = "appliedConfigurationRequest"
   private let eventQueueDirectoryName = "core-events"
 
   let appGroupIdentifier = "group.\(Bundle.main.bundleIdentifier!)"
@@ -61,6 +62,17 @@ final class SharedStateStore {
   func runTime() -> Int {
     UserDefaults(suiteName: appGroupIdentifier)?
       .integer(forKey: runTimeKey) ?? 0
+  }
+
+  func isConfigurationRequestApplied(_ requestID: String) -> Bool {
+    UserDefaults(suiteName: appGroupIdentifier)?
+      .string(forKey: appliedConfigurationRequestKey) == requestID
+  }
+
+  func clearConfigurationRequestApplied() {
+    let defaults = UserDefaults(suiteName: appGroupIdentifier)
+    defaults?.removeObject(forKey: appliedConfigurationRequestKey)
+    defaults?.synchronize()
   }
 }
 

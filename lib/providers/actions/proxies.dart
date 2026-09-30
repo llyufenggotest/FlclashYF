@@ -22,11 +22,19 @@ class ProxiesAction extends _$ProxiesAction {
   final Map<String, Future<Delay?>> _pendingDelayTests = {};
   final Map<String, _DelayTestTarget> _pendingDelayTargets = {};
   int _delayTestGeneration = 0;
+  int _groupRefreshGeneration = 0;
+  int? _publishedGroupsProfileId;
 
   final Map<String, String> _pendingSelectedRollback = {};
 
   @override
   void build() {
+    ref.listen(currentProfileIdProvider, (previous, next) {
+      _groupRefreshGeneration++;
+      if (previous != next) {
+        _publishedGroupsProfileId = null;
+      }
+    });
     ref.listen(coreStatusProvider, (_, next) {
       if (next != CoreStatus.connected) {
         cancelDelayTests();
@@ -82,10 +90,18 @@ class ProxiesAction extends _$ProxiesAction {
   }
 
   Future<void> updateGroups() async {
+    final profileId = ref.read(currentProfileProvider)?.id;
+    final generation = _groupRefreshGeneration;
+    if (_publishedGroupsProfileId == null &&
+        generation == 0 &&
+        ref.read(groupsProvider).isNotEmpty) {
+      _publishedGroupsProfileId = profileId;
+    }
     try {
       commonPrint.log('updateGroups');
-      final profileId = ref.read(currentProfileProvider)?.id;
       final groups = await retry<List<Group>>(
+        maxAttempts: system.isIOS ? 8 : 3,
+        delay: system.isIOS ? const Duration(seconds: 2) : midDuration,
         task: () async {
           final sortType = ref.read(
             proxiesStyleSettingProvider.select((state) => state.sortType),
@@ -114,7 +130,18 @@ class ProxiesAction extends _$ProxiesAction {
         },
         retryIf: (res) => res.isEmpty,
       );
+      if (generation != _groupRefreshGeneration ||
+          ref.read(currentProfileProvider)?.id != profileId) {
+        return;
+      }
+      if (groups.isEmpty &&
+          ref.read(groupsProvider).isNotEmpty &&
+          _publishedGroupsProfileId == profileId) {
+        commonPrint.log('updateGroups: retaining last groups after empty read');
+        return;
+      }
       ref.read(groupsProvider.notifier).value = groups;
+      _publishedGroupsProfileId = profileId;
       if (groups.isNotEmpty) {
         _removeUnavailableSelections(profileId: profileId, groups: groups);
       }

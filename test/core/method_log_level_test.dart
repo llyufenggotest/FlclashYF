@@ -7,7 +7,14 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('coreFailureLogLevel', () {
     test('silences failures caused by an unavailable Core', () {
-      for (final code in ['transport_disconnected', 'transport_error']) {
+      for (final code in [
+        'transport_disconnected',
+        'transport_error',
+        'network_extension_unavailable',
+        'network_extension_timeout',
+        'profile_switching',
+        'stale_profile',
+      ]) {
         expect(
           coreFailureLogLevel(CoreMethodException(code: code, message: code)),
           LogLevel.debug,

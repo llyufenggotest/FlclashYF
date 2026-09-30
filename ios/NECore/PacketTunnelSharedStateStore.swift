@@ -17,6 +17,7 @@ final class PacketTunnelSharedStateStore {
   private let sharedStateKey = "sharedState"
   private let setupParamsKey = "setupParams"
   private let runTimeKey = "runTime"
+  private let appliedConfigurationRequestKey = "appliedConfigurationRequest"
 
   func loadVPNOptions() -> PacketTunnelVPNOptions? {
     guard let data = userDefaults?.data(forKey: sharedStateKey),
@@ -70,6 +71,16 @@ final class PacketTunnelSharedStateStore {
 
   func clearRunTime() {
     userDefaults?.removeObject(forKey: runTimeKey)
+  }
+
+  func markConfigurationRequestApplied(_ requestID: String) {
+    userDefaults?.set(requestID, forKey: appliedConfigurationRequestKey)
+    userDefaults?.synchronize()
+  }
+
+  func clearConfigurationRequestApplied() {
+    userDefaults?.removeObject(forKey: appliedConfigurationRequestKey)
+    userDefaults?.synchronize()
   }
 
   private var userDefaults: UserDefaults? {

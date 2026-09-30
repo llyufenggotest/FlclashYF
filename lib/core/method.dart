@@ -150,10 +150,10 @@ class CoreMethodException implements Exception {
   bool get isCoreUnavailable => const {
     'transport_disconnected',
     'transport_error',
-    // iOS: the tunnel was stopped (or is stopping) while a provider message
-    // was still in flight — the system drops those replies. This is an
-    // expected side effect of stop/switch, not a failure to show the user.
     'network_extension_unavailable',
+    'network_extension_timeout',
+    'profile_switching',
+    'stale_profile',
   }.contains(code);
 
   @override

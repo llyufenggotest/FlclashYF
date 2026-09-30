@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'common/common.dart';
+import 'core/core.dart';
 import 'enum/enum.dart';
 import 'models/models.dart';
 
@@ -122,6 +123,9 @@ class GlobalState {
             : '$title ===> ${compactError(e)}, $s',
         logLevel: LogLevel.warning,
       );
+      if (isCoreUnavailableError(e)) {
+        return null;
+      }
       final message = userFacingErrorMessage(e, currentAppLocalizations);
       if (silence) {
         dialogs.showNotifier(message, level: MessageLevel.error);

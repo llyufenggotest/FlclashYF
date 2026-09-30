@@ -251,6 +251,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     ])
     if method == "setupConfig" || method == "updateConfig" {
       _ = configProbe()
+      sharedStateStore.clearConfigurationRequestApplied()
     }
     logger.debug(
       "handleAppMessage bytes=\(messageData.count, privacy: .public)"
@@ -287,6 +288,11 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
       self.logger.debug(
         "handleAppMessage response bytes=\(response.count, privacy: .public)"
       )
+      if (method == "setupConfig" || method == "updateConfig"),
+        self.methodResponseHasEmptyStringResult(response)
+      {
+        self.sharedStateStore.markConfigurationRequestApplied(requestID)
+      }
       reply(response)
     }
   }
@@ -306,6 +312,16 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
       logger.info("wake: resuming tunnel")
       NECoreBridge.setSuspended(false)
     }
+  }
+
+  private func methodResponseHasEmptyStringResult(_ response: Data) -> Bool {
+    guard let payload = try? JSONSerialization.jsonObject(with: response)
+      as? [String: Any],
+      payload["error"] == nil || payload["error"] is NSNull
+    else {
+      return false
+    }
+    return payload["result"] as? String == ""
   }
 
   private func methodErrorResponse(

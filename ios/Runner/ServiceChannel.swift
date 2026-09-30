@@ -119,7 +119,10 @@ final class ServiceChannel {
       result(true)
     case "init":
       coreEventRelay.drainEventQueue()
-      result("")
+      Task {
+        await coreMessageRouter.refreshTunnelState()
+        result("")
+      }
     case "syncState":
       syncState(call, result: result)
     case "shutdown":

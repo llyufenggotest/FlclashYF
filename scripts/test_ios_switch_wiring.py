@@ -37,6 +37,7 @@ class SwitchWiring(unittest.TestCase):
     def test_packaging_runs_native_tests(self):
         source = (ROOT / '.github/workflows/ios-five-protocol.yaml').read_text()
         self.assertIn('python3 scripts/test_ios_switch_diagnostics.py', source)
+        self.assertIn('python3 scripts/test_ios_provider_retry.py', source)
 
 
 if __name__ == '__main__':

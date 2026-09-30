@@ -5,15 +5,31 @@ import 'package:dio/dio.dart';
 import 'package:fl_clash/common/constant.dart';
 import 'package:fl_clash/common/fixed.dart';
 import 'package:fl_clash/common/request.dart';
+import 'package:fl_clash/core/controller.dart';
+import 'package:fl_clash/core/interface.dart';
+import 'package:fl_clash/core/method.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
+import 'package:fl_clash/providers/core.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:riverpod/riverpod.dart';
 
+class _Core extends Mock implements CoreHandlerInterface {}
+
+ExternalProvider _provider(String name) => ExternalProvider(
+  name: name,
+  type: 'Proxy',
+  count: 1,
+  vehicleType: 'HTTP',
+  updateAt: DateTime.utc(2026),
+);
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late ProviderContainer container;
 
   setUp(() {
@@ -137,6 +153,98 @@ void main() {
 
       expect(container.read(providersProvider).single, provider);
     });
+
+    test('ignores a response started for a previous profile', () async {
+      final core = _Core();
+      final response = Completer<List<ExternalProvider>>();
+      when(core.getExternalProviders).thenAnswer((_) => response.future);
+      final scopedContainer = ProviderContainer(
+        overrides: [
+          coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+        ],
+      );
+      addTearDown(scopedContainer.dispose);
+      scopedContainer.read(currentProfileIdProvider.notifier).value = 1;
+      final notifier = scopedContainer.read(providersProvider.notifier);
+
+      final sync = notifier.syncProviders();
+      await Future<void>.delayed(Duration.zero);
+      scopedContainer.read(currentProfileIdProvider.notifier).value = 2;
+      response.complete([_provider('profile-a')]);
+      await sync;
+
+      expect(scopedContainer.read(providersProvider), isEmpty);
+    });
+
+    test('retains same-profile providers after an empty read', () async {
+      final core = _Core();
+      when(core.getExternalProviders).thenAnswer((_) async => []);
+      final scopedContainer = ProviderContainer(
+        overrides: [
+          coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+        ],
+      );
+      addTearDown(scopedContainer.dispose);
+      scopedContainer.read(currentProfileIdProvider.notifier).value = 1;
+      final notifier = scopedContainer.read(providersProvider.notifier);
+      notifier.value = [_provider('last-good')];
+
+      await notifier.syncProviders();
+
+      expect(scopedContainer.read(providersProvider).map((item) => item.name), [
+        'last-good',
+      ]);
+    });
+
+    test('publishes an empty list after the active profile changes', () async {
+      final core = _Core();
+      when(core.getExternalProviders).thenAnswer((_) async => [_provider('a')]);
+      final scopedContainer = ProviderContainer(
+        overrides: [
+          coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+        ],
+      );
+      addTearDown(scopedContainer.dispose);
+      scopedContainer.read(currentProfileIdProvider.notifier).value = 1;
+      final notifier = scopedContainer.read(providersProvider.notifier);
+      await notifier.syncProviders();
+      scopedContainer.read(currentProfileIdProvider.notifier).value = 2;
+      when(core.getExternalProviders).thenAnswer((_) async => []);
+
+      await notifier.syncProviders();
+
+      expect(scopedContainer.read(providersProvider), isEmpty);
+    });
+
+    test(
+      'clears old providers when the new profile Core is unavailable',
+      () async {
+        final core = _Core();
+        when(
+          core.getExternalProviders,
+        ).thenAnswer((_) async => [_provider('a')]);
+        final scopedContainer = ProviderContainer(
+          overrides: [
+            coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+          ],
+        );
+        addTearDown(scopedContainer.dispose);
+        scopedContainer.read(currentProfileIdProvider.notifier).value = 1;
+        final notifier = scopedContainer.read(providersProvider.notifier);
+        await notifier.syncProviders();
+        scopedContainer.read(currentProfileIdProvider.notifier).value = 2;
+        when(core.getExternalProviders).thenThrow(
+          const CoreMethodException(
+            code: 'network_extension_unavailable',
+            message: 'switching',
+          ),
+        );
+
+        await notifier.syncProviders();
+
+        expect(scopedContainer.read(providersProvider), isEmpty);
+      },
+    );
   });
 
   group('SystemBrightness provider', () {

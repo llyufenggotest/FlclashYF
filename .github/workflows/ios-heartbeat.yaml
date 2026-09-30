@@ -10,6 +10,16 @@ on:
       - scripts/test_ios_heartbeat.py
       - ios/Shared/SwitchDiagnostics.swift
       - scripts/test_ios_switch_diagnostics.py
+      - ios/Runner/Core/CoreMessageRouter.swift
+      - ios/Runner/ServiceChannel.swift
+      - ios/Runner/Storage/SharedStateStore.swift
+      - ios/Runner/Tunnel/TunnelController.swift
+      - ios/NECore/PacketTunnelProvider.swift
+      - ios/NECore/PacketTunnelSharedStateStore.swift
+      - ios/Runner.xcodeproj/project.pbxproj
+      - ios/Shared/ProviderReadRetry.swift
+      - scripts/test_ios_provider_retry.py
+      - scripts/fixtures/provider_read_retry_main.swift
       - scripts/test_ios_switch_wiring.py
       - .github/workflows/ios-heartbeat.yaml
   workflow_dispatch:
@@ -27,4 +37,5 @@ jobs:
         run: |
           python3 scripts/test_ios_heartbeat.py
           python3 scripts/test_ios_switch_diagnostics.py
+          python3 scripts/test_ios_provider_retry.py
           python3 scripts/test_ios_switch_wiring.py
