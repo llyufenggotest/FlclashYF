@@ -4,10 +4,10 @@ import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/pages/home.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/state.dart';
+import 'package:fl_clash/widgets/capsule_navigation.dart';
 import 'package:fl_clash/widgets/focus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../helpers/test_app.dart';
@@ -102,8 +102,8 @@ void main() {
     _requestFocus(
       tester,
       find.descendant(
-        of: find.byType(NavigationBar),
-        matching: find.byIcon(Symbols.space_dashboard),
+        of: find.byType(CapsuleNavigation),
+        matching: find.byIcon(Icons.space_dashboard),
       ),
     );
     await tester.pump();
@@ -161,9 +161,9 @@ NavigationItem _page(
 
 IconData _iconFor(PageLabel label) {
   return switch (label) {
-    PageLabel.dashboard => Symbols.space_dashboard,
-    PageLabel.tools => Symbols.construction,
-    _ => Symbols.circle,
+    PageLabel.dashboard => Icons.space_dashboard,
+    PageLabel.tools => Icons.construction,
+    _ => Icons.circle,
   };
 }
 
@@ -240,7 +240,7 @@ Future<_Harness> _pumpHome(
     ),
   );
   await tester.pumpAndSettle();
-  expect(find.byType(NavigationBar), findsOneWidget);
+  expect(find.byType(CapsuleNavigation), findsOneWidget);
   return harness;
 }
 
