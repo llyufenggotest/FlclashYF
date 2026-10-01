@@ -30,6 +30,7 @@ final class TunnelController {
   private var providerMessageWaiters: [CheckedContinuation<Void, Never>] = []
   private var configurationGeneration: UInt64 = 0
   private var configurationInFlight = false
+  private var managerRefreshTask: Task<Void, Error>?
 
   init(
     sharedStateStore: SharedStateStore,
@@ -161,7 +162,7 @@ final class TunnelController {
       )
     }
 
-    await acquireProviderMessageSlot()
+    await acquireProviderMessageSlot(reserveForConfiguration: retryRead)
     defer { releaseProviderMessageSlot() }
     let generation = configurationGeneration
     let attempts = retryRead ? ProviderReadRetry.maxAttempts : 1
@@ -201,6 +202,9 @@ final class TunnelController {
           attempt < attempts
         else {
           break
+        }
+        if error.code == "empty_response_retryable" {
+          await refreshManagerAfterNilResponse()
         }
         try? await Task.sleep(
           nanoseconds: ProviderReadRetry.backoff(after: attempt)
@@ -332,13 +336,37 @@ final class TunnelController {
     }
   }
 
-  private func acquireProviderMessageSlot() async {
-    while inFlightProviderMessages >= maxInFlightProviderMessages {
+  private func acquireProviderMessageSlot(
+    reserveForConfiguration: Bool
+  ) async {
+    let limit = reserveForConfiguration
+      ? maxInFlightProviderMessages - 1
+      : maxInFlightProviderMessages
+    while inFlightProviderMessages >= limit {
       await withCheckedContinuation { continuation in
         providerMessageWaiters.append(continuation)
       }
     }
     inFlightProviderMessages += 1
+  }
+
+  private func refreshManagerAfterNilResponse() async {
+    if let managerRefreshTask {
+      try? await managerRefreshTask.value
+      return
+    }
+    let task = Task { @MainActor in
+      try await managerStore.refreshLoadedManager()
+    }
+    managerRefreshTask = task
+    defer { managerRefreshTask = nil }
+    do {
+      try await task.value
+    } catch {
+      SwitchDiagnostics.record("core_active_check_failure", fields: [
+        "error_type": "manager_load_failed",
+      ])
+    }
   }
 
   private func releaseProviderMessageSlot() {

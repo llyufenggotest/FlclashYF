@@ -206,6 +206,7 @@ const (
 	getIsInitMethod                      CoreMethod = "getIsInit"
 	forceGcMethod                        CoreMethod = "forceGc"
 	shutdownMethod                       CoreMethod = "shutdown"
+	releaseConfigMethod                  CoreMethod = "releaseConfig"
 	validateConfigMethod                 CoreMethod = "validateConfig"
 	updateConfigMethod                   CoreMethod = "updateConfig"
 	getProxiesMethod                     CoreMethod = "getProxies"

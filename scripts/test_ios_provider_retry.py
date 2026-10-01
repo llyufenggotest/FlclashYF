@@ -36,6 +36,39 @@ class ProviderRetryWiring(unittest.TestCase):
         self.assertIn("beginConfigurationApply", router)
         self.assertIn("finishConfigurationApply", router)
 
+    def test_live_extension_update_is_not_blocked_by_unconfigured_app_core(self):
+        router = self.source("ios/Runner/Core/CoreMessageRouter.swift")
+        body = router.split("private func sendConfigurationMessage(", 1)[1].split(
+            "private func sendConfigurationPhase(", 1
+        )[0]
+        self.assertIn("if networkExtensionActive && method == .updateConfig", body)
+        branch = body.split(
+            "if networkExtensionActive && method == .updateConfig", 1
+        )[1].split("let appResponse", 1)[0]
+        self.assertIn("route: .networkExtension", branch)
+        self.assertNotIn("route: .app", branch)
+
+    def test_nil_provider_reply_refreshes_manager_before_retry(self):
+        controller = self.source("ios/Runner/Tunnel/TunnelController.swift")
+        store = self.source("ios/Runner/Tunnel/TunnelManagerStore.swift")
+        self.assertIn("refreshManagerAfterNilResponse", controller)
+        self.assertIn("func refreshLoadedManager() async throws", store)
+        self.assertIn("selectManagedManager", store)
+
+    def test_reads_leave_one_message_slot_for_configuration(self):
+        controller = self.source("ios/Runner/Tunnel/TunnelController.swift")
+        self.assertIn(
+            "acquireProviderMessageSlot(reserveForConfiguration: retryRead)",
+            controller,
+        )
+        self.assertIn("maxInFlightProviderMessages - 1", controller)
+
+    def test_successful_live_setup_releases_app_core_runtime(self):
+        router = self.source("ios/Runner/Core/CoreMessageRouter.swift")
+        core = self.source("core/method.go")
+        self.assertIn("releaseAppCoreConfiguration()", router)
+        self.assertIn('releaseConfigMethod:', core)
+
     def test_lost_configuration_reply_uses_exact_request_ack(self):
         controller = self.source("ios/Runner/Tunnel/TunnelController.swift")
         runner_store = self.source("ios/Runner/Storage/SharedStateStore.swift")

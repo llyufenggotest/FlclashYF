@@ -171,6 +171,9 @@ var methodHandlers = map[CoreMethod]methodHandler{
 	shutdownMethod: withoutArguments(func(response MethodResponse) {
 		response.success(handleShutdown())
 	}),
+	releaseConfigMethod: withoutArguments(func(response MethodResponse) {
+		response.success(handleReleaseConfig())
+	}),
 	validateConfigMethod: withArguments(func(data *string, response MethodResponse) {
 		response.success(handleValidateConfig(*data))
 	}),

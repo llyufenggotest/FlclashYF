@@ -33,6 +33,30 @@ func (p *closeTrackedProvider) Close() error              { p.closes++; return n
 func (p *closeTrackedProvider) Proxies() []constant.Proxy { return p.proxies }
 func (p *closeTrackedProvider) Version() uint32           { return 0 }
 
+func TestReleaseConfigKeepsCoreInitializedAndDropsRuntimeConfig(t *testing.T) {
+	prior := &config.Config{}
+	withCurrentConfig(t, prior)
+	wasInit := isInit.Swap(true)
+	wasRunning := isRunning.Swap(true)
+	t.Cleanup(func() {
+		isInit.Store(wasInit)
+		isRunning.Store(wasRunning)
+	})
+
+	if !handleReleaseConfig() {
+		t.Fatal("handleReleaseConfig returned false")
+	}
+	if currentConfig != nil {
+		t.Fatal("release retained currentConfig")
+	}
+	if !isInit.Load() {
+		t.Fatal("release deinitialized app Core utilities")
+	}
+	if isRunning.Load() {
+		t.Fatal("release retained running lifecycle state")
+	}
+}
+
 func TestApplyConfigClosesOnlyRejectedCandidateResources(t *testing.T) {
 	home := constant.Path.HomeDir()
 	constant.SetHomeDir(t.TempDir())

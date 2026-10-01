@@ -142,6 +142,19 @@ func handleShutdown() bool {
 	return true
 }
 
+func handleReleaseConfig() bool {
+	handleStopLog()
+	configMu.Lock()
+	isRunning.Store(false)
+	listener.StopListener()
+	updater.StopGeoUpdater()
+	executor.Shutdown()
+	currentConfig = nil
+	configMu.Unlock()
+	handleForceGC()
+	return true
+}
+
 func handleValidateConfig(data string) string {
 	if _, err := config.UnmarshalRawConfig([]byte(data)); err != nil {
 		return err.Error()
