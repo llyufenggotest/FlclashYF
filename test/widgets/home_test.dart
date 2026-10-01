@@ -7,7 +7,6 @@ import 'package:fl_clash/pages/home.dart';
 import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/widgets/capsule_navigation.dart';
 import 'package:fl_clash/widgets/pop_scope.dart';
-import 'package:material_symbols_icons/symbols.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -138,7 +137,7 @@ void main() {
   ) async {
     await tester.pumpWidget(_buildMobileHome());
 
-    await tester.tap(find.byIcon(Symbols.construction));
+    await tester.tap(find.byKey(const ValueKey('capsule-icon-tools')));
     await tester.pumpAndSettle();
 
     final context = tester.element(find.byType(HomePage));
@@ -218,10 +217,10 @@ Widget _buildHome(Size viewSize) {
 NavigationItem _navigationItem(PageLabel label) {
   return NavigationItem(
     icon: Icon(switch (label) {
-      PageLabel.dashboard => Symbols.home,
-      PageLabel.profiles => Symbols.folder,
-      PageLabel.tools => Symbols.construction,
-      _ => Symbols.circle,
+      PageLabel.dashboard => Icons.home,
+      PageLabel.profiles => Icons.folder,
+      PageLabel.tools => Icons.construction,
+      _ => Icons.circle,
     }),
     label: label,
     builder: (_) => Center(child: Text('page-${label.name}')),

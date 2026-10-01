@@ -14,6 +14,17 @@ class SwitchWiring(unittest.TestCase):
             self.assertIn('"' + marker + '"', source)
         self.assertIn('SwitchDiagnostics.requestID(messageData)', source)
         self.assertIn('SwitchDiagnostics.processID', source)
+        self.assertLess(
+            source.index('NECoreSideloadCompatibilityLoader.loadIfPresent()'),
+            source.index('SwitchDiagnostics.record("tunnel_start"'),
+        )
+
+    def test_runner_records_process_lifecycle_before_flutter_boot(self):
+        source = (ROOT / 'ios/Runner/AppDelegate.swift').read_text()
+        self.assertIn('SwitchDiagnostics.recordRunnerLaunch()', source)
+        self.assertIn('SwitchDiagnostics.record("app_memory_warning")', source)
+        self.assertIn('SwitchDiagnostics.recordRunnerTermination()', source)
+
 
     def test_export_includes_both_processes(self):
         provider = (ROOT / 'lib/providers/app.dart').read_text()

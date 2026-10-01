@@ -83,6 +83,7 @@ class _LogsViewState extends ConsumerState<LogsView> {
     });
     ref.listenManual(coreStatusProvider, (_, _) => _syncListening());
     globalState.isBackground.addListener(_syncListening);
+    unawaited(ref.read(logsProvider.notifier).restoreNativeDiagnostics());
     _syncListening();
   }
 

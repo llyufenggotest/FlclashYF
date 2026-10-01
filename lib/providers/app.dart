@@ -30,6 +30,8 @@ class AuthorizedTunEnable extends _$AuthorizedTunEnable
 
 @Riverpod(keepAlive: true)
 class Logs extends _$Logs with AutoDisposeNotifierMixin {
+  final Set<String> _restoredNativeDiagnostics = {};
+
   @override
   FixedList<Log> build() {
     return LogBuffer();
@@ -65,7 +67,37 @@ class Logs extends _$Logs with AutoDisposeNotifierMixin {
     final nativeLogs = await nativeLogExport;
     await nativeLogs?.clear(cutoff);
     if (!ref.mounted) return;
+    _restoredNativeDiagnostics.clear();
     value = LogBuffer(revision: state.revision + 1);
+  }
+
+  Future<void> restoreNativeDiagnostics() async {
+    final revision = state.revision;
+    try {
+      final nativeLogs = await nativeLogExport;
+      if (nativeLogs == null) return;
+      final entries = await nativeLogs.readEntries();
+      if (!ref.mounted || state.revision != revision || entries.isEmpty) return;
+      final freshEntries = entries
+          .where(_restoredNativeDiagnostics.add)
+          .toList(growable: false);
+      if (freshEntries.isEmpty) return;
+      var nextState = state;
+      for (final entry in freshEntries) {
+        nextState = nextState.append(
+          Log(
+            logLevel: LogLevel.warning,
+            payload: entry,
+            dateTime: DateTime.now().showFull,
+          ),
+        );
+      }
+      value = nextState;
+    } on FileSystemException {
+      return;
+    } on FormatException {
+      return;
+    }
   }
 
   Future<bool> exportLogs() async {

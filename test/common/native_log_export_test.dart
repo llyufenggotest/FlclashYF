@@ -50,6 +50,26 @@ void main() {
   );
 
   test(
+    'unexpected cutoff JSON type fails closed with a format error',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'native-log-cutoff-type',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final native = File('${directory.path}/ios-necore-native.log');
+      await native.writeAsString('2026-09-27T12:00:01Z diagnostic\n');
+      await File(
+        '${directory.path}/logs-cleared-at.json',
+      ).writeAsString('{"cutoff":12}');
+
+      await expectLater(
+        NativeLogExport(native).readEntries(),
+        throwsFormatException,
+      );
+    },
+  );
+
+  test(
     'clear persists a cutoff for all native exports without altering files',
     () async {
       final directory = await Directory.systemTemp.createTemp(
@@ -90,6 +110,34 @@ void main() {
       expect(exported, contains('new native'));
       expect(exported, contains('new runner'));
       expect(exported, contains('new extension'));
+    },
+  );
+
+  test(
+    'readEntries restores only the newest persisted diagnostic lines',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'native-log-entries',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final native = File('${directory.path}/ios-necore-native.log');
+      final runner = File('${directory.path}/ios-switch-Runner.log');
+      await native.writeAsString(
+        '2026-09-27T12:00:00Z old native\n'
+        '2026-09-27T12:00:02Z newest native\n',
+      );
+      await runner.writeAsString(
+        '{"timestamp":"2026-09-27T12:00:01Z","event":"app_background"}\n',
+      );
+      final exporter = NativeLogExport(native);
+      await exporter.clear(DateTime.parse('2026-09-27T12:00:00.500Z'));
+
+      final entries = await exporter.readEntries(maxLines: 2);
+
+      expect(entries, hasLength(2));
+      expect(entries.first, contains('app_background'));
+      expect(entries.last, contains('newest native'));
+      expect(entries.join(), isNot(contains('old native')));
     },
   );
 }

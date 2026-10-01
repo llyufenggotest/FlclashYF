@@ -1,7 +1,10 @@
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/widgets/focus.dart';
+import 'package:fl_clash/widgets/ios_capsule_navigation_icon.dart';
 import 'package:material_ui/material_ui.dart';
+
+export 'package:fl_clash/widgets/ios_capsule_navigation_icon.dart';
 
 class CapsuleNavigationItem {
   const CapsuleNavigationItem({
@@ -95,6 +98,13 @@ class _CapsuleNavigationButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = selected ? colorScheme.primary : colorScheme.onSurfaceVariant;
+    final iconKind = switch (item.pageLabel) {
+      PageLabel.dashboard => IOSCapsuleIconKind.dashboard,
+      PageLabel.proxies => IOSCapsuleIconKind.proxies,
+      PageLabel.profiles => IOSCapsuleIconKind.profiles,
+      PageLabel.tools => IOSCapsuleIconKind.tools,
+      _ => null,
+    };
     return NavDestinationAnchor(
       label: item.pageLabel,
       child: Focus(
@@ -112,7 +122,13 @@ class _CapsuleNavigationButton extends StatelessWidget {
                 children: [
                   IconTheme.merge(
                     data: IconThemeData(color: color, size: 24),
-                    child: item.icon,
+                    child: iconKind == null
+                        ? item.icon
+                        : IOSCapsuleNavigationIcon(
+                            key: ValueKey('capsule-icon-${iconKind.name}'),
+                            kind: iconKind,
+                            selected: selected,
+                          ),
                   ),
                   const SizedBox(height: 2),
                   Flexible(

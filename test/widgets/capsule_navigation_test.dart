@@ -1,8 +1,64 @@
 import 'package:fl_clash/widgets/capsule_navigation.dart';
+import 'package:fl_clash/enum/enum.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
 void main() {
+  testWidgets('uses unified iOS outline icons with a lifted selected state', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        ),
+        home: Scaffold(
+          body: CapsuleNavigation(
+            items: const [
+              CapsuleNavigationItem(
+                icon: Icon(Icons.space_dashboard),
+                label: 'Dashboard',
+                pageLabel: PageLabel.dashboard,
+              ),
+              CapsuleNavigationItem(
+                icon: Icon(Icons.article),
+                label: 'Proxies',
+                pageLabel: PageLabel.proxies,
+              ),
+              CapsuleNavigationItem(
+                icon: Icon(Icons.folder),
+                label: 'Profiles',
+                pageLabel: PageLabel.profiles,
+              ),
+              CapsuleNavigationItem(
+                icon: Icon(Icons.construction),
+                label: 'Tools',
+                pageLabel: PageLabel.tools,
+              ),
+            ],
+            selectedIndex: 1,
+            onSelected: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    final icons = tester.widgetList<IOSCapsuleNavigationIcon>(
+      find.byType(IOSCapsuleNavigationIcon),
+    );
+    expect(icons.map((icon) => icon.kind), [
+      IOSCapsuleIconKind.dashboard,
+      IOSCapsuleIconKind.proxies,
+      IOSCapsuleIconKind.profiles,
+      IOSCapsuleIconKind.tools,
+    ]);
+    expect(icons.map((icon) => icon.selected), [false, true, false, false]);
+    expect(
+      find.byKey(const ValueKey('capsule-selected-proxies')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('reports the tapped destination and updates selection colors', (
     tester,
   ) async {
