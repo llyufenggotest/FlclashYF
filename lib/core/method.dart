@@ -8,6 +8,7 @@ enum CoreMethod {
   getIsInit,
   forceGc,
   shutdown,
+  releaseConfig,
   validateConfig,
   updateConfig,
   getProfileConfig,

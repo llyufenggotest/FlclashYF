@@ -193,6 +193,16 @@ final class CoreMessageRouter {
     }
   }
 
+  private func releaseAppCoreConfiguration() async {
+    let methodCall = #"{"method":"releaseConfig","arguments":null}"#
+    await withCheckedContinuation {
+      (continuation: CheckedContinuation<Void, Never>) in
+      IOSCoreBridge.invokeMethod(methodCall) { _ in
+        continuation.resume()
+      }
+    }
+  }
+
   private func sendRoutedCoreMessage(
     _ data: Data,
     selectedRoute: CoreRoute,
@@ -274,16 +284,34 @@ final class CoreMessageRouter {
     method: ConfigurationCoreMethod,
     networkExtensionActive: Bool
   ) async throws -> String {
-    let appData: Data
     if networkExtensionActive && method == .updateConfig {
-      appData = try replacingArgument(
+      let networkExtensionData = try replacingArgument(
         in: data,
-        key: "external-controller",
-        with: ""
+        key: "geo-auto-update",
+        with: false
       )
-    } else {
-      appData = data
+      let configurationGeneration = tunnelController.beginConfigurationApply()
+      do {
+        let response = try await sendConfigurationPhase(
+          networkExtensionData,
+          route: .networkExtension,
+          parentRequestID: SwitchDiagnostics.requestID(data)
+        )
+        tunnelController.finishConfigurationApply(
+          generation: configurationGeneration,
+          success: methodResponseHasEmptyStringResult(response)
+        )
+        return response
+      } catch {
+        tunnelController.finishConfigurationApply(
+          generation: configurationGeneration,
+          success: false
+        )
+        throw error
+      }
     }
+
+    let appData = data
 
     let appResponse = try await sendConfigurationPhase(
       appData,
@@ -321,6 +349,9 @@ final class CoreMessageRouter {
         generation: configurationGeneration,
         success: methodResponseHasEmptyStringResult(response)
       )
+      if methodResponseHasEmptyStringResult(response) {
+        await releaseAppCoreConfiguration()
+      }
       return response
     } catch {
       tunnelController.finishConfigurationApply(

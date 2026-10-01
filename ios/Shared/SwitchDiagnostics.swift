@@ -14,7 +14,7 @@ final class SwitchDiagnostics: NSObject {
     return formatter
   }()
   private static let methods: Set<String> = [
-    "message", "initClash", "getIsInit", "forceGc", "shutdown", "validateConfig",
+    "message", "initClash", "getIsInit", "forceGc", "shutdown", "releaseConfig", "validateConfig",
     "updateConfig", "getProfileConfig", "getProxies", "changeProxy", "getTraffic",
     "getTotalTraffic", "resetTraffic", "asyncTestDelay", "getConnections", "closeConnections",
     "resetConnections", "closeConnection", "getExternalProviders", "getExternalProvider",

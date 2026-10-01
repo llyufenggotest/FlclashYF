@@ -201,6 +201,7 @@ const (
 	getIsInitMethod                      CoreMethod = "getIsInit"
 	forceGcMethod                        CoreMethod = "forceGc"
 	shutdownMethod                       CoreMethod = "shutdown"
+	releaseConfigMethod                  CoreMethod = "releaseConfig"
 	validateConfigMethod                 CoreMethod = "validateConfig"
 	convertURISubscriptionMethod         CoreMethod = "convertUriSubscription"
 	updateConfigMethod                   CoreMethod = "updateConfig"

@@ -102,6 +102,20 @@ final class TunnelManagerStore {
     }
   }
 
+  func refreshLoadedManager() async throws {
+    let prior = try await loadManager(createIfNeeded: false)
+    guard let prior else { return }
+    cacheGeneration &+= 1
+    cacheState = .unloaded
+    guard let refreshed = try await loadManager(createIfNeeded: false),
+      refreshed.connection.status.tunnelState == .running
+    else {
+      cacheState = .loaded(prior)
+      return
+    }
+    cacheState = .loaded(refreshed)
+  }
+
   @discardableResult
   func invalidateCachedManager(forPreferenceError error: Error) -> Bool {
     guard isRetryablePreferenceError(error) else {
@@ -296,7 +310,7 @@ final class TunnelManagerStore {
       return
     }
 
-    let loadedManager = managers?.first(where: isManagedManager)
+    let loadedManager = selectManagedManager(managers)
     let needsManager = requests.contains { $0.createIfNeeded }
     let createdManager = loadedManager == nil && needsManager
       ? makeManager()
@@ -348,7 +362,7 @@ final class TunnelManagerStore {
       log("loadManager late result discarded")
       return
     }
-    let manager = managers?.first(where: isManagedManager)
+    let manager = selectManagedManager(managers)
     cacheState = .loaded(manager)
     log("loadManager late result adopted manager=\(manager != nil)")
   }
@@ -370,6 +384,15 @@ final class TunnelManagerStore {
       return false
     }
     return proto.providerBundleIdentifier == networkExtensionIdentifier
+  }
+
+  private func selectManagedManager(
+    _ managers: [NETunnelProviderManager]?
+  ) -> NETunnelProviderManager? {
+    let managed = managers?.filter(isManagedManager) ?? []
+    return managed.first(where: {
+      $0.connection.status.tunnelState == .running
+    }) ?? managed.first
   }
 
   private func makeManager() -> NETunnelProviderManager {
