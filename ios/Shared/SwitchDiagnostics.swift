@@ -34,7 +34,8 @@ final class SwitchDiagnostics: NSObject {
     "provider_request_failure", "core_active_check_failure", "config_ne_apply_skipped",
     "config_app_apply_begin", "config_app_apply_end", "config_ne_apply_begin", "config_ne_apply_end",
     "configuration_apply_state", "tunnel_start_requested", "tunnel_stop_requested", "tunnel_reconfigure_begin",
-    "tunnel_reconfigure_end", "tunnel_reconfigure_failure",
+    "tunnel_reconfigure_end", "tunnel_reconfigure_failure", "runner_launch", "runner_termination",
+    "app_memory_warning",
   ]
   private static let phases: Set<String> = [
     "apply_config_begin", "apply_config_lock_acquired", "apply_config_parse_begin",
@@ -98,6 +99,14 @@ final class SwitchDiagnostics: NSObject {
         // A diagnostics failure must not change tunnel or RPC behavior.
       }
     }
+  }
+
+  static func recordRunnerLaunch() {
+    record("runner_launch")
+  }
+
+  static func recordRunnerTermination() {
+    record("runner_termination")
   }
 
   @objc(recordCorePhase:)

@@ -9,6 +9,16 @@ class NativeLogExport {
   File get _cutoffFile =>
       File('${nativeFile.parent.path}/logs-cleared-at.json');
 
+  Future<DateTime?> _readCutoff() async {
+    final file = _cutoffFile;
+    if (!await file.exists()) return null;
+    final metadata = jsonDecode(await file.readAsString());
+    if (metadata is! Map || metadata['cutoff'] is! String) {
+      throw const FormatException('Invalid native log cutoff metadata');
+    }
+    return DateTime.parse(metadata['cutoff'] as String);
+  }
+
   Future<void> clear(DateTime cutoff) async {
     final file = _cutoffFile;
     await file.parent.create(recursive: true);
@@ -21,14 +31,7 @@ class NativeLogExport {
   }
 
   Future<String> read() async {
-    final file = _cutoffFile;
-    final DateTime? cutoff;
-    if (await file.exists()) {
-      final metadata = jsonDecode(await file.readAsString()) as Map;
-      cutoff = DateTime.parse(metadata['cutoff'] as String);
-    } else {
-      cutoff = null;
-    }
+    final cutoff = await _readCutoff();
     final buffer = StringBuffer();
     for (final (file, title) in [
       (nativeFile, 'iOS NECore native diagnostics'),
@@ -49,6 +52,31 @@ class NativeLogExport {
       }
     }
     return buffer.toString();
+  }
+
+  Future<List<String>> readEntries({int maxLines = 200}) async {
+    final cutoff = await _readCutoff();
+    final entries = <({DateTime timestamp, String line})>[];
+    for (final source in [
+      nativeFile,
+      for (final name in ['ios-switch-Runner.log', 'ios-switch-NECore.log'])
+        File('${nativeFile.parent.path}/$name'),
+    ]) {
+      if (!await source.exists()) continue;
+      for (final line in const LineSplitter().convert(
+        await source.readAsString(),
+      )) {
+        final timestamp = _timestamp(line);
+        if (timestamp == null ||
+            (cutoff != null && !timestamp.isAfter(cutoff))) {
+          continue;
+        }
+        entries.add((timestamp: timestamp, line: line));
+      }
+    }
+    entries.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final start = entries.length > maxLines ? entries.length - maxLines : 0;
+    return entries.skip(start).map((entry) => entry.line).toList();
   }
 
   String _afterCutoff(String text, DateTime? cutoff) {

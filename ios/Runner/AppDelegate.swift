@@ -30,7 +30,18 @@ private enum SideloadCompatibilityLoader {
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     SideloadCompatibilityLoader.loadIfPresent()
+    SwitchDiagnostics.recordRunnerLaunch()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  override func applicationDidReceiveMemoryWarning(_ application: UIApplication) {
+    SwitchDiagnostics.record("app_memory_warning")
+    super.applicationDidReceiveMemoryWarning(application)
+  }
+
+  override func applicationWillTerminate(_ application: UIApplication) {
+    SwitchDiagnostics.recordRunnerTermination()
+    super.applicationWillTerminate(application)
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {

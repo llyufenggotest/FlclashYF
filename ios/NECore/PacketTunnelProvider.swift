@@ -51,6 +51,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     options: [String: NSObject]?,
     completionHandler: @escaping (Error?) -> Void
   ) {
+    NECoreSideloadCompatibilityLoader.loadIfPresent()
     SwitchDiagnostics.record("tunnel_start", fields: ["attempt_id": SwitchDiagnostics.processID])
     startMemoryPressureDiagnostics()
     let originalCompletion = completionHandler
@@ -58,7 +59,6 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
       SwitchDiagnostics.record("tunnel_start_complete", fields: ["success": String(error == nil)])
       originalCompletion(error)
     }
-    NECoreSideloadCompatibilityLoader.loadIfPresent()
     logger.info("startTunnel begin")
     diag("startup begin")
     diag(configProbe())

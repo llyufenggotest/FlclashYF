@@ -103,7 +103,7 @@ void main() {
       tester,
       find.descendant(
         of: find.byType(CapsuleNavigation),
-        matching: find.byIcon(Icons.space_dashboard),
+        matching: find.byKey(const ValueKey('capsule-icon-dashboard')),
       ),
     );
     await tester.pump();

@@ -687,7 +687,7 @@ void main() {
     CapsuleNavigation navBar() =>
         tester.widget<CapsuleNavigation>(find.byType(CapsuleNavigation));
 
-    await tester.tap(find.byIcon(Icons.construction));
+    await tester.tap(find.byKey(const ValueKey('capsule-icon-tools')));
     await tester.pumpAndSettle();
     expect(container.read(currentPageLabelProvider), PageLabel.tools);
     expect(navBar().selectedIndex, 2);
@@ -713,11 +713,11 @@ void main() {
     expect(navBar().selectedIndex, 1);
     expect(find.text('page:profiles'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.construction));
+    await tester.tap(find.byKey(const ValueKey('capsule-icon-tools')));
     await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(find.byIcon(Icons.article));
     await tester.pump(const Duration(milliseconds: 100));
-    await tester.tap(find.byIcon(Icons.folder));
+    await tester.tap(find.byKey(const ValueKey('capsule-icon-profiles')));
     await tester.pumpAndSettle();
     expect(container.read(currentPageLabelProvider), PageLabel.profiles);
     expect(navBar().selectedIndex, 1);
@@ -791,10 +791,10 @@ void main() {
     await tester.enterText(find.byType(TextField), 'needle');
     expect(query, 'needle');
 
-    await tester.tap(find.byIcon(Icons.construction));
+    await tester.tap(find.byKey(const ValueKey('capsule-icon-tools')));
     await tester.pumpAndSettle();
     expect(query, isEmpty);
-    await tester.tap(find.byIcon(Icons.space_dashboard));
+    await tester.tap(find.byKey(const ValueKey('capsule-icon-dashboard')));
     await tester.pumpAndSettle();
 
     expect(find.byType(TextField), findsNothing);

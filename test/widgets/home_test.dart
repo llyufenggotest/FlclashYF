@@ -137,7 +137,7 @@ void main() {
   ) async {
     await tester.pumpWidget(_buildMobileHome());
 
-    await tester.tap(find.byIcon(Icons.construction));
+    await tester.tap(find.byKey(const ValueKey('capsule-icon-tools')));
     await tester.pumpAndSettle();
 
     final context = tester.element(find.byType(HomePage));
