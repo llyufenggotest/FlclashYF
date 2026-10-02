@@ -25,6 +25,14 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
   private lazy var eventQueue = NECoreEventQueue(
     sharedStateStore: sharedStateStore
   )
+  private lazy var commandServer = PacketTunnelCommandServer(
+    sharedStateStore: sharedStateStore,
+    invoke: { data, completion in
+      NECoreBridge.invokeMethod(data) { response in
+        completion(response)
+      }
+    }
+  )
   private let logger = Logger(
     subsystem: PacketTunnelEnvironment.extensionBundleIdentifier,
     category: "PacketTunnelProvider"
@@ -180,6 +188,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         NativeDiagnosticLog.shared.flush()
         if started {
           self.sharedStateStore.saveRunTime()
+          self.commandServer.start()
         } else {
           self.resourceHeartbeat.stop()
         }
@@ -200,6 +209,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     logger.info("stopTunnel reason=\(reason.rawValue, privacy: .public)")
     sharedStateStore.clearRunTime()
     reloadControlWidget()
+    commandServer.stop()
     eventQueue.stop()
     resourceHeartbeat.stop()
     NECoreBridge.stopTun()

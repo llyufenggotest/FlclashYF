@@ -9,6 +9,8 @@ enum PacketTunnelEnvironment {
   static let widgetIdentifier = "\(baseBundleIdentifier).Widget"
   static let eventNotificationName =
     "\(extensionBundleIdentifier).event"
+  static let commandNotificationName =
+    "\(extensionBundleIdentifier).command"
 }
 
 final class PacketTunnelSharedStateStore {
