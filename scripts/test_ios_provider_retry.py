@@ -84,6 +84,47 @@ class ProviderRetryWiring(unittest.TestCase):
         self.assertIn("methodResponseHasEmptyStringResult", provider)
 
 
+class CommandBridgeWiring(unittest.TestCase):
+    def source(self, path: str) -> str:
+        return (ROOT / path).read_text(encoding="utf-8")
+
+    def test_app_sends_control_requests_over_file_bridge(self):
+        controller = self.source("ios/Runner/Tunnel/TunnelController.swift")
+        # The dead sendProviderMessage transport must be gone from the attempt.
+        self.assertNotIn("session.sendProviderMessage(", controller)
+        self.assertIn("private let providerBridge: ProviderMessageBridge", controller)
+        self.assertIn("try await providerBridge.send(data, timeout: timeout)", controller)
+        self.assertIn("actor ProviderMessageBridge", controller)
+        self.assertIn("core-rpc", controller)
+
+    def test_extension_serves_requests_and_records_rpc(self):
+        server = self.source("ios/NECore/PacketTunnelCommandServer.swift")
+        provider = self.source("ios/NECore/PacketTunnelProvider.swift")
+        self.assertIn("rpc_received", server)
+        self.assertIn("rpc_reply", server)
+        self.assertIn("NECoreBridge.invokeMethod", provider)
+        self.assertIn("commandServer.start()", provider)
+        self.assertIn("commandServer.stop()", provider)
+
+    def test_command_notification_names_match_across_processes(self):
+        controller = self.source("ios/Runner/Tunnel/TunnelController.swift")
+        packet_store = self.source("ios/NECore/PacketTunnelSharedStateStore.swift")
+        # App derives "<bundle>.NECore.command"; NE derives
+        # "<extensionBundle>.command" where extensionBundle == "<bundle>.NECore".
+        self.assertIn('"\\(networkExtensionIdentifier).command"', controller)
+        self.assertIn('"\\(extensionBundleIdentifier).command"', packet_store)
+
+    def test_bridge_uses_atomic_request_and_response_files(self):
+        controller = self.source("ios/Runner/Tunnel/TunnelController.swift")
+        server = self.source("ios/NECore/PacketTunnelCommandServer.swift")
+        # Writers stage to a temp file then move it into place so the reader
+        # never observes a partially written request/response.
+        self.assertIn("moveItem(at: temporary, to: destination)", controller)
+        self.assertIn("moveItem(at: temporary, to: destination)", server)
+        # The server consumes each request before answering it.
+        self.assertIn("try? FileManager.default.removeItem(at: fileURL)", server)
+
+
 class ProviderReadRetryNative(unittest.TestCase):
     def test_policy_executes_with_swift(self):
         if not shutil.which("xcrun"):

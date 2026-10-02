@@ -4,16 +4,6 @@ import UIKit
 
 @MainActor
 final class TunnelController {
-  private final class ProviderMessageWaiter {
-    private var finished = false
-
-    func finish(_ action: () -> Void) {
-      guard !finished else { return }
-      finished = true
-      action()
-    }
-  }
-
   private let sharedStateStore: SharedStateStore
   private let managerStore: TunnelManagerStore
   private let coordinator: TunnelCoordinator
@@ -31,6 +21,7 @@ final class TunnelController {
   private var configurationGeneration: UInt64 = 0
   private var configurationInFlight = false
   private var managerRefreshTask: Task<Void, Error>?
+  private let providerBridge: ProviderMessageBridge
 
   init(
     sharedStateStore: SharedStateStore,
@@ -47,6 +38,10 @@ final class TunnelController {
     )
     self.sharedStateStore = sharedStateStore
     self.managerStore = managerStore
+    self.providerBridge = ProviderMessageBridge(
+      appGroupIdentifier: sharedStateStore.appGroupIdentifier,
+      commandNotificationName: "\(networkExtensionIdentifier).command"
+    )
     coordinator = TunnelCoordinator(
       managerStore: managerStore,
       onTunnelStateChanged: onTunnelStateChanged,
@@ -259,8 +254,7 @@ final class TunnelController {
     connection = manager?.connection
     statusBefore = connection.map { String($0.status.rawValue) } ?? "unavailable"
     guard let manager,
-      manager.connection.status.tunnelState == .running,
-      let session = manager.connection as? NETunnelProviderSession
+      manager.connection.status.tunnelState == .running
     else {
       record("provider_request_failure", errorType: "network_extension_unavailable")
       throw ProviderMessageError(
@@ -270,69 +264,17 @@ final class TunnelController {
     }
 
     record("provider_request_send")
-    return try await withCheckedThrowingContinuation { continuation in
-      let waiter = ProviderMessageWaiter()
-      let timeoutWork = DispatchWorkItem {
-        waiter.finish {
-          record("provider_request_failure", errorType: "network_extension_timeout")
-          continuation.resume(
-            throwing: ProviderMessageError(
-              code: "network_extension_timeout",
-              message: "network extension response timed out"
-            )
-          )
-        }
-      }
-      DispatchQueue.main.asyncAfter(
-        deadline: .now() + timeout,
-        execute: timeoutWork
+    do {
+      let response = try await providerBridge.send(data, timeout: timeout)
+      record("provider_request_reply", responseBytes: response.utf8.count)
+      return response
+    } catch let error as ProviderMessageError {
+      record(
+        "provider_request_failure",
+        errorType: error.code == "network_extension_timeout"
+          ? "network_extension_timeout" : "send_failed"
       )
-      do {
-        try session.sendProviderMessage(data) { response in
-          Task { @MainActor in
-            waiter.finish {
-              timeoutWork.cancel()
-              record(
-                "provider_request_reply",
-                responseBytes: response?.count ?? 0,
-                errorType: response == nil ? "nil_response" : "none"
-              )
-              guard let response else {
-                continuation.resume(
-                  throwing: ProviderMessageError(
-                    code: manager.connection.status.tunnelState == .running
-                      ? "empty_response_retryable"
-                      : "network_extension_unavailable",
-                    message: "empty network extension response"
-                  )
-                )
-                return
-              }
-              guard let message = String(data: response, encoding: .utf8) else {
-                continuation.resume(
-                  throwing: ProviderMessageError(
-                    code: "empty_response",
-                    message: "invalid network extension response"
-                  )
-                )
-                return
-              }
-              continuation.resume(returning: message)
-            }
-          }
-        }
-      } catch {
-        waiter.finish {
-          timeoutWork.cancel()
-          record("provider_request_failure", errorType: "send_failed")
-          continuation.resume(
-            throwing: ProviderMessageError(
-              code: "network_extension_error",
-              message: error.localizedDescription
-            )
-          )
-        }
-      }
+      throw error
     }
   }
 
@@ -432,5 +374,137 @@ final class TunnelController {
       return 0
     }
     return sharedStateStore.runTime()
+  }
+}
+
+/// App-side transport for control-plane requests to the Network Extension.
+///
+/// Replaces `NETunnelProviderSession.sendProviderMessage`, which can silently
+/// drop the message before it reaches the extension on some sideload/resign
+/// configurations. Each request is written to the shared App Group container
+/// and the extension writes the response back to the same container, so the
+/// control plane no longer depends on the fragile provider message port.
+actor ProviderMessageBridge {
+  private let appGroupIdentifier: String
+  private let commandNotificationName: String
+  private let directoryName = "core-rpc"
+  private let requestExtension = "req"
+  private let responseExtension = "resp"
+  private let pollIntervalNanoseconds: UInt64 = 40_000_000
+  private let maxOrphanAge: TimeInterval = 180
+
+  init(
+    appGroupIdentifier: String,
+    commandNotificationName: String
+  ) {
+    self.appGroupIdentifier = appGroupIdentifier
+    self.commandNotificationName = commandNotificationName
+  }
+
+  func send(_ data: Data, timeout: TimeInterval) async throws -> String {
+    let id = UUID().uuidString
+    pruneOrphans()
+    guard writeRequest(id: id, data: data) else {
+      throw ProviderMessageError(
+        code: "network_extension_error",
+        message: "failed to enqueue network extension request"
+      )
+    }
+    defer { cleanup(id: id) }
+    postCommandNotification()
+    let deadline = Date().addingTimeInterval(timeout)
+    repeat {
+      if let response = readResponse(id: id) {
+        return response
+      }
+      try? await Task.sleep(nanoseconds: pollIntervalNanoseconds)
+    } while Date() < deadline
+    throw ProviderMessageError(
+      code: "network_extension_timeout",
+      message: "network extension response timed out"
+    )
+  }
+
+  private func writeRequest(id: String, data: Data) -> Bool {
+    guard let directory = requestDirectory() else { return false }
+    do {
+      try FileManager.default.createDirectory(
+        at: directory,
+        withIntermediateDirectories: true
+      )
+      let destination = directory
+        .appendingPathComponent("\(id).\(requestExtension)")
+      let temporary = directory.appendingPathComponent(".\(id).tmp")
+      try data.write(to: temporary)
+      try FileManager.default.moveItem(at: temporary, to: destination)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  private func readResponse(id: String) -> String? {
+    guard let directory = responseDirectory() else { return nil }
+    let fileURL = directory
+      .appendingPathComponent("\(id).\(responseExtension)")
+    guard let data = try? Data(contentsOf: fileURL) else { return nil }
+    return String(data: data, encoding: .utf8) ?? ""
+  }
+
+  private func cleanup(id: String) {
+    if let requestDirectory = requestDirectory() {
+      try? FileManager.default.removeItem(
+        at: requestDirectory.appendingPathComponent("\(id).\(requestExtension)")
+      )
+    }
+    if let responseDirectory = responseDirectory() {
+      try? FileManager.default.removeItem(
+        at: responseDirectory.appendingPathComponent("\(id).\(responseExtension)")
+      )
+    }
+  }
+
+  private func pruneOrphans() {
+    let cutoff = Date().addingTimeInterval(-maxOrphanAge)
+    for directory in [requestDirectory(), responseDirectory()].compactMap({ $0 }) {
+      guard let files = try? FileManager.default.contentsOfDirectory(
+        at: directory,
+        includingPropertiesForKeys: [.contentModificationDateKey]
+      ) else {
+        continue
+      }
+      for fileURL in files {
+        let modified = (try? fileURL.resourceValues(
+          forKeys: [.contentModificationDateKey]
+        ))?.contentModificationDate
+        if let modified, modified < cutoff {
+          try? FileManager.default.removeItem(at: fileURL)
+        }
+      }
+    }
+  }
+
+  private func rpcDirectory() -> URL? {
+    FileManager.default.containerURL(
+      forSecurityApplicationGroupIdentifier: appGroupIdentifier
+    )?.appendingPathComponent(directoryName, isDirectory: true)
+  }
+
+  private func requestDirectory() -> URL? {
+    rpcDirectory()?.appendingPathComponent("req", isDirectory: true)
+  }
+
+  private func responseDirectory() -> URL? {
+    rpcDirectory()?.appendingPathComponent("resp", isDirectory: true)
+  }
+
+  private func postCommandNotification() {
+    CFNotificationCenterPostNotification(
+      CFNotificationCenterGetDarwinNotifyCenter(),
+      CFNotificationName(commandNotificationName as CFString),
+      nil,
+      nil,
+      true
+    )
   }
 }
