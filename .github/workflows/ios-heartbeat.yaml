@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - integration/v0.8.126-yf
+      - integration/v0.9.1-yf
       - fix/ios-heartbeat-overflow
     paths:
       - ios/NECore/NativeResourceHeartbeat.swift
