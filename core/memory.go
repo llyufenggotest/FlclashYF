@@ -3,6 +3,7 @@ package main
 import "runtime"
 
 type MemoryInfo struct {
+	BuildVariant string `json:"buildVariant"`
 	Sys          uint64 `json:"sys"`
 	HeapObjects  uint64 `json:"heapObjects"`
 	HeapUnused   uint64 `json:"heapUnused"`
@@ -16,6 +17,7 @@ type MemoryInfo struct {
 
 func memoryInfoFromStats(stats runtime.MemStats) MemoryInfo {
 	return MemoryInfo{
+		BuildVariant: coreBuildVariant,
 		Sys:          stats.Sys,
 		HeapObjects:  stats.HeapAlloc,
 		HeapUnused:   stats.HeapInuse - stats.HeapAlloc,

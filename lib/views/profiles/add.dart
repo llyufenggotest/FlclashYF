@@ -8,6 +8,8 @@ import 'package:fl_clash/pages/scan.dart';
 import 'package:fl_clash/state.dart';
 import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/views/profiles/age_key_generator.dart';
+import 'package:fl_clash/views/profiles/clipboard_import_dialog.dart';
+import 'package:fl_clash/views/config/profile_template.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:material_ui/material_ui.dart';
@@ -22,6 +24,22 @@ class AddProfileView extends ConsumerWidget {
 
   Future<void> _handleAddProfileFormFile(WidgetRef ref) async {
     unawaited(ref.read(profilesActionProvider.notifier).addProfileFormFile());
+  }
+
+  Future<void> _handleAddProfileFromClipboard(WidgetRef ref) async {
+    final action = ref.read(profilesActionProvider.notifier);
+    await dialogs.showCommonDialog<void>(
+      dismissible: false,
+      child: ClipboardImportDialog(
+        readClipboard: () async =>
+            (await Clipboard.getData(Clipboard.kTextPlain))?.text,
+        inspect: action.inspectClipboardContent,
+        import: action.addProfileFromClipboardContent,
+        onEditTemplate: () async {
+          await BaseNavigator.push(context, const ProfileTemplateView());
+        },
+      ),
+    );
   }
 
   Future<void> _toScan(WidgetRef ref) async {
@@ -148,6 +166,11 @@ class AddProfileView extends ConsumerWidget {
           title: Text(appLocalizations.url),
           subtitle: Text(appLocalizations.urlDesc),
           onTap: () => _toAdd(ref),
+        ),
+        ListItem(
+          leading: const Icon(Symbols.content_paste),
+          title: Text(appLocalizations.clipboardImport),
+          onTap: () => _handleAddProfileFromClipboard(ref),
         ),
       ],
     );

@@ -38,7 +38,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     category: "PacketTunnelProvider"
   )
 
-  private var suspendSupport = true
+
   private let resourceHeartbeat = NativeResourceHeartbeat()
   private var memoryPressureSource: DispatchSourceMemoryPressure?
 
@@ -89,7 +89,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     diag(
       "setup_params bytes=\(setupParamsData.count) empty=\(setupParamsData.count <= 2)"
     )
-    suspendSupport = vpnOptions.suspendSupport
+
 
     setTunnelNetworkSettings(
       networkConfiguration.makeSettings(for: vpnOptions)
@@ -161,6 +161,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
           mtu: vpnOptions.mtu,
           disableIcmpForwarding: vpnOptions.disableIcmpForwarding,
           endpointIndependentNat: vpnOptions.endpointIndependentNat,
+          congestionController: vpnOptions.congestionController,
           recvMsgX: vpnOptions.recvMsgX,
           sendMsgX: vpnOptions.sendMsgX
         )
@@ -309,19 +310,11 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
 
   override func sleep(completionHandler: @escaping () -> Void) {
     SwitchDiagnostics.record("tunnel_sleep")
-    if suspendSupport {
-      logger.info("sleep: suspending tunnel")
-      NECoreBridge.setSuspended(true)
-    }
     completionHandler()
   }
 
   override func wake() {
     SwitchDiagnostics.record("tunnel_wake")
-    if suspendSupport {
-      logger.info("wake: resuming tunnel")
-      NECoreBridge.setSuspended(false)
-    }
   }
 
   private func methodResponseHasEmptyStringResult(_ response: Data) -> Bool {
@@ -407,6 +400,7 @@ private struct CoreTunOptions: Encodable {
   let mtu: Int
   let disableIcmpForwarding: Bool
   let endpointIndependentNat: Bool
+  let congestionController: String
   let recvMsgX: Bool
   let sendMsgX: Bool
 }

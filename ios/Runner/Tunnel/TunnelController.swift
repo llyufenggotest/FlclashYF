@@ -26,6 +26,7 @@ final class TunnelController {
   init(
     sharedStateStore: SharedStateStore,
     onTunnelStateChanged: @escaping (TunnelTarget) -> Void,
+    onConnectionStateChanged: @escaping (String) -> Void,
     onExternalStart: @escaping () -> Void,
     onExternalStop: @escaping () -> Void
   ) {
@@ -45,6 +46,7 @@ final class TunnelController {
     coordinator = TunnelCoordinator(
       managerStore: managerStore,
       onTunnelStateChanged: onTunnelStateChanged,
+      onConnectionStateChanged: onConnectionStateChanged,
       onExternalStart: onExternalStart,
       onExternalStop: onExternalStop
     )
@@ -115,6 +117,11 @@ final class TunnelController {
   func start() {
     SwitchDiagnostics.record("tunnel_start_requested")
     coordinator.submitTunnelRequest(target: .running)
+  }
+
+  func publishConnectionState() {
+    coordinator.publishConnectionState()
+    coordinator.requestStatusRefresh(notifyExternal: false)
   }
 
   func stop() {

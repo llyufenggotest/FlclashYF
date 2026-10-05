@@ -10,6 +10,7 @@ import 'package:fl_clash/state.dart';
 import 'package:fl_clash/views/logs.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../helpers/test_app.dart';
@@ -180,7 +181,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       final l10n = tester.element(find.byType(LogsView)).appLocalizations;
-      await tester.tap(find.byIcon(Icons.pause));
+      await tester.tap(find.byIcon(Symbols.pause));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip(l10n.clear));
       await tester.pumpAndSettle();
@@ -196,7 +197,7 @@ void main() {
       expect(container.read(logsProvider).list, isEmpty);
       expect(container.read(logsProvider).revision, greaterThan(revision));
       expect(find.text('old entry'), findsNothing);
-      expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+      expect(find.byIcon(Symbols.play_arrow), findsOneWidget);
       logs.add(Log.app('new entry'));
       await tester.pump(const Duration(milliseconds: 301));
       await tester.pumpAndSettle();

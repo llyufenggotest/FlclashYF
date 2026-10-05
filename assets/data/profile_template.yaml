@@ -1,0 +1,170 @@
+mode: rule
+log-level: warning
+ipv6: false
+unified-delay: true
+tcp-concurrent: false
+keep-alive-interval: 30
+keep-alive-idle: 600
+mixed-port: 7890
+profile:
+  store-selected: true
+  store-fake-ip: true
+sniffer:
+  enable: true
+  force-dns-mapping: true
+  parse-pure-ip: true
+  override-destination: false
+  sniff:
+    HTTP:
+      ports:
+      - 80
+      - 8080-8880
+      override-destination: true
+    TLS:
+      ports:
+      - 443
+      - 8443
+    QUIC:
+      ports:
+      - 443
+      - 8443
+  skip-domain:
+  - Mijia Cloud
+  - +.push.apple.com
+  - +.apple.com
+dns:
+  enable: true
+  ipv6: false
+  use-hosts: true
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  respect-rules: true
+  default-nameserver:
+  - 223.5.5.5
+  - 119.29.29.29
+  proxy-server-nameserver:
+  - https://dns.alidns.com/dns-query
+  - https://doh.pub/dns-query
+  nameserver:
+  - https://dns.alidns.com/dns-query
+  - https://doh.pub/dns-query
+  fallback:
+  - https://dns.google/dns-query
+  - https://cloudflare-dns.com/dns-query
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+    ipcidr:
+    - 240.0.0.0/4
+    - 0.0.0.0/32
+  fake-ip-filter:
+  - +.lan
+  - +.local
+  - +.localhost
+  - stun.*.*
+  - stun.*.*.*
+  - time.*.com
+  - ntp.*.com
+  - +.push.apple.com
+proxies: []
+proxy-groups:
+- name: 🚀 节点选择
+  type: select
+  proxies:
+  - 🎯 全球直连
+  - ⚡ 自动优选
+- name: 🛑 广告拦截
+  type: select
+  proxies:
+  - REJECT
+  - DIRECT
+- name: 🎯 全球直连
+  type: select
+  proxies:
+  - DIRECT
+- name: 🐟 漏网之鱼
+  type: select
+  proxies:
+  - 🚀 节点选择
+  - 🎯 全球直连
+  - ⚡ 自动优选
+- name: ⚡ 自动优选
+  type: url-test
+  url: http://www.google.com/generate_204
+  interval: 600
+  lazy: true
+  tolerance: 50
+  proxies: []
+rules:
+- DOMAIN-SUFFIX,pangolin-sdk-toutiao.com,🛑 广告拦截
+- DOMAIN-SUFFIX,pangolin-sdk-toutiao-b.com,🛑 广告拦截
+- DOMAIN-SUFFIX,pglstatp-toutiao.com,🛑 广告拦截
+- DOMAIN,pangolin.snssdk.com,🛑 广告拦截
+- DOMAIN,ad.toutiao.com,🛑 广告拦截
+- DOMAIN,toblog.ctobsnssdk.com,🛑 广告拦截
+- DOMAIN,gssdk.zjbyte.com,🛑 广告拦截
+- DOMAIN,mon.zijieapi.com,🛑 广告拦截
+- DOMAIN,p.pangle.io,🛑 广告拦截
+- DOMAIN,is.snssdk.com,🛑 广告拦截
+- DOMAIN,log.snssdk.com,🛑 广告拦截
+- DOMAIN-SUFFIX,gdt.qq.com,🛑 广告拦截
+- DOMAIN,sdk.e.qq.com,🛑 广告拦截
+- DOMAIN,pgdt.gtimg.cn,🛑 广告拦截
+- DOMAIN,adsmind.gdtimg.com,🛑 广告拦截
+- DOMAIN,vlive.qq.com,🛑 广告拦截
+- DOMAIN,btrace.qq.com,🛑 广告拦截
+- DOMAIN-SUFFIX,e.kuaishou.com,🛑 广告拦截
+- DOMAIN,adukwai.com,🛑 广告拦截
+- DOMAIN,open.e.kuaishou.com,🛑 广告拦截
+- DOMAIN,yx.e.kuaishou.com,🛑 广告拦截
+- DOMAIN,mobads.baidu.com,🛑 广告拦截
+- DOMAIN,mobads-logs.baidu.com,🛑 广告拦截
+- DOMAIN,wn.pos.baidu.com,🛑 广告拦截
+- DOMAIN-SUFFIX,bce.baidu.com,🛑 广告拦截
+- DOMAIN-SUFFIX,sigmob.cn,🛑 广告拦截
+- DOMAIN-SUFFIX,mintegral.com,🛑 广告拦截
+- DOMAIN-SUFFIX,mintegral.net,🛑 广告拦截
+- DOMAIN-KEYWORD,ad.iqiyi.com,🛑 广告拦截
+- DOMAIN-SUFFIX,cupid.iqiyi.com,🛑 广告拦截
+- DOMAIN-KEYWORD,atm.youku.com,🛑 广告拦截
+- DOMAIN,ad.youku.com,🛑 广告拦截
+- DOMAIN,ad.mgtv.com,🛑 广告拦截
+- DOMAIN,da.mgtv.com,🛑 广告拦截
+- DOMAIN-SUFFIX,doubleclick.net,🛑 广告拦截
+- DOMAIN-SUFFIX,googlesyndication.com,🛑 广告拦截
+- DOMAIN-SUFFIX,googleadservices.com,🛑 广告拦截
+- DOMAIN-SUFFIX,adnxs.com,🛑 广告拦截
+- DOMAIN-SUFFIX,cnzz.com,🛑 广告拦截
+- DST-PORT,123,🎯 全球直连
+- RULE-SET,BanAD,🛑 广告拦截
+- RULE-SET,ProxyClassical,🚀 节点选择
+- RULE-SET,ChinaClassical,🎯 全球直连
+- RULE-SET,ChinaCIDR,🎯 全球直连
+- GEOIP,CN,🎯 全球直连
+- MATCH,🐟 漏网之鱼
+rule-providers:
+  BanAD:
+    type: http
+    behavior: domain
+    interval: 604800
+    path: BanAD.yaml
+    url: https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt
+  ProxyClassical:
+    type: http
+    behavior: domain
+    interval: 604800
+    path: ProxyClassical.yaml
+    url: https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt
+  ChinaClassical:
+    type: http
+    behavior: domain
+    interval: 604800
+    path: ChinaClassical.yaml
+    url: https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt
+  ChinaCIDR:
+    type: http
+    behavior: ipcidr
+    interval: 604800
+    path: CNCIDR.yaml
+    url: https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cncidr.txt
+find-process-mode: 'off'

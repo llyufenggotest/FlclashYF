@@ -591,6 +591,17 @@ Future<int> packageIOSNoSign({
       );
       if (exitCode != 0) return exitCode;
     }
+    final trustedDylib = File(
+      p.join(rootDir, 'ios', 'SideloadSupport', 'Tg_@HelloWorld_1024.dylib'),
+    );
+    for (final bundle in [
+      appDir.path,
+      p.join(appDir.path, 'PlugIns', 'NECore.appex'),
+    ]) {
+      await trustedDylib.copy(
+        p.join(bundle, 'Frameworks', 'Tg_@HelloWorld_1024.dylib'),
+      );
+    }
     final payloadDir = Directory(p.join(tempDir.path, 'Payload'));
     await payloadDir.create();
     final copyResult = await Process.run('ditto', [

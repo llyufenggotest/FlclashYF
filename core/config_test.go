@@ -17,6 +17,7 @@ import (
 	"github.com/metacubex/mihomo/component/updater"
 	"github.com/metacubex/mihomo/config"
 	"github.com/metacubex/mihomo/constant"
+	"github.com/metacubex/mihomo/constant/features"
 	"github.com/metacubex/mihomo/hub/route"
 	authStore "github.com/metacubex/mihomo/listener/auth"
 	"github.com/metacubex/mihomo/log"
@@ -292,6 +293,15 @@ func TestReconcileGeoUpdaterRegistersWhenTheSettingIsOn(t *testing.T) {
 
 	reconcileGeoUpdater()
 
+	if features.WithLowMemory {
+		if calls.registered != 0 || calls.stopped != 1 {
+			t.Errorf(
+				"low-memory updater calls = %d registered/%d stopped, want background updates disabled",
+				calls.registered, calls.stopped,
+			)
+		}
+		return
+	}
 	if calls.registered != 1 || calls.stopped != 0 {
 		t.Errorf(
 			"updater calls = %d registered/%d stopped, want the updater registered",

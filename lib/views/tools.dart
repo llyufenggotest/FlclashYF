@@ -7,6 +7,7 @@ import 'package:fl_clash/providers/providers.dart';
 import 'package:fl_clash/views/about.dart';
 import 'package:fl_clash/views/access.dart';
 import 'package:fl_clash/views/backup_and_restore.dart';
+import 'package:fl_clash/views/config/profile_template.dart';
 import 'package:fl_clash/views/hotkey.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -51,6 +52,7 @@ class _ToolViewState extends ConsumerState<ToolsView> {
       const _LocaleItem(),
       const _ThemeItem(),
       const _AdvancedConfigItem(),
+      const _ProfileTemplateItem(),
       if (system.isDesktop) const _HotkeyItem(),
       if (system.isWindows) const _LoopbackItem(),
       if (system.isAndroid) const _AccessItem(),
@@ -214,6 +216,20 @@ class _GeneralItem extends StatelessWidget {
       title: Text(context.appLocalizations.general),
       subtitle: Text(context.appLocalizations.generalDesc),
       widget: const GeneralView(),
+    );
+  }
+}
+
+class _ProfileTemplateItem extends StatelessWidget {
+  const _ProfileTemplateItem();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListItem.open(
+      leading: const Icon(Symbols.description),
+      title: Text(context.appLocalizations.profileTemplate),
+      subtitle: Text(context.appLocalizations.profileTemplateDesc),
+      widget: const ProfileTemplateView(),
     );
   }
 }

@@ -7,6 +7,7 @@ replace github.com/metacubex/mihomo => ./mihomo
 require (
 	github.com/Microsoft/go-winio v0.6.2
 	github.com/metacubex/mihomo v0.0.0-00010101000000-000000000000
+	github.com/metacubex/sing-shadowsocks2 v0.2.8
 	github.com/metacubex/tailscale v0.0.0-20260821153257-ff0ecd818181
 	github.com/miekg/dns v1.1.73
 )
@@ -86,7 +87,6 @@ require (
 	github.com/metacubex/sing-mux v0.3.12 // indirect
 	github.com/metacubex/sing-quic v0.0.0-20260904234848-1c242664697a // indirect
 	github.com/metacubex/sing-shadowsocks v0.2.13 // indirect
-	github.com/metacubex/sing-shadowsocks2 v0.2.8 // indirect
 	github.com/metacubex/sing-tun v0.4.27 // indirect
 	github.com/metacubex/sing-vmess v0.2.5 // indirect
 	github.com/metacubex/sing-wireguard v0.0.0-20260826105301-c3ae17d19f9e // indirect
@@ -142,3 +142,5 @@ require (
 	golang.org/x/time v0.16.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 )
+
+replace github.com/metacubex/sing-shadowsocks2 => ./sing-shadowsocks2

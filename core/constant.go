@@ -208,6 +208,7 @@ const (
 	shutdownMethod                       CoreMethod = "shutdown"
 	releaseConfigMethod                  CoreMethod = "releaseConfig"
 	validateConfigMethod                 CoreMethod = "validateConfig"
+	convertURISubscriptionMethod         CoreMethod = "convertUriSubscription"
 	updateConfigMethod                   CoreMethod = "updateConfig"
 	getProxiesMethod                     CoreMethod = "getProxies"
 	changeProxyMethod                    CoreMethod = "changeProxy"

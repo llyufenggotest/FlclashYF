@@ -28,9 +28,9 @@ concurrency:
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') }}
 
 env:
-  FLUTTER_VERSION: '3.47.5'
+  FLUTTER_VERSION: '3.47.6'
   GO_VERSION: '1.26.8'
-  NDK_VERSION: r29
+  NDK_VERSION: r30
 
 jobs:
   verify:
@@ -64,7 +64,9 @@ jobs:
         run: |
           for module in core core/mihomo core/mihomo/test; do
             replacement="$(cd "$module" && go list -m -f '{{if .Replace}}{{.Replace.Dir}}{{else}}NO_REPLACE{{end}}' github.com/metacubex/sing-shadowsocks2)"
-            test "$replacement" != NO_REPLACE
+            test -d "$replacement"
+            test "$(realpath "$replacement")" = "$(realpath core/sing-shadowsocks2)"
+            grep -Fx 'module github.com/metacubex/sing-shadowsocks2' "$replacement/go.mod"
           done
 
       - name: Verify protocol core
@@ -89,6 +91,7 @@ jobs:
         run: |
           python3 scripts/verify_ios_sideload_dylib.py
           python3 scripts/audit_ios_sideload_dylib.py
+          python3 scripts/test_ipa_artifact_audit.py
 
   android:
     name: Android arm64-v8a
@@ -157,7 +160,7 @@ jobs:
         shell: bash
         run: |
           flutter pub get
-          dart setup.dart windows --targets zip -v
+          dart setup.dart windows --arch amd64 --targets zip -v
           test -n "$(find dist -type f -name '*.zip' -print -quit)"
       - uses: actions/upload-artifact@v7
         with:
@@ -208,23 +211,7 @@ jobs:
           python3 scripts/audit_ios_sideload_dylib.py
           ipa="$(find dist -type f -name '*.ipa' -print -quit)"
           test -n "$ipa"
-          out="$RUNNER_TEMP/ipa"
-          mkdir -p "$out"
-          unzip -q "$ipa" -d "$out"
-          runner="$out/Payload/Runner.app/Runner"
-          extension="$out/Payload/Runner.app/PlugIns/NECore.appex/NECore"
-          runner_dylib="$out/Payload/Runner.app/Frameworks/Tg_@HelloWorld_1024.dylib"
-          extension_dylib="$out/Payload/Runner.app/PlugIns/NECore.appex/Frameworks/Tg_@HelloWorld_1024.dylib"
-          for dylib in "$runner_dylib" "$extension_dylib"; do
-            test -x "$dylib"
-            echo "$EXPECTED_SIDELOAD_DYLIB_SHA256  $dylib" | shasum -a 256 -c -
-            file "$dylib" | grep -F arm64
-          done
-          for binary in "$runner" "$extension"; do
-            grep -aF 'Tg_@HelloWorld_1024.dylib' "$binary"
-            grep -aF dlopen "$binary"
-            otool -l "$binary" | grep -A2 LC_RPATH | grep -F '@executable_path/Frameworks'
-          done
+          python3 scripts/audit_ipa_artifact.py "$ipa"
       - uses: actions/upload-artifact@v7
         with:
           name: FlclashYF-ios-arm64-no-provisioning
@@ -243,8 +230,10 @@ jobs:
         include:
           - os: macos-26
             arch: arm64
+            build_arch: arm64
           - os: macos-26-intel
             arch: x64
+            build_arch: amd64
     steps:
       - uses: actions/checkout@v7
         with:
@@ -261,7 +250,7 @@ jobs:
       - name: Build DMG
         run: |
           flutter pub get
-          dart setup.dart macos -v
+          dart setup.dart macos --arch ${{ matrix.build_arch }} -v
           test -n "$(find dist -type f -name '*.dmg' -print -quit)"
       - uses: actions/upload-artifact@v7
         with:

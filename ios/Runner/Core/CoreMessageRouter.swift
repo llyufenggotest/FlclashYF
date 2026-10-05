@@ -23,6 +23,7 @@ private enum RuntimeStateCoreMethod: String {
   case getProxies
   case changeProxy
   case getTraffic
+  case getNodeTraffic
   case getTotalTraffic
   case resetTraffic
   case asyncTestDelay

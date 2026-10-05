@@ -93,7 +93,7 @@ final class LogsProvider extends $NotifierProvider<Logs, FixedList<Log>> {
   }
 }
 
-String _$logsHash() => r'd2f949b52b33731ac358de5bca36ad55bb826c72';
+String _$logsHash() => r'07e7eee3d6d34d066b900f5b6d869e35fe32b004';
 
 abstract class _$Logs extends $Notifier<FixedList<Log>> {
   FixedList<Log> build();
@@ -250,7 +250,7 @@ final class ProvidersProvider
   }
 }
 
-String _$providersHash() => r'51d9bc898e1af8a7179c1c53145705b57d9a5996';
+String _$providersHash() => r'371ad37c19ed729f0a1e87238f7f7d4a9750a0df';
 
 abstract class _$Providers extends $Notifier<List<ExternalProvider>> {
   List<ExternalProvider> build();
@@ -2331,7 +2331,7 @@ final class HotKeyRecordingProvider
   }
 }
 
-String _$hotKeyRecordingHash() => r'8cbbdb394fcc10ae564e4e91696668cc8a327507';
+String _$hotKeyRecordingHash() => r'769a1cb2eafe5b4202d165c6de6cb251d01c5590';
 
 abstract class _$HotKeyRecording extends $Notifier<bool> {
   bool build();

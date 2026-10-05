@@ -25,6 +25,7 @@ enum ProviderReadRetry {
     switch method {
     case "getProxies",
       "getTraffic",
+      "getNodeTraffic",
       "getTotalTraffic",
       "getConnections",
       "getExternalProviders",

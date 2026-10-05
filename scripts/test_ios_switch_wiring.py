@@ -45,6 +45,33 @@ class SwitchWiring(unittest.TestCase):
         self.assertIn('coreMessageRouter.updateTunnelState', body)
         self.assertLess(body.index('coreMessageRouter.updateTunnelState'), body.index('result(runTime)'))
 
+    def test_restoration_signatures_and_runtime_node_traffic(self):
+        controller = (ROOT / 'ios/Runner/Tunnel/TunnelController.swift').read_text()
+        self.assertIn('onConnectionStateChanged: @escaping (String) -> Void', controller)
+        self.assertIn('onConnectionStateChanged: onConnectionStateChanged', controller)
+        self.assertIn('func publishConnectionState()', controller)
+        self.assertIn('coordinator.publishConnectionState()', controller)
+        router = (ROOT / 'ios/Runner/Core/CoreMessageRouter.swift').read_text()
+        runtime = router.split('private enum RuntimeStateCoreMethod', 1)[1].split('private struct', 1)[0]
+        self.assertIn('case getNodeTraffic', runtime)
+        retry = (ROOT / 'ios/Shared/ProviderReadRetry.swift').read_text()
+        self.assertIn('"getNodeTraffic"', retry)
+
+    def test_tun_options_and_sleep_do_not_suspend(self):
+        provider = (ROOT / 'ios/NECore/PacketTunnelProvider.swift').read_text()
+        self.assertIn('congestionController: vpnOptions.congestionController', provider)
+        self.assertIn('let congestionController: String', provider)
+        self.assertNotIn('NECoreBridge.setSuspended', provider)
+
+    def test_file_rpc_configuration_acknowledgment(self):
+        source = (ROOT / 'ios/NECore/PacketTunnelCommandServer.swift').read_text()
+        self.assertIn('sharedStateStore.clearConfigurationRequestApplied()', source)
+        self.assertIn('self.sharedStateStore.markConfigurationRequestApplied(requestID)', source)
+        self.assertLess(source.index('clearConfigurationRequestApplied()'), source.index('invoke(data)'))
+        self.assertLess(source.index('markConfigurationRequestApplied(requestID)'), source.index('self.writeResponse(id: id'))
+        self.assertIn('result.isEmpty', source)
+        self.assertIn('object["error"] is NSNull', source)
+
     def test_packaging_runs_native_tests(self):
         source = (ROOT / '.github/workflows/ios-five-protocol.yaml').read_text()
         self.assertIn('python3 scripts/test_ios_switch_diagnostics.py', source)

@@ -121,10 +121,22 @@ final class PacketTunnelCommandServer {
       "method": method,
       "request_bytes": String(data.count),
     ])
+    let configurationWrite = method == "setupConfig" || method == "updateConfig"
+    if configurationWrite {
+      sharedStateStore.clearConfigurationRequestApplied()
+    }
     invoke(data) { [weak self] response in
       guard let self else { return }
       self.queue.async {
         let payload = response ?? self.emptyCoreResponse(for: data)
+        if configurationWrite,
+          let response,
+          let object = try? JSONSerialization.jsonObject(with: response) as? [String: Any],
+          object["error"] == nil || object["error"] is NSNull,
+          let result = object["result"] as? String,
+          result.isEmpty {
+          self.sharedStateStore.markConfigurationRequestApplied(requestID)
+        }
         self.writeResponse(id: id, data: payload)
         SwitchDiagnostics.record("rpc_reply", fields: [
           "request_id": requestID,

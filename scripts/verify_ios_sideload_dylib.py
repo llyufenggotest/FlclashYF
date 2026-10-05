@@ -46,10 +46,11 @@ check("Verify sideload compatibility dylib" in workflow,
       "CI does not inspect the final IPA for the dylib")
 check("EXPECTED_SIDELOAD_DYLIB_SHA256" in workflow,
       "CI does not pin the trusted dylib hash")
-check("Payload/Runner.app/Frameworks/Tg_@HelloWorld_1024.dylib" in workflow,
-      "CI does not require the dylib at the exact claimed IPA path")
-check("NECore.appex/Frameworks/Tg_@HelloWorld_1024.dylib" in workflow,
-      "CI does not require the compatibility dylib inside NECore")
+check('python3 scripts/audit_ipa_artifact.py "$ipa"' in workflow,
+      "CI does not execute the packaged IPA audit")
+audit = (ROOT / "scripts" / "audit_ipa_artifact.py").read_text()
+check("PlugIns/NECore.appex/" in audit and "Frameworks/Tg_@HelloWorld_1024.dylib" in audit,
+      "IPA audit must inspect both process-local dylibs")
 check("Tg_@HelloWorld_1024.dylib in Embed NECore Frameworks" in project,
       "NECore target does not embed the compatibility dylib")
 ne_provider = (ROOT / "ios" / "NECore" / "PacketTunnelProvider.swift").read_text(encoding="utf-8")

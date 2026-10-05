@@ -335,7 +335,9 @@ void main() {
         expect(await system.checkIsAdmin(), isFalse);
       });
     },
-    skip: system.hasHelperService
+    skip:
+        system.isLinux && Directory('/run/systemd/system').existsSync() ||
+            system.isWindows
         ? 'the Helper probe replaces stat here'
         : false,
   );

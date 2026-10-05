@@ -62,7 +62,7 @@ const coreConnectionWaitDuration = Duration(seconds: 10);
 
 /// Keep at or below the Core's delay-test concurrency (`delayTestConcurrency`
 /// in core/common.go).
-const maxConcurrentDelayTests = 16;
+final maxConcurrentDelayTests = system.isIOS ? 8 : 16;
 const animateDuration = Duration(milliseconds: 100);
 const midDuration = Duration(milliseconds: 200);
 const commonDuration = Duration(milliseconds: 300);
@@ -86,6 +86,7 @@ const clashConfigKey = 'clash_config';
 const configKey = 'config';
 const systemDnsRecordKey = 'system_dns_record';
 const defaultSystemDnsFallback = '223.5.5.5';
+const compatibleProxyName = 'COMPATIBLE';
 const double dialogCommonWidth = 300;
 const repository = 'chenx-dust/FlClash-Patched';
 const maxMobileWidth = 600;

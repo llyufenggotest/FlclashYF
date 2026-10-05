@@ -198,4 +198,9 @@ static void NECoreSystemLog(const char *level, const char *message) {
   stopTun();
 }
 
++ (void)releaseMemory {
+  [self initializeBridge];
+  forceGC();
+}
+
 @end

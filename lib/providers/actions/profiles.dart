@@ -9,14 +9,22 @@ class ProfilesAction extends _$ProfilesAction {
 
   void updateCurrentSelectedMap(String groupName, String proxyName) {
     final currentProfile = ref.read(currentProfileProvider);
-    if (currentProfile != null &&
-        currentProfile.selectedMap[groupName] != proxyName) {
-      final selectedMap = Map<String, String>.from(currentProfile.selectedMap)
-        ..[groupName] = proxyName;
-      ref
-          .read(profilesProvider.notifier)
-          .put(currentProfile.copyWith(selectedMap: selectedMap));
+    if (currentProfile == null) return;
+    final selectedMap = Map<String, String>.from(currentProfile.selectedMap);
+    if (proxyName.isEmpty || proxyName == compatibleProxyName) {
+      selectedMap.remove(groupName);
+    } else {
+      selectedMap[groupName] = proxyName;
     }
+    final unchanged =
+        selectedMap.length == currentProfile.selectedMap.length &&
+        selectedMap.entries.every(
+          (entry) => currentProfile.selectedMap[entry.key] == entry.value,
+        );
+    if (unchanged) return;
+    ref
+        .read(profilesProvider.notifier)
+        .put(currentProfile.copyWith(selectedMap: selectedMap));
   }
 
   Future<void> deleteProfile(int id) async {
@@ -39,6 +47,18 @@ class ProfilesAction extends _$ProfilesAction {
     return _core.validateConfigWithData(data);
   }
 
+  Future<String> loadProfileTemplate() {
+    return profileTemplateStore.load();
+  }
+
+  Future<void> saveProfileTemplate(String content) {
+    return profileTemplateStore.save(content, _core.validateConfigWithData);
+  }
+
+  Future<void> resetProfileTemplate() {
+    return profileTemplateStore.reset();
+  }
+
   Future<String> prepareProfileConfig(
     String content,
     String? ageSecretKey,
@@ -50,7 +70,25 @@ class ProfilesAction extends _$ProfilesAction {
         prepared = decrypted;
       }
     }
-    final message = await _core.validateConfig(prepared);
+    final convertedFastup = convertFastupSubscription(prepared);
+    final isFastup = convertedFastup != prepared;
+    prepared = convertedFastup;
+    final yamlProxies = extractYamlProxies(prepared);
+    if (yamlProxies != null && !isFullYamlProfile(prepared)) {
+      final template = await loadProfileTemplate();
+      prepared = injectSubscriptionProxies(
+        template: template,
+        proxies: yamlProxies,
+      );
+    } else if (!isFastup && !isYamlProfile(prepared)) {
+      final proxies = await _core.convertUriSubscription(prepared);
+      final template = await loadProfileTemplate();
+      prepared = injectSubscriptionProxies(
+        template: template,
+        proxies: proxies,
+      );
+    }
+    final message = await _core.validateConfigWithData(prepared);
     if (message.isNotEmpty) {
       throw MessageException(message);
     }
@@ -95,6 +133,88 @@ class ProfilesAction extends _$ProfilesAction {
     }
   }
 
+  Future<ClipboardImportPreview> inspectClipboardContent(String content) async {
+    final value = content.trim();
+    if (value.isEmpty) {
+      throw const MessageException('Clipboard is empty');
+    }
+    final uri = Uri.tryParse(value);
+    if (!value.contains(RegExp(r'[\r\n]')) &&
+        uri != null &&
+        uri.hasAuthority &&
+        (uri.scheme == 'http' || uri.scheme == 'https')) {
+      return ClipboardImportPreview(
+        kind: ClipboardImportKind.url,
+        source: uri.host,
+        suggestedName: uri.host,
+      );
+    }
+    final yamlProxies = extractYamlProxies(value);
+    if (yamlProxies != null) {
+      return ClipboardImportPreview(
+        kind: ClipboardImportKind.yaml,
+        source: isFullYamlProfile(value) ? 'YAML profile' : 'YAML proxies',
+        nodeCount: yamlProxies.length,
+        suggestedName: currentAppLocalizations.clipboardImport,
+      );
+    }
+    final proxies = await _core.convertUriSubscription(value);
+    final decodedBase64 = !value.contains('://');
+    return ClipboardImportPreview(
+      kind: decodedBase64
+          ? ClipboardImportKind.base64
+          : ClipboardImportKind.uri,
+      source: decodedBase64 ? 'Base64' : 'Proxy links',
+      nodeCount: proxies.length,
+      suggestedName: currentAppLocalizations.clipboardImport,
+    );
+  }
+
+  Future<void> addProfileFromClipboardContent(
+    String content, [
+    String? label,
+  ]) async {
+    final value = content.trim();
+    if (value.isEmpty) {
+      throw const MessageException('Clipboard is empty');
+    }
+    final uri = Uri.tryParse(value);
+    if (!value.contains(RegExp(r'[\r\n]')) &&
+        uri != null &&
+        uri.hasAuthority &&
+        (uri.scheme == 'http' || uri.scheme == 'https')) {
+      await addProfileFormURL(value, label: label);
+      return;
+    }
+    final profile = await globalState.loadingRun(
+      () =>
+          Profile.normal(
+            label: label?.trim().isNotEmpty == true
+                ? label!.trim()
+                : currentAppLocalizations.clipboardImport,
+          ).saveFile(
+            Uint8List.fromList(utf8.encode(value)),
+            prepare: prepareProfileConfig,
+          ),
+      tag: LoadingTag.profiles,
+      title: currentAppLocalizations.addProfile,
+    );
+    if (profile != null) {
+      putProfile(profile);
+    }
+  }
+
+  Future<void> addProfileFormClipboard() async {
+    final data = await globalState.safeRun(
+      () => Clipboard.getData(Clipboard.kTextPlain),
+    );
+    final content = data?.text;
+    if (content == null || content.trim().isEmpty) {
+      throw const MessageException('Clipboard is empty');
+    }
+    await addProfileFromClipboardContent(content);
+  }
+
   Future<void> addProfileFormFile() async {
     final platformFile = await globalState.safeRun(picker.pickerFile);
     if (platformFile == null) return;
@@ -115,7 +235,11 @@ class ProfilesAction extends _$ProfilesAction {
     }
   }
 
-  Future<void> addProfileFormURL(String url, {String? ageSecretKey}) async {
+  Future<void> addProfileFormURL(
+    String url, {
+    String? ageSecretKey,
+    String? label,
+  }) async {
     if (globalState.navigatorKey.currentState?.canPop() ?? false) {
       globalState.navigatorKey.currentState?.popUntil((route) => route.isFirst);
     }
@@ -125,6 +249,7 @@ class ProfilesAction extends _$ProfilesAction {
       () async {
         return Profile.normal(
           url: url,
+          label: label?.trim().isNotEmpty == true ? label!.trim() : null,
           ageSecretKey: ageSecretKey,
         ).update(prepare: prepareProfileConfig);
       },
