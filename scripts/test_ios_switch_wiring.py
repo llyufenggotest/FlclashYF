@@ -62,6 +62,7 @@ class SwitchWiring(unittest.TestCase):
         self.assertIn('congestionController: vpnOptions.congestionController', provider)
         self.assertIn('let congestionController: String', provider)
         self.assertNotIn('NECoreBridge.setSuspended', provider)
+        self.assertNotIn('vpnOptions.suspendSupport', provider)
 
     def test_file_rpc_configuration_acknowledgment(self):
         source = (ROOT / 'ios/NECore/PacketTunnelCommandServer.swift').read_text()
