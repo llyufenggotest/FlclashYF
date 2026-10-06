@@ -156,7 +156,6 @@ class _ClipboardImportDialogState extends State<ClipboardImportDialog> {
               SwitchListTile(
                 key: const Key('import-use-global-template'),
                 title: Text(l10n.useGlobalTemplate),
-                subtitle: Text(l10n.useGlobalTemplateDesc),
                 value: _useGlobalTemplate,
                 onChanged: _importing
                     ? null

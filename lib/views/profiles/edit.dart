@@ -315,7 +315,6 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
       ListItem.toggle(
         key: const Key('use-global-template'),
         title: Text(appLocalizations.useGlobalTemplate),
-        subtitle: Text(appLocalizations.useGlobalTemplateDesc),
         value: _useGlobalTemplate,
         onChanged: (value) => setState(() => _useGlobalTemplate = value),
       ),

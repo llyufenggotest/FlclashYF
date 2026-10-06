@@ -171,7 +171,6 @@ class _AddProfileViewState extends ConsumerState<AddProfileView> {
         SwitchListTile(
           key: const Key('add-use-global-template'),
           title: Text(appLocalizations.useGlobalTemplate),
-          subtitle: Text(appLocalizations.useGlobalTemplateDesc),
           value: _useGlobalTemplate,
           onChanged: (value) => setState(() => _useGlobalTemplate = value),
         ),
@@ -355,7 +354,6 @@ class _URLFormDialogState extends State<URLFormDialog> {
               SwitchListTile(
                 key: const Key('url-use-global-template'),
                 title: Text(appLocalizations.useGlobalTemplate),
-                subtitle: Text(appLocalizations.useGlobalTemplateDesc),
                 value: _useGlobalTemplate,
                 onChanged: (value) =>
                     setState(() => _useGlobalTemplate = value),
