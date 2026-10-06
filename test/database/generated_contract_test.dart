@@ -24,14 +24,15 @@ void main() {
         expire: 4,
       ),
       autoUpdate: true,
+      useGlobalTemplate: false,
       selectedMap: const {'Select': 'DIRECT'},
       unfoldSet: const {'Select'},
       order: 3,
       ageSecretKey: 'AGE-SECRET-KEY-1',
     );
 
-    expect(profile.toColumns(true), hasLength(15));
-    expect(profile.toCompanion(true).toColumns(true), hasLength(15));
+    expect(profile.toColumns(true), hasLength(16));
+    expect(profile.toCompanion(true).toColumns(true), hasLength(16));
     expect(RawProfile.fromJson(profile.toJson()).toJson(), profile.toJson());
     expect(profile.copyWith(label: 'Next').label, 'Next');
     expect(
@@ -57,12 +58,13 @@ void main() {
       overwriteType: OverwriteType.standard,
       autoUpdateDurationMillis: 0,
       autoUpdate: false,
+      useGlobalTemplate: false,
       selectedMap: {},
       unfoldSet: {},
     );
-    expect(emptyProfile.toColumns(true), hasLength(8));
-    expect(emptyProfile.toColumns(false), hasLength(15));
-    expect(emptyProfile.toCompanion(true).toColumns(true), hasLength(8));
+    expect(emptyProfile.toColumns(true), hasLength(9));
+    expect(emptyProfile.toColumns(false), hasLength(16));
+    expect(emptyProfile.toCompanion(true).toColumns(true), hasLength(9));
 
     final insertedProfile = ProfilesCompanion.insert(
       label: 'Inserted',
@@ -70,10 +72,11 @@ void main() {
       overwriteType: OverwriteType.script,
       autoUpdateDurationMillis: 60,
       autoUpdate: true,
+      useGlobalTemplate: const Value(false),
       selectedMap: const {},
       unfoldSet: const {},
     ).copyWith(id: const Value(8), order: const Value(1));
-    expect(insertedProfile.toColumns(true), hasLength(9));
+    expect(insertedProfile.toColumns(true), hasLength(10));
     expect(insertedProfile.toString(), contains('Inserted'));
     expect(
       ProfilesCompanion.custom(
@@ -88,12 +91,13 @@ void main() {
         autoUpdateDurationMillis: const Variable(60),
         subscriptionInfo: const Variable('{}'),
         autoUpdate: const Variable(true),
+        useGlobalTemplate: const Variable(false),
         selectedMap: const Variable('{}'),
         unfoldSet: const Variable('[]'),
         order: const Variable(1),
         ageSecretKey: const Variable('AGE-SECRET-KEY-1'),
       ).toColumns(false),
-      hasLength(15),
+      hasLength(16),
     );
 
     final script = RawScript(id: 2, label: 'Script', lastUpdateTime: date);

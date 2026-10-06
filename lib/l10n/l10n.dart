@@ -7449,6 +7449,26 @@ class AppLocalizations {
       args: [],
     );
   }
+
+  /// `Use global configuration template`
+  String get useGlobalTemplate {
+    return Intl.message(
+      'Use global configuration template',
+      name: 'useGlobalTemplate',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `When enabled, complete YAML profiles also use nodes with the global template. Incomplete YAML and proxy links always use it. Overwrites still run afterwards. Remote updates keep this preference. Disabling does not restore an already converted file; download or import the original again.`
+  String get useGlobalTemplateDesc {
+    return Intl.message(
+      'When enabled, complete YAML profiles also use nodes with the global template. Incomplete YAML and proxy links always use it. Overwrites still run afterwards. Remote updates keep this preference. Disabling does not restore an already converted file; download or import the original again.',
+      name: 'useGlobalTemplateDesc',
+      desc: '',
+      args: [],
+    );
+  }
 }
 
 class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {

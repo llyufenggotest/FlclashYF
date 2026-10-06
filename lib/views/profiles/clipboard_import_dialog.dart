@@ -14,13 +14,20 @@ class ClipboardImportDialog extends StatefulWidget {
     required this.onEditTemplate,
     this.title,
     this.initialName,
+    this.useGlobalTemplate = false,
   });
 
   final String? title;
   final String? initialName;
+  final bool useGlobalTemplate;
   final Future<String?> Function() readClipboard;
   final Future<ClipboardImportPreview> Function(String content) inspect;
-  final Future<void> Function(String content, String name) import;
+  final Future<void> Function(
+    String content,
+    String name,
+    bool useGlobalTemplate,
+  )
+  import;
   final Future<void> Function() onEditTemplate;
 
   @override
@@ -35,10 +42,12 @@ class _ClipboardImportDialogState extends State<ClipboardImportDialog> {
   String? _error;
   bool _loading = true;
   bool _importing = false;
+  late bool _useGlobalTemplate;
 
   @override
   void initState() {
     super.initState();
+    _useGlobalTemplate = widget.useGlobalTemplate;
     _load();
   }
 
@@ -74,7 +83,11 @@ class _ClipboardImportDialogState extends State<ClipboardImportDialog> {
       _importing = true;
     });
     try {
-      await widget.import(content, _nameController.text.trim());
+      await widget.import(
+        content,
+        _nameController.text.trim(),
+        _useGlobalTemplate,
+      );
       if (mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
@@ -140,6 +153,15 @@ class _ClipboardImportDialogState extends State<ClipboardImportDialog> {
                       : null,
                 ),
               ],
+              SwitchListTile(
+                key: const Key('import-use-global-template'),
+                title: Text(l10n.useGlobalTemplate),
+                subtitle: Text(l10n.useGlobalTemplateDesc),
+                value: _useGlobalTemplate,
+                onChanged: _importing
+                    ? null
+                    : (value) => setState(() => _useGlobalTemplate = value),
+              ),
               if (_error case final error?) ...[
                 const SizedBox(height: 12),
                 Text(error, style: TextStyle(color: context.colorScheme.error)),

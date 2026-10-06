@@ -1789,6 +1789,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "url": MessageLookupByLibrary.simpleMessage("URL"),
     "urlDesc": MessageLookupByLibrary.simpleMessage("Получить профиль по URL"),
     "urlTip": m33,
+    "useGlobalTemplate": MessageLookupByLibrary.simpleMessage(
+      "Использовать глобальный шаблон конфигурации",
+    ),
+    "useGlobalTemplateDesc": MessageLookupByLibrary.simpleMessage(
+      "При включении из полной YAML-конфигурации извлекаются только узлы для глобального шаблона. Неполный YAML и ссылки всегда используют шаблон, затем применяются перезаписи. Настройка сохраняется при обновлении. Отключение не восстанавливает преобразованный файл: загрузите или импортируйте оригинал заново.",
+    ),
     "useHosts": MessageLookupByLibrary.simpleMessage("Использовать hosts"),
     "useHostsDesc": MessageLookupByLibrary.simpleMessage(
       "Проверяет записи hosts из конфигурации перед запросом к вышестоящим DNS-серверам",

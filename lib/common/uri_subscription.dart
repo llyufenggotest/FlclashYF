@@ -27,6 +27,46 @@ bool isFullYamlProfile(String content) {
   }
 }
 
+bool _hasProxyProviders(String content) {
+  try {
+    final document = loadYaml(content);
+    final providers = document is YamlMap ? document['proxy-providers'] : null;
+    return providers != null && (providers is! YamlMap || providers.isNotEmpty);
+  } on YamlException {
+    return false;
+  }
+}
+
+String applyGlobalProfileTemplate({
+  required String content,
+  required String template,
+  required bool enabled,
+}) {
+  if (!enabled && isFullYamlProfile(content)) return content;
+  final proxies = extractYamlProxies(content);
+  if (proxies == null || _hasProxyProviders(content)) {
+    if (isFullYamlProfile(content) && enabled) {
+      throw const FormatException(
+        'Cannot safely extract nodes from a complete YAML profile containing proxy-providers or unsupported proxies.',
+      );
+    }
+    return content;
+  }
+  final sourceDocument = loadYaml(content);
+  if (sourceDocument is! YamlMap) {
+    throw const FormatException('Invalid YAML profile');
+  }
+  final result = injectSubscriptionProxies(
+    template: template,
+    proxies: proxies,
+  );
+  final source = sourceDocument;
+  if (!source.containsKey('overwrite')) return result;
+  final config = _plainMap(loadYaml(result) as YamlMap);
+  config['overwrite'] = _plainMap(source)['overwrite'];
+  return yaml.encode(config);
+}
+
 List<Map<String, dynamic>>? extractYamlProxies(String content) {
   try {
     final document = loadYaml(content);

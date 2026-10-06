@@ -102,7 +102,7 @@ void main() {
 
     await openAndMigrate();
 
-    expect(_userVersion(raw), 5);
+    expect(_userVersion(raw), 6);
   });
 
   test('the v2 upgrade adds both profile columns', () async {
@@ -114,7 +114,7 @@ void main() {
 
     expect(_columnsOf(raw, 'profiles'), contains('match_target'));
     expect(_columnsOf(raw, 'profiles'), contains('age_secret_key'));
-    expect(_userVersion(raw), 5);
+    expect(_userVersion(raw), 6);
   });
 
   test('the upstream v3 upgrade adds age_secret_key to profiles', () async {
@@ -124,7 +124,7 @@ void main() {
     await openAndMigrate();
 
     expect(_columnsOf(raw, 'profiles'), contains('age_secret_key'));
-    expect(_userVersion(raw), 5);
+    expect(_userVersion(raw), 6);
   });
 
   test('the v4 upgrade stores a sidecar script url on the row', () async {
@@ -152,7 +152,7 @@ void main() {
     );
     expect(sidecar.existsSync(), isFalse);
     expect(_columnsOf(raw, 'scripts'), containsAll(['url', 'order']));
-    expect(_userVersion(raw), 5);
+    expect(_userVersion(raw), 6);
   });
 
   test('the fork v3 upgrade adds match_target and keeps age data', () async {
@@ -182,7 +182,7 @@ void main() {
           .single['age_secret_key'],
       'AGE-SECRET-KEY-test',
     );
-    expect(_userVersion(raw), 5);
+    expect(_userVersion(raw), 6);
   });
 
   test(
@@ -194,7 +194,7 @@ void main() {
       await openAndMigrate();
 
       expect(_columnsOf(raw, 'profiles'), contains('match_target'));
-      expect(_userVersion(raw), 5);
+      expect(_userVersion(raw), 6);
     },
   );
 
@@ -269,7 +269,7 @@ void main() {
 
     final database = await openAndMigrate();
 
-    expect(_userVersion(raw), 5);
+    expect(_userVersion(raw), 6);
     expect(await database.customSelect('SELECT * FROM rules').get(), isEmpty);
   });
 
@@ -281,7 +281,7 @@ void main() {
       await openAndMigrate();
 
       expect(_columnsOf(raw, 'rules'), before);
-      expect(_userVersion(raw), 5);
+      expect(_userVersion(raw), 6);
       expect(_hasTable(raw, 'proxy_groups'), isTrue);
     },
   );

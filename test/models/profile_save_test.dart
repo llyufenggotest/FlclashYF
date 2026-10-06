@@ -48,7 +48,7 @@ void main() {
       await expectLater(
         profile.saveFile(
           bytes,
-          prepare: (_, _) async =>
+          prepare: (_, _, _) async =>
               throw const MessageException('invalid config'),
         ),
         throwsA(
@@ -70,7 +70,7 @@ void main() {
 
       final saved = await profile.saveFile(
         bytes,
-        prepare: (content, _) async => content,
+        prepare: (content, _, _) async => content,
       );
 
       expect(saved.lastUpdateDate, isNotNull);

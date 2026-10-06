@@ -887,5 +887,7 @@
   "routeGroupManual": "手动选择",
   "routeGroupAuto": "自动优选",
   "routeGroupBalance": "负载均衡",
-  "routeHealthInterval": "健康监测频率"
+  "routeHealthInterval": "健康监测频率",
+  "useGlobalTemplate": "使用全局配置模板",
+  "useGlobalTemplateDesc": "开启后，完整 YAML 也仅提取节点并套用全局模板；不完整 YAML 和节点链接始终套用模板，随后仍执行覆写。远程更新沿用此设置。关闭不会还原已转换的文件，请重新下载或导入原始配置。"
 }

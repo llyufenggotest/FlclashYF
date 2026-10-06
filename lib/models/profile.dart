@@ -12,7 +12,11 @@ part 'generated/profile.freezed.dart';
 part 'generated/profile.g.dart';
 
 typedef PrepareProfileConfig =
-    Future<String> Function(String content, String? ageSecretKey);
+    Future<String> Function(
+      String content,
+      String? ageSecretKey,
+      bool useGlobalTemplate,
+    );
 
 @freezed
 abstract class SubscriptionInfo with _$SubscriptionInfo {
@@ -54,6 +58,7 @@ abstract class Profile with _$Profile {
     required Duration autoUpdateDuration,
     SubscriptionInfo? subscriptionInfo,
     @Default(true) bool autoUpdate,
+    @Default(false) bool useGlobalTemplate,
     @Default({}) Map<String, String> selectedMap,
     @Default({}) Set<String> unfoldSet,
     @Default(OverwriteType.standard)
@@ -204,7 +209,11 @@ extension ProfileExtension on Profile {
     Uint8List bytes, {
     required PrepareProfileConfig prepare,
   }) async {
-    final content = await prepare(utf8.decode(bytes), ageSecretKey);
+    final content = await prepare(
+      utf8.decode(bytes),
+      ageSecretKey,
+      useGlobalTemplate,
+    );
     final path = await appPath.tempFilePath;
     final tempFile = File(path);
     await tempFile.safeWriteAsString(content);

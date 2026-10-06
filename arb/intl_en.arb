@@ -887,5 +887,7 @@
   "routeGroupManual": "Manual selection",
   "routeGroupAuto": "Automatic selection",
   "routeGroupBalance": "Load balancing",
-  "routeHealthInterval": "Health check interval"
+  "routeHealthInterval": "Health check interval",
+  "useGlobalTemplate": "Use global configuration template",
+  "useGlobalTemplateDesc": "When enabled, complete YAML profiles also use nodes with the global template. Incomplete YAML and proxy links always use it. Overwrites still run afterwards. Remote updates keep this preference. Disabling does not restore an already converted file; download or import the original again."
 }

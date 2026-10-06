@@ -59,10 +59,19 @@ class ProfilesAction extends _$ProfilesAction {
     return profileTemplateStore.reset();
   }
 
+  Future<Profile> materializeGlobalTemplate(Profile profile) async {
+    final file = await profile.file;
+    return profile.saveFile(
+      await file.readAsBytes(),
+      prepare: prepareProfileConfig,
+    );
+  }
+
   Future<String> prepareProfileConfig(
     String content,
-    String? ageSecretKey,
-  ) async {
+    String? ageSecretKey, [
+    bool useGlobalTemplate = false,
+  ]) async {
     var prepared = content;
     if (ageSecretKey?.isNotEmpty == true) {
       final decrypted = await _core.decryptAgeConfig(content, ageSecretKey!);
@@ -73,12 +82,21 @@ class ProfilesAction extends _$ProfilesAction {
     final convertedFastup = convertFastupSubscription(prepared);
     final isFastup = convertedFastup != prepared;
     prepared = convertedFastup;
+    if (useGlobalTemplate) {
+      final template = await loadProfileTemplate();
+      prepared = applyGlobalProfileTemplate(
+        content: prepared,
+        template: template,
+        enabled: true,
+      );
+    }
     final yamlProxies = extractYamlProxies(prepared);
     if (yamlProxies != null && !isFullYamlProfile(prepared)) {
       final template = await loadProfileTemplate();
-      prepared = injectSubscriptionProxies(
+      prepared = applyGlobalProfileTemplate(
+        content: prepared,
         template: template,
-        proxies: yamlProxies,
+        enabled: false,
       );
     } else if (!isFastup && !isYamlProfile(prepared)) {
       final proxies = await _core.convertUriSubscription(prepared);
@@ -173,6 +191,7 @@ class ProfilesAction extends _$ProfilesAction {
   Future<void> addProfileFromClipboardContent(
     String content, [
     String? label,
+    bool useGlobalTemplate = false,
   ]) async {
     final value = content.trim();
     if (value.isEmpty) {
@@ -183,19 +202,25 @@ class ProfilesAction extends _$ProfilesAction {
         uri != null &&
         uri.hasAuthority &&
         (uri.scheme == 'http' || uri.scheme == 'https')) {
-      await addProfileFormURL(value, label: label);
+      await addProfileFormURL(
+        value,
+        label: label,
+        useGlobalTemplate: useGlobalTemplate,
+      );
       return;
     }
     final profile = await globalState.loadingRun(
       () =>
           Profile.normal(
-            label: label?.trim().isNotEmpty == true
-                ? label!.trim()
-                : currentAppLocalizations.clipboardImport,
-          ).saveFile(
-            Uint8List.fromList(utf8.encode(value)),
-            prepare: prepareProfileConfig,
-          ),
+                label: label?.trim().isNotEmpty == true
+                    ? label!.trim()
+                    : currentAppLocalizations.clipboardImport,
+              )
+              .copyWith(useGlobalTemplate: useGlobalTemplate)
+              .saveFile(
+                Uint8List.fromList(utf8.encode(value)),
+                prepare: prepareProfileConfig,
+              ),
       tag: LoadingTag.profiles,
       title: currentAppLocalizations.addProfile,
     );
@@ -204,7 +229,7 @@ class ProfilesAction extends _$ProfilesAction {
     }
   }
 
-  Future<void> addProfileFormClipboard() async {
+  Future<void> addProfileFormClipboard({bool useGlobalTemplate = false}) async {
     final data = await globalState.safeRun(
       () => Clipboard.getData(Clipboard.kTextPlain),
     );
@@ -212,10 +237,10 @@ class ProfilesAction extends _$ProfilesAction {
     if (content == null || content.trim().isEmpty) {
       throw const MessageException('Clipboard is empty');
     }
-    await addProfileFromClipboardContent(content);
+    await addProfileFromClipboardContent(content, null, useGlobalTemplate);
   }
 
-  Future<void> addProfileFormFile() async {
+  Future<void> addProfileFormFile({bool useGlobalTemplate = false}) async {
     final platformFile = await globalState.safeRun(picker.pickerFile);
     if (platformFile == null) return;
     final bytes = await platformFile.readBytes();
@@ -224,9 +249,9 @@ class ProfilesAction extends _$ProfilesAction {
     final profile = await globalState.loadingRun(
       tag: LoadingTag.profiles,
       () async {
-        return Profile.normal(
-          label: platformFile.name,
-        ).saveFile(bytes, prepare: prepareProfileConfig);
+        return Profile.normal(label: platformFile.name)
+            .copyWith(useGlobalTemplate: useGlobalTemplate)
+            .saveFile(bytes, prepare: prepareProfileConfig);
       },
       title: currentAppLocalizations.addProfile,
     );
@@ -239,6 +264,7 @@ class ProfilesAction extends _$ProfilesAction {
     String url, {
     String? ageSecretKey,
     String? label,
+    bool useGlobalTemplate = false,
   }) async {
     if (globalState.navigatorKey.currentState?.canPop() ?? false) {
       globalState.navigatorKey.currentState?.popUntil((route) => route.isFirst);
@@ -248,10 +274,12 @@ class ProfilesAction extends _$ProfilesAction {
       tag: LoadingTag.profiles,
       () async {
         return Profile.normal(
-          url: url,
-          label: label?.trim().isNotEmpty == true ? label!.trim() : null,
-          ageSecretKey: ageSecretKey,
-        ).update(prepare: prepareProfileConfig);
+              url: url,
+              label: label?.trim().isNotEmpty == true ? label!.trim() : null,
+              ageSecretKey: ageSecretKey,
+            )
+            .copyWith(useGlobalTemplate: useGlobalTemplate)
+            .update(prepare: prepareProfileConfig);
       },
       title: currentAppLocalizations.addProfile,
     );
@@ -267,10 +295,10 @@ class ProfilesAction extends _$ProfilesAction {
     }
   }
 
-  Future<void> addProfileFormQrCode() async {
+  Future<void> addProfileFormQrCode({bool useGlobalTemplate = false}) async {
     final url = await globalState.safeRun(picker.pickerConfigQRCode);
     if (url == null) return;
-    unawaited(addProfileFormURL(url));
+    await addProfileFormURL(url, useGlobalTemplate: useGlobalTemplate);
   }
 
   void reorder(List<Profile> profiles) {

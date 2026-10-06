@@ -887,5 +887,7 @@
   "routeGroupManual": "手動選択",
   "routeGroupAuto": "自動選択",
   "routeGroupBalance": "負荷分散",
-  "routeHealthInterval": "ヘルスチェック間隔"
+  "routeHealthInterval": "ヘルスチェック間隔",
+  "useGlobalTemplate": "グローバル設定テンプレートを使用",
+  "useGlobalTemplateDesc": "有効にすると完全な YAML からもノードだけを抽出して共通テンプレートを適用します。不完全な YAML とプロキシリンクには常に適用され、その後に上書きが実行されます。更新時も設定を維持します。無効にしても変換済みファイルは復元されません。元の設定を再取得してください。"
 }

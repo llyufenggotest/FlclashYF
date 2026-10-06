@@ -124,6 +124,21 @@ class $ProfilesTable extends Profiles
       'CHECK ("auto_update" IN (0, 1))',
     ),
   );
+  static const VerificationMeta _useGlobalTemplateMeta = const VerificationMeta(
+    'useGlobalTemplate',
+  );
+  @override
+  late final GeneratedColumn<bool> useGlobalTemplate = GeneratedColumn<bool>(
+    'use_global_template',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("use_global_template" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   late final GeneratedColumnWithTypeConverter<Map<String, String>, String>
   selectedMap = GeneratedColumn<String>(
@@ -175,6 +190,7 @@ class $ProfilesTable extends Profiles
     autoUpdateDurationMillis,
     subscriptionInfo,
     autoUpdate,
+    useGlobalTemplate,
     selectedMap,
     unfoldSet,
     ageSecretKey,
@@ -263,6 +279,15 @@ class $ProfilesTable extends Profiles
     } else if (isInserting) {
       context.missing(_autoUpdateMeta);
     }
+    if (data.containsKey('use_global_template')) {
+      context.handle(
+        _useGlobalTemplateMeta,
+        useGlobalTemplate.isAcceptableOrUnknown(
+          data['use_global_template']!,
+          _useGlobalTemplateMeta,
+        ),
+      );
+    }
     if (data.containsKey('age_secret_key')) {
       context.handle(
         _ageSecretKeyMeta,
@@ -335,6 +360,10 @@ class $ProfilesTable extends Profiles
         DriftSqlType.bool,
         data['${effectivePrefix}auto_update'],
       )!,
+      useGlobalTemplate: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}use_global_template'],
+      )!,
       selectedMap: $ProfilesTable.$converterselectedMap.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.string,
@@ -387,6 +416,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
   final int autoUpdateDurationMillis;
   final SubscriptionInfo? subscriptionInfo;
   final bool autoUpdate;
+  final bool useGlobalTemplate;
   final Map<String, String> selectedMap;
   final Set<String> unfoldSet;
   final String? ageSecretKey;
@@ -403,6 +433,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
     required this.autoUpdateDurationMillis,
     this.subscriptionInfo,
     required this.autoUpdate,
+    required this.useGlobalTemplate,
     required this.selectedMap,
     required this.unfoldSet,
     this.ageSecretKey,
@@ -440,6 +471,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
       );
     }
     map['auto_update'] = Variable<bool>(autoUpdate);
+    map['use_global_template'] = Variable<bool>(useGlobalTemplate);
     {
       map['selected_map'] = Variable<String>(
         $ProfilesTable.$converterselectedMap.toSql(selectedMap),
@@ -482,6 +514,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
           ? const Value.absent()
           : Value(subscriptionInfo),
       autoUpdate: Value(autoUpdate),
+      useGlobalTemplate: Value(useGlobalTemplate),
       selectedMap: Value(selectedMap),
       unfoldSet: Value(unfoldSet),
       ageSecretKey: ageSecretKey == null && nullToAbsent
@@ -516,6 +549,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
         json['subscriptionInfo'],
       ),
       autoUpdate: serializer.fromJson<bool>(json['autoUpdate']),
+      useGlobalTemplate: serializer.fromJson<bool>(json['useGlobalTemplate']),
       selectedMap: serializer.fromJson<Map<String, String>>(
         json['selectedMap'],
       ),
@@ -545,6 +579,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
         subscriptionInfo,
       ),
       'autoUpdate': serializer.toJson<bool>(autoUpdate),
+      'useGlobalTemplate': serializer.toJson<bool>(useGlobalTemplate),
       'selectedMap': serializer.toJson<Map<String, String>>(selectedMap),
       'unfoldSet': serializer.toJson<Set<String>>(unfoldSet),
       'ageSecretKey': serializer.toJson<String?>(ageSecretKey),
@@ -564,6 +599,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
     int? autoUpdateDurationMillis,
     Value<SubscriptionInfo?> subscriptionInfo = const Value.absent(),
     bool? autoUpdate,
+    bool? useGlobalTemplate,
     Map<String, String>? selectedMap,
     Set<String>? unfoldSet,
     Value<String?> ageSecretKey = const Value.absent(),
@@ -587,6 +623,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
         ? subscriptionInfo.value
         : this.subscriptionInfo,
     autoUpdate: autoUpdate ?? this.autoUpdate,
+    useGlobalTemplate: useGlobalTemplate ?? this.useGlobalTemplate,
     selectedMap: selectedMap ?? this.selectedMap,
     unfoldSet: unfoldSet ?? this.unfoldSet,
     ageSecretKey: ageSecretKey.present ? ageSecretKey.value : this.ageSecretKey,
@@ -619,6 +656,9 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
       autoUpdate: data.autoUpdate.present
           ? data.autoUpdate.value
           : this.autoUpdate,
+      useGlobalTemplate: data.useGlobalTemplate.present
+          ? data.useGlobalTemplate.value
+          : this.useGlobalTemplate,
       selectedMap: data.selectedMap.present
           ? data.selectedMap.value
           : this.selectedMap,
@@ -644,6 +684,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
           ..write('autoUpdateDurationMillis: $autoUpdateDurationMillis, ')
           ..write('subscriptionInfo: $subscriptionInfo, ')
           ..write('autoUpdate: $autoUpdate, ')
+          ..write('useGlobalTemplate: $useGlobalTemplate, ')
           ..write('selectedMap: $selectedMap, ')
           ..write('unfoldSet: $unfoldSet, ')
           ..write('ageSecretKey: $ageSecretKey, ')
@@ -665,6 +706,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
     autoUpdateDurationMillis,
     subscriptionInfo,
     autoUpdate,
+    useGlobalTemplate,
     selectedMap,
     unfoldSet,
     ageSecretKey,
@@ -685,6 +727,7 @@ class RawProfile extends DataClass implements Insertable<RawProfile> {
           other.autoUpdateDurationMillis == this.autoUpdateDurationMillis &&
           other.subscriptionInfo == this.subscriptionInfo &&
           other.autoUpdate == this.autoUpdate &&
+          other.useGlobalTemplate == this.useGlobalTemplate &&
           other.selectedMap == this.selectedMap &&
           other.unfoldSet == this.unfoldSet &&
           other.ageSecretKey == this.ageSecretKey &&
@@ -703,6 +746,7 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
   final Value<int> autoUpdateDurationMillis;
   final Value<SubscriptionInfo?> subscriptionInfo;
   final Value<bool> autoUpdate;
+  final Value<bool> useGlobalTemplate;
   final Value<Map<String, String>> selectedMap;
   final Value<Set<String>> unfoldSet;
   final Value<String?> ageSecretKey;
@@ -719,6 +763,7 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     this.autoUpdateDurationMillis = const Value.absent(),
     this.subscriptionInfo = const Value.absent(),
     this.autoUpdate = const Value.absent(),
+    this.useGlobalTemplate = const Value.absent(),
     this.selectedMap = const Value.absent(),
     this.unfoldSet = const Value.absent(),
     this.ageSecretKey = const Value.absent(),
@@ -736,6 +781,7 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     required int autoUpdateDurationMillis,
     this.subscriptionInfo = const Value.absent(),
     required bool autoUpdate,
+    this.useGlobalTemplate = const Value.absent(),
     required Map<String, String> selectedMap,
     required Set<String> unfoldSet,
     this.ageSecretKey = const Value.absent(),
@@ -759,6 +805,7 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     Expression<int>? autoUpdateDurationMillis,
     Expression<String>? subscriptionInfo,
     Expression<bool>? autoUpdate,
+    Expression<bool>? useGlobalTemplate,
     Expression<String>? selectedMap,
     Expression<String>? unfoldSet,
     Expression<String>? ageSecretKey,
@@ -777,6 +824,7 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
         'auto_update_duration_millis': autoUpdateDurationMillis,
       if (subscriptionInfo != null) 'subscription_info': subscriptionInfo,
       if (autoUpdate != null) 'auto_update': autoUpdate,
+      if (useGlobalTemplate != null) 'use_global_template': useGlobalTemplate,
       if (selectedMap != null) 'selected_map': selectedMap,
       if (unfoldSet != null) 'unfold_set': unfoldSet,
       if (ageSecretKey != null) 'age_secret_key': ageSecretKey,
@@ -796,6 +844,7 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     Value<int>? autoUpdateDurationMillis,
     Value<SubscriptionInfo?>? subscriptionInfo,
     Value<bool>? autoUpdate,
+    Value<bool>? useGlobalTemplate,
     Value<Map<String, String>>? selectedMap,
     Value<Set<String>>? unfoldSet,
     Value<String?>? ageSecretKey,
@@ -814,6 +863,7 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
           autoUpdateDurationMillis ?? this.autoUpdateDurationMillis,
       subscriptionInfo: subscriptionInfo ?? this.subscriptionInfo,
       autoUpdate: autoUpdate ?? this.autoUpdate,
+      useGlobalTemplate: useGlobalTemplate ?? this.useGlobalTemplate,
       selectedMap: selectedMap ?? this.selectedMap,
       unfoldSet: unfoldSet ?? this.unfoldSet,
       ageSecretKey: ageSecretKey ?? this.ageSecretKey,
@@ -863,6 +913,9 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
     if (autoUpdate.present) {
       map['auto_update'] = Variable<bool>(autoUpdate.value);
     }
+    if (useGlobalTemplate.present) {
+      map['use_global_template'] = Variable<bool>(useGlobalTemplate.value);
+    }
     if (selectedMap.present) {
       map['selected_map'] = Variable<String>(
         $ProfilesTable.$converterselectedMap.toSql(selectedMap.value),
@@ -896,6 +949,7 @@ class ProfilesCompanion extends UpdateCompanion<RawProfile> {
           ..write('autoUpdateDurationMillis: $autoUpdateDurationMillis, ')
           ..write('subscriptionInfo: $subscriptionInfo, ')
           ..write('autoUpdate: $autoUpdate, ')
+          ..write('useGlobalTemplate: $useGlobalTemplate, ')
           ..write('selectedMap: $selectedMap, ')
           ..write('unfoldSet: $unfoldSet, ')
           ..write('ageSecretKey: $ageSecretKey, ')
@@ -3677,6 +3731,7 @@ typedef $$ProfilesTableCreateCompanionBuilder =
       required int autoUpdateDurationMillis,
       Value<SubscriptionInfo?> subscriptionInfo,
       required bool autoUpdate,
+      Value<bool> useGlobalTemplate,
       required Map<String, String> selectedMap,
       required Set<String> unfoldSet,
       Value<String?> ageSecretKey,
@@ -3695,6 +3750,7 @@ typedef $$ProfilesTableUpdateCompanionBuilder =
       Value<int> autoUpdateDurationMillis,
       Value<SubscriptionInfo?> subscriptionInfo,
       Value<bool> autoUpdate,
+      Value<bool> useGlobalTemplate,
       Value<Map<String, String>> selectedMap,
       Value<Set<String>> unfoldSet,
       Value<String?> ageSecretKey,
@@ -3807,6 +3863,11 @@ class $$ProfilesTableFilterComposer
 
   ColumnFilters<bool> get autoUpdate => $composableBuilder(
     column: $table.autoUpdate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get useGlobalTemplate => $composableBuilder(
+    column: $table.useGlobalTemplate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3951,6 +4012,11 @@ class $$ProfilesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get useGlobalTemplate => $composableBuilder(
+    column: $table.useGlobalTemplate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get selectedMap => $composableBuilder(
     column: $table.selectedMap,
     builder: (column) => ColumnOrderings(column),
@@ -4027,6 +4093,11 @@ class $$ProfilesTableAnnotationComposer
 
   GeneratedColumn<bool> get autoUpdate => $composableBuilder(
     column: $table.autoUpdate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get useGlobalTemplate => $composableBuilder(
+    column: $table.useGlobalTemplate,
     builder: (column) => column,
   );
 
@@ -4141,6 +4212,7 @@ class $$ProfilesTableTableManager
                 Value<SubscriptionInfo?> subscriptionInfo =
                     const Value.absent(),
                 Value<bool> autoUpdate = const Value.absent(),
+                Value<bool> useGlobalTemplate = const Value.absent(),
                 Value<Map<String, String>> selectedMap = const Value.absent(),
                 Value<Set<String>> unfoldSet = const Value.absent(),
                 Value<String?> ageSecretKey = const Value.absent(),
@@ -4157,6 +4229,7 @@ class $$ProfilesTableTableManager
                 autoUpdateDurationMillis: autoUpdateDurationMillis,
                 subscriptionInfo: subscriptionInfo,
                 autoUpdate: autoUpdate,
+                useGlobalTemplate: useGlobalTemplate,
                 selectedMap: selectedMap,
                 unfoldSet: unfoldSet,
                 ageSecretKey: ageSecretKey,
@@ -4176,6 +4249,7 @@ class $$ProfilesTableTableManager
                 Value<SubscriptionInfo?> subscriptionInfo =
                     const Value.absent(),
                 required bool autoUpdate,
+                Value<bool> useGlobalTemplate = const Value.absent(),
                 required Map<String, String> selectedMap,
                 required Set<String> unfoldSet,
                 Value<String?> ageSecretKey = const Value.absent(),
@@ -4192,6 +4266,7 @@ class $$ProfilesTableTableManager
                 autoUpdateDurationMillis: autoUpdateDurationMillis,
                 subscriptionInfo: subscriptionInfo,
                 autoUpdate: autoUpdate,
+                useGlobalTemplate: useGlobalTemplate,
                 selectedMap: selectedMap,
                 unfoldSet: unfoldSet,
                 ageSecretKey: ageSecretKey,

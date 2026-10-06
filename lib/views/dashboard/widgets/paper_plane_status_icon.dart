@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Vectors adapted from NekoBox/SagerNet, Copyright (C) 2021 nekohasekai.
+// Source: llyufenggotest/NekoBoxForAndroid-Pskora-Lab@7dcae4569ff1c6adbdead3218bcc6616d089ca76.
 import 'package:material_ui/material_ui.dart';
 
 class PaperPlaneStatusIcon extends StatelessWidget {
@@ -13,7 +16,6 @@ class PaperPlaneStatusIcon extends StatelessWidget {
         color:
             IconTheme.of(context).color ??
             Theme.of(context).colorScheme.onSurface,
-        gapColor: Theme.of(context).colorScheme.outlineVariant,
         disconnected: disconnected,
       ),
     );
@@ -23,12 +25,10 @@ class PaperPlaneStatusIcon extends StatelessWidget {
 class PaperPlaneStatusPainter extends CustomPainter {
   const PaperPlaneStatusPainter({
     required this.color,
-    required this.gapColor,
     required this.disconnected,
   });
 
   final Color color;
-  final Color gapColor;
   final bool disconnected;
 
   @override
@@ -38,42 +38,54 @@ class PaperPlaneStatusPainter extends CustomPainter {
     canvas.save();
     canvas.scale(scaleX, scaleY);
 
-    final planePaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+    final planePaint = Paint()..color = color;
     final plane = Path()
-      ..moveTo(3, 10)
-      ..lineTo(21, 3)
-      ..lineTo(14, 21)
-      ..lineTo(10, 14)
+      ..moveTo(21.25, 2.28)
+      ..lineTo(0, 12.8)
+      ..lineTo(6.83, 15.37)
+      ..lineTo(16.59, 7.16)
+      ..lineTo(9.26, 15.89)
+      ..lineTo(17.55, 18.56)
+      ..lineTo(21.25, 2.29)
       ..close()
-      ..moveTo(10, 14)
-      ..lineTo(21, 3);
-    canvas.drawPath(plane, planePaint);
-
+      ..moveTo(9.45, 17.56)
+      ..lineTo(9.46, 22)
+      ..lineTo(12.09, 18.41)
+      ..close();
     if (disconnected) {
+      final holes = Path()
+        ..moveTo(17.68, 9)
+        ..lineTo(16.09, 16)
+        ..lineTo(12.7, 14.89)
+        ..lineTo(17.7, 8.96)
+        ..close()
+        ..moveTo(10, 10.08)
+        ..lineTo(6.43, 13.08)
+        ..lineTo(5, 12.55)
+        ..close();
+      final gap = Path()
+        ..moveTo(4.54, 1.73)
+        ..lineTo(3.27, 3)
+        ..lineTo(21, 20.73)
+        ..lineTo(22.27, 19.46)
+        ..close();
+      canvas.drawPath(
+        Path.combine(
+          PathOperation.difference,
+          Path.combine(PathOperation.difference, plane, holes),
+          gap,
+        ),
+        planePaint,
+      );
       final slash = Path()
-        ..moveTo(4, 20)
-        ..lineTo(20, 4);
-      canvas.drawPath(
-        slash,
-        Paint()
-          ..color = gapColor
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 5
-          ..strokeCap = StrokeCap.round,
-      );
-      canvas.drawPath(
-        slash,
-        Paint()
-          ..color = color
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
-          ..strokeCap = StrokeCap.round,
-      );
+        ..moveTo(19.73, 22)
+        ..lineTo(21, 20.73)
+        ..lineTo(3.27, 3)
+        ..lineTo(2, 4.27)
+        ..close();
+      canvas.drawPath(slash, planePaint);
+    } else {
+      canvas.drawPath(plane, planePaint);
     }
     canvas.restore();
   }
@@ -81,7 +93,6 @@ class PaperPlaneStatusPainter extends CustomPainter {
   @override
   bool shouldRepaint(PaperPlaneStatusPainter oldDelegate) {
     return color != oldDelegate.color ||
-        gapColor != oldDelegate.gapColor ||
         disconnected != oldDelegate.disconnected;
   }
 }

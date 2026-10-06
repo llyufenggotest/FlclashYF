@@ -1412,6 +1412,12 @@ class MessageLookup extends MessageLookupByLibrary {
     "url": MessageLookupByLibrary.simpleMessage("URL"),
     "urlDesc": MessageLookupByLibrary.simpleMessage("URL 経由でプロファイルを取得"),
     "urlTip": m33,
+    "useGlobalTemplate": MessageLookupByLibrary.simpleMessage(
+      "グローバル設定テンプレートを使用",
+    ),
+    "useGlobalTemplateDesc": MessageLookupByLibrary.simpleMessage(
+      "有効にすると完全な YAML からもノードだけを抽出して共通テンプレートを適用します。不完全な YAML とプロキシリンクには常に適用され、その後に上書きが実行されます。更新時も設定を維持します。無効にしても変換済みファイルは復元されません。元の設定を再取得してください。",
+    ),
     "useHosts": MessageLookupByLibrary.simpleMessage("Hostsを使用"),
     "useHostsDesc": MessageLookupByLibrary.simpleMessage(
       "上流 DNS へ問い合わせる前に、設定内の hosts エントリを確認します",

@@ -1246,6 +1246,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "url": MessageLookupByLibrary.simpleMessage("URL"),
     "urlDesc": MessageLookupByLibrary.simpleMessage("透過 URL 取得設定檔"),
     "urlTip": m33,
+    "useGlobalTemplate": MessageLookupByLibrary.simpleMessage("使用全域設定範本"),
+    "useGlobalTemplateDesc": MessageLookupByLibrary.simpleMessage(
+      "開啟後，完整 YAML 也只提取節點並套用全域範本；不完整 YAML 和節點連結一律套用範本，之後仍執行覆寫。遠端更新沿用此設定。關閉不會還原已轉換的檔案，請重新下載或匯入原始設定。",
+    ),
     "useHosts": MessageLookupByLibrary.simpleMessage("使用 Hosts"),
     "useHostsDesc": MessageLookupByLibrary.simpleMessage(
       "查詢上游 DNS 前，先比對設定中的 hosts",

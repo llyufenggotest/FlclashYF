@@ -1222,6 +1222,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "url": MessageLookupByLibrary.simpleMessage("URL"),
     "urlDesc": MessageLookupByLibrary.simpleMessage("通过 URL 获取配置文件"),
     "urlTip": m33,
+    "useGlobalTemplate": MessageLookupByLibrary.simpleMessage("使用全局配置模板"),
+    "useGlobalTemplateDesc": MessageLookupByLibrary.simpleMessage(
+      "开启后，完整 YAML 也仅提取节点并套用全局模板；不完整 YAML 和节点链接始终套用模板，随后仍执行覆写。远程更新沿用此设置。关闭不会还原已转换的文件，请重新下载或导入原始配置。",
+    ),
     "useHosts": MessageLookupByLibrary.simpleMessage("使用 Hosts"),
     "useHostsDesc": MessageLookupByLibrary.simpleMessage(
       "查询上游 DNS 前先匹配配置中的 hosts",

@@ -16,23 +16,35 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AddProfileView extends ConsumerWidget {
+class AddProfileView extends ConsumerStatefulWidget {
   final BuildContext context;
   final BuildContext? editorContext;
 
   const AddProfileView({super.key, required this.context, this.editorContext});
 
-  Future<void> _handleAddProfileFormFile(WidgetRef ref) async {
-    unawaited(ref.read(profilesActionProvider.notifier).addProfileFormFile());
+  @override
+  ConsumerState<AddProfileView> createState() => _AddProfileViewState();
+}
+
+class _AddProfileViewState extends ConsumerState<AddProfileView> {
+  bool _useGlobalTemplate = false;
+
+  Future<void> _handleAddProfileFormFile() async {
+    unawaited(
+      ref
+          .read(profilesActionProvider.notifier)
+          .addProfileFormFile(useGlobalTemplate: _useGlobalTemplate),
+    );
   }
 
-  Future<void> _handleAddProfileFromClipboard(WidgetRef ref) async {
+  Future<void> _handleAddProfileFromClipboard() async {
     final action = ref.read(profilesActionProvider.notifier);
     await dialogs.showCommonDialog<void>(
       dismissible: false,
       child: ClipboardImportDialog(
         readClipboard: () async =>
             (await Clipboard.getData(Clipboard.kTextPlain))?.text,
+        useGlobalTemplate: _useGlobalTemplate,
         inspect: action.inspectClipboardContent,
         import: action.addProfileFromClipboardContent,
         onEditTemplate: () async {
@@ -42,37 +54,48 @@ class AddProfileView extends ConsumerWidget {
     );
   }
 
-  Future<void> _toScan(WidgetRef ref) async {
+  Future<void> _toScan() async {
     final profilesAction = ref.read(profilesActionProvider.notifier);
     if (system.isDesktop) {
-      unawaited(profilesAction.addProfileFormQrCode());
+      unawaited(
+        profilesAction.addProfileFormQrCode(
+          useGlobalTemplate: _useGlobalTemplate,
+        ),
+      );
       return;
     }
-    final url = await BaseNavigator.push(context, const ScanPage());
+    final useGlobalTemplate = _useGlobalTemplate;
+    final url = await BaseNavigator.push(widget.context, const ScanPage());
     if (url != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        unawaited(profilesAction.addProfileFormURL(url));
+        unawaited(
+          profilesAction.addProfileFormURL(
+            url,
+            useGlobalTemplate: useGlobalTemplate,
+          ),
+        );
       });
     }
   }
 
-  Future<void> _toAdd(WidgetRef ref) async {
+  Future<void> _toAdd() async {
     final profilesAction = ref.read(profilesActionProvider.notifier);
     final result = await dialogs
-        .showCommonDialog<({String url, String? ageSecretKey})>(
-          child: const URLFormDialog(),
-        );
+        .showCommonDialog<
+          ({String url, String? ageSecretKey, bool useGlobalTemplate})
+        >(child: URLFormDialog(useGlobalTemplate: _useGlobalTemplate));
     if (result != null) {
       unawaited(
         profilesAction.addProfileFormURL(
           result.url,
           ageSecretKey: result.ageSecretKey,
+          useGlobalTemplate: result.useGlobalTemplate,
         ),
       );
     }
   }
 
-  Future<void> _createProfile(BuildContext context, WidgetRef ref) async {
+  Future<void> _createProfile(BuildContext context) async {
     final appLocalizations = context.appLocalizations;
     final profilesAction = ref.read(profilesActionProvider.notifier);
     final name = await dialogs.showCommonDialog<String>(
@@ -88,12 +111,14 @@ class AddProfileView extends ConsumerWidget {
       ),
     );
     if (name == null || !context.mounted) return;
-    final navigationContext = editorContext ?? context;
+    final navigationContext = widget.editorContext ?? context;
     if (!navigationContext.mounted) return;
-    if (editorContext != null) {
+    if (widget.editorContext != null) {
       Navigator.of(context).pop();
     }
-    final profile = Profile.normal(label: name.trim());
+    final profile = Profile.normal(
+      label: name.trim(),
+    ).copyWith(useGlobalTemplate: _useGlobalTemplate);
     var saving = false;
 
     Future<void> save(BuildContext editorContext, String content) async {
@@ -139,38 +164,45 @@ class AddProfileView extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final appLocalizations = context.appLocalizations;
     return ListView(
       children: [
+        SwitchListTile(
+          key: const Key('add-use-global-template'),
+          title: Text(appLocalizations.useGlobalTemplate),
+          subtitle: Text(appLocalizations.useGlobalTemplateDesc),
+          value: _useGlobalTemplate,
+          onChanged: (value) => setState(() => _useGlobalTemplate = value),
+        ),
         ListItem(
           leading: const Icon(Symbols.qr_code_sharp),
           title: Text(appLocalizations.qrcode),
           subtitle: Text(appLocalizations.qrcodeDesc),
-          onTap: () => _toScan(ref),
+          onTap: () => _toScan(),
         ),
         ListItem(
           leading: const Icon(Symbols.note_add_sharp),
           title: Text(appLocalizations.newProfile),
           subtitle: Text(appLocalizations.newProfileDesc),
-          onTap: () => _createProfile(context, ref),
+          onTap: () => _createProfile(context),
         ),
         ListItem(
           leading: const Icon(Symbols.upload_file_sharp),
           title: Text(appLocalizations.file),
           subtitle: Text(appLocalizations.fileDesc),
-          onTap: () => _handleAddProfileFormFile(ref),
+          onTap: () => _handleAddProfileFormFile(),
         ),
         ListItem(
           leading: const Icon(Symbols.cloud_download_sharp),
           title: Text(appLocalizations.url),
           subtitle: Text(appLocalizations.urlDesc),
-          onTap: () => _toAdd(ref),
+          onTap: () => _toAdd(),
         ),
         ListItem(
           leading: const Icon(Symbols.content_paste),
           title: Text(appLocalizations.clipboardImport),
-          onTap: () => _handleAddProfileFromClipboard(ref),
+          onTap: () => _handleAddProfileFromClipboard(),
         ),
       ],
     );
@@ -178,7 +210,9 @@ class AddProfileView extends ConsumerWidget {
 }
 
 class URLFormDialog extends StatefulWidget {
-  const URLFormDialog({super.key});
+  const URLFormDialog({super.key, this.useGlobalTemplate = false});
+
+  final bool useGlobalTemplate;
 
   @override
   State<URLFormDialog> createState() => _URLFormDialogState();
@@ -189,13 +223,23 @@ class _URLFormDialogState extends State<URLFormDialog> {
   final _ageSecretKeyController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _obscureAgeSecretKey = true;
+  late bool _useGlobalTemplate;
+
+  @override
+  void initState() {
+    super.initState();
+    _useGlobalTemplate = widget.useGlobalTemplate;
+  }
 
   void _handleAddProfileFormURL() {
     if (!_formKey.currentState!.validate()) return;
     final ageSecretKey = _ageSecretKeyController.text.trim();
-    Navigator.of(context).pop<({String url, String? ageSecretKey})>((
+    Navigator.of(
+      context,
+    ).pop<({String url, String? ageSecretKey, bool useGlobalTemplate})>((
       url: _urlController.text.trim(),
       ageSecretKey: ageSecretKey.isEmpty ? null : ageSecretKey,
+      useGlobalTemplate: _useGlobalTemplate,
     ));
   }
 
@@ -307,6 +351,14 @@ class _URLFormDialogState extends State<URLFormDialog> {
                   }
                   return null;
                 },
+              ),
+              SwitchListTile(
+                key: const Key('url-use-global-template'),
+                title: Text(appLocalizations.useGlobalTemplate),
+                subtitle: Text(appLocalizations.useGlobalTemplateDesc),
+                value: _useGlobalTemplate,
+                onChanged: (value) =>
+                    setState(() => _useGlobalTemplate = value),
               ),
             ],
           ),

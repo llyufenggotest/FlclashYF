@@ -25,6 +25,40 @@ void _setViewport(WidgetTester tester) {
 
 void main() {
   testWidgets(
+    'template switch defaults off and passes selection before import',
+    (tester) async {
+      _setViewport(tester);
+      bool? selection;
+      await tester.pumpWidget(
+        _app(
+          ClipboardImportDialog(
+            readClipboard: () async => 'proxies: [{name: node, type: direct}]',
+            inspect: (_) async => const ClipboardImportPreview(
+              kind: ClipboardImportKind.yaml,
+              source: 'YAML',
+              suggestedName: 'Nodes',
+            ),
+            import: (_, _, [bool useGlobalTemplate = false]) async {
+              selection = useGlobalTemplate;
+            },
+            onEditTemplate: () async {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final toggle = find.byKey(const Key('import-use-global-template'));
+      expect(toggle, findsOneWidget);
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
+      expect(selection, isNull);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(currentAppLocalizations.confirm));
+      await tester.pumpAndSettle();
+      expect(selection, isTrue);
+    },
+  );
+
+  testWidgets(
     'uses an explicit file name instead of the inspected suggestion',
     (tester) async {
       _setViewport(tester);
@@ -42,7 +76,7 @@ void main() {
               nodeCount: 1,
               suggestedName: 'YAML profile',
             ),
-            import: (_, name) async => importedName = name,
+            import: (_, name, _) async => importedName = name,
             onEditTemplate: () async {},
           ),
         ),
@@ -74,7 +108,7 @@ void main() {
             nodeCount: 1,
             suggestedName: 'VLESS 1',
           ),
-          import: (content, name) async {
+          import: (content, name, _) async {
             importedContent = content;
             importedName = name;
           },
@@ -108,7 +142,7 @@ void main() {
             nodeCount: 1,
             suggestedName: 'URI 1',
           ),
-          import: (_, _) => throw const MessageException('invalid profile'),
+          import: (_, _, _) => throw const MessageException('invalid profile'),
           onEditTemplate: () async {},
         ),
       ),
@@ -139,7 +173,7 @@ void main() {
             nodeCount: 1,
             suggestedName: 'VLESS 1',
           ),
-          import: (_, _) {
+          import: (_, _, _) {
             calls++;
             return pending.future;
           },

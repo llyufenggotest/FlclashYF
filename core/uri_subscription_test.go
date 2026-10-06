@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"github.com/metacubex/mihomo/adapter"
 	"testing"
 )
 
@@ -54,6 +55,27 @@ func TestHandleConvertURISubscriptionConvertsXlessToPure(t *testing.T) {
 				t.Fatalf("name=%v", proxy["name"])
 			}
 		})
+	}
+}
+
+func TestHandleConvertURISubscriptionOppaRuntimeAdapter(t *testing.T) {
+	line := "oppa://synthetic%3Akey@example.com:443?insecure=1#Oppa"
+	for _, input := range []string{line, base64.StdEncoding.EncodeToString([]byte(line))} {
+		proxies, err := handleConvertURISubscription(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(proxies) != 1 || proxies[0]["password"] != "synthetic:key" {
+			t.Fatal("Oppa conversion did not preserve the credential")
+		}
+		proxy, err := adapter.ParseProxy(proxies[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if proxy.Name() != "Oppa" {
+			t.Fatal("converted Oppa adapter has wrong name")
+		}
+		_ = proxy.Close()
 	}
 }
 

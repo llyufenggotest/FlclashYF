@@ -28,6 +28,9 @@ class Profiles extends Table {
 
   BoolColumn get autoUpdate => boolean()();
 
+  BoolColumn get useGlobalTemplate =>
+      boolean().withDefault(const Constant(false))();
+
   TextColumn get selectedMap => text().map(const StringMapConverter())();
 
   TextColumn get unfoldSet => text().map(const StringSetConverter())();
@@ -119,6 +122,7 @@ extension RawProfilExt on RawProfile {
       autoUpdateDuration: Duration(milliseconds: autoUpdateDurationMillis),
       subscriptionInfo: subscriptionInfo,
       autoUpdate: autoUpdate,
+      useGlobalTemplate: useGlobalTemplate,
       selectedMap: selectedMap,
       unfoldSet: unfoldSet,
       overwriteType: overwriteType,
@@ -141,6 +145,7 @@ extension ProfilesCompanionExt on Profile {
       autoUpdateDurationMillis: autoUpdateDuration.inMilliseconds,
       subscriptionInfo: Value(subscriptionInfo),
       autoUpdate: autoUpdate,
+      useGlobalTemplate: Value(useGlobalTemplate),
       selectedMap: selectedMap,
       unfoldSet: unfoldSet,
       overwriteType: overwriteType,

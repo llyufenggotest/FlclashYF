@@ -34,6 +34,7 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
   late final TextEditingController _autoUpdateDurationController;
   late final TextEditingController _ageSecretKeyController;
   late bool _autoUpdate;
+  late bool _useGlobalTemplate;
   bool _obscureAgeSecretKey = true;
   String? _rawText;
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -47,6 +48,7 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
     _labelController = TextEditingController(text: widget.profile.label);
     _urlController = TextEditingController(text: widget.profile.url);
     _autoUpdate = widget.profile.autoUpdate;
+    _useGlobalTemplate = widget.profile.useGlobalTemplate;
     _autoUpdateDurationController = TextEditingController(
       text: widget.profile.autoUpdateDuration.inMinutes.toString(),
     );
@@ -72,6 +74,7 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
       url: _urlController.text,
       label: _labelController.text,
       autoUpdate: _autoUpdate,
+      useGlobalTemplate: _useGlobalTemplate,
       autoUpdateDuration: Duration(
         minutes: int.parse(_autoUpdateDurationController.text),
       ),
@@ -80,6 +83,10 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
           : _ageSecretKeyController.text.trim(),
     );
     final profilesAction = ref.read(profilesActionProvider.notifier);
+    final materializeTemplate =
+        _fileData == null &&
+        !widget.profile.useGlobalTemplate &&
+        profile.useGlobalTemplate;
     final hasUpdate = widget.profile.url != profile.url;
     if (_fileData != null) {
       if (profile.type == ProfileType.url && _autoUpdate) {
@@ -102,17 +109,23 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
         return;
       }
       profilesAction.putProfile(savedProfile);
-    } else if (!hasUpdate) {
-      profilesAction.putProfile(profile);
-    } else {
+    } else if (hasUpdate) {
       unawaited(
         globalState.safeRun(() async {
           await Future.delayed(commonDuration);
-          if (hasUpdate) {
-            await profilesAction.updateProfile(profile);
-          }
+          await profilesAction.updateProfile(profile);
         }),
       );
+    } else if (materializeTemplate) {
+      final savedProfile = await globalState.safeRun(
+        () => profilesAction.materializeGlobalTemplate(profile),
+      );
+      if (savedProfile == null) {
+        return;
+      }
+      profilesAction.putProfile(savedProfile);
+    } else {
+      profilesAction.putProfile(profile);
     }
     if (mounted) {
       Navigator.of(context).pop();
@@ -299,6 +312,13 @@ class _EditProfileViewState extends ConsumerState<EditProfileView> {
         if (_autoUpdate)
           _AutoUpdateIntervalField(controller: _autoUpdateDurationController),
       ],
+      ListItem.toggle(
+        key: const Key('use-global-template'),
+        title: Text(appLocalizations.useGlobalTemplate),
+        subtitle: Text(appLocalizations.useGlobalTemplateDesc),
+        value: _useGlobalTemplate,
+        onChanged: (value) => setState(() => _useGlobalTemplate = value),
+      ),
       _ProfileFileItem(
         fileInfoNotifier: _fileInfoNotifier,
         onEdit: _editProfileFile,

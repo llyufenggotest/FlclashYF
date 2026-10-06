@@ -73,11 +73,6 @@ proxy-groups:
   proxies:
   - 🎯 全球直连
   - ⚡ 自动优选
-- name: 🛑 广告拦截
-  type: select
-  proxies:
-  - REJECT
-  - DIRECT
 - name: 🎯 全球直连
   type: select
   proxies:
@@ -96,51 +91,10 @@ proxy-groups:
   tolerance: 50
   proxies: []
 rules:
-- DOMAIN-SUFFIX,pangolin-sdk-toutiao.com,🛑 广告拦截
-- DOMAIN-SUFFIX,pangolin-sdk-toutiao-b.com,🛑 广告拦截
-- DOMAIN-SUFFIX,pglstatp-toutiao.com,🛑 广告拦截
-- DOMAIN,pangolin.snssdk.com,🛑 广告拦截
-- DOMAIN,ad.toutiao.com,🛑 广告拦截
-- DOMAIN,toblog.ctobsnssdk.com,🛑 广告拦截
-- DOMAIN,gssdk.zjbyte.com,🛑 广告拦截
-- DOMAIN,mon.zijieapi.com,🛑 广告拦截
-- DOMAIN,p.pangle.io,🛑 广告拦截
-- DOMAIN,is.snssdk.com,🛑 广告拦截
-- DOMAIN,log.snssdk.com,🛑 广告拦截
-- DOMAIN-SUFFIX,gdt.qq.com,🛑 广告拦截
-- DOMAIN,sdk.e.qq.com,🛑 广告拦截
-- DOMAIN,pgdt.gtimg.cn,🛑 广告拦截
-- DOMAIN,adsmind.gdtimg.com,🛑 广告拦截
-- DOMAIN,vlive.qq.com,🛑 广告拦截
-- DOMAIN,btrace.qq.com,🛑 广告拦截
-- DOMAIN-SUFFIX,e.kuaishou.com,🛑 广告拦截
-- DOMAIN,adukwai.com,🛑 广告拦截
-- DOMAIN,open.e.kuaishou.com,🛑 广告拦截
-- DOMAIN,yx.e.kuaishou.com,🛑 广告拦截
-- DOMAIN,mobads.baidu.com,🛑 广告拦截
-- DOMAIN,mobads-logs.baidu.com,🛑 广告拦截
-- DOMAIN,wn.pos.baidu.com,🛑 广告拦截
-- DOMAIN-SUFFIX,bce.baidu.com,🛑 广告拦截
-- DOMAIN-SUFFIX,sigmob.cn,🛑 广告拦截
-- DOMAIN-SUFFIX,mintegral.com,🛑 广告拦截
-- DOMAIN-SUFFIX,mintegral.net,🛑 广告拦截
-- DOMAIN-KEYWORD,ad.iqiyi.com,🛑 广告拦截
-- DOMAIN-SUFFIX,cupid.iqiyi.com,🛑 广告拦截
-- DOMAIN-KEYWORD,atm.youku.com,🛑 广告拦截
-- DOMAIN,ad.youku.com,🛑 广告拦截
-- DOMAIN,ad.mgtv.com,🛑 广告拦截
-- DOMAIN,da.mgtv.com,🛑 广告拦截
-- DOMAIN-SUFFIX,doubleclick.net,🛑 广告拦截
-- DOMAIN-SUFFIX,googlesyndication.com,🛑 广告拦截
-- DOMAIN-SUFFIX,googleadservices.com,🛑 广告拦截
-- DOMAIN-SUFFIX,adnxs.com,🛑 广告拦截
-- DOMAIN-SUFFIX,cnzz.com,🛑 广告拦截
 - DST-PORT,123,🎯 全球直连
-- RULE-SET,BanAD,🛑 广告拦截
-- RULE-SET,ProxyClassical,🚀 节点选择
-- RULE-SET,ChinaClassical,🎯 全球直连
-- RULE-SET,ChinaCIDR,🎯 全球直连
+- RULE-SET,BanAD,REJECT
 - GEOIP,CN,🎯 全球直连
+- GEOSITE,CN,🎯 全球直连
 - MATCH,🐟 漏网之鱼
 rule-providers:
   BanAD:
@@ -148,23 +102,5 @@ rule-providers:
     behavior: domain
     interval: 604800
     path: BanAD.yaml
-    url: https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt
-  ProxyClassical:
-    type: http
-    behavior: domain
-    interval: 604800
-    path: ProxyClassical.yaml
-    url: https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt
-  ChinaClassical:
-    type: http
-    behavior: domain
-    interval: 604800
-    path: ChinaClassical.yaml
-    url: https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt
-  ChinaCIDR:
-    type: http
-    behavior: ipcidr
-    interval: 604800
-    path: CNCIDR.yaml
-    url: https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cncidr.txt
+    url: https://raw.githubusercontent.com/TG-Twilight/AWAvenue-Ads-Rule/main//Filters/AWAvenue-Ads-Rule-Clash.yaml
 find-process-mode: 'off'

@@ -147,7 +147,7 @@ void main() {
     tester,
   ) async {
     final container = _containerFor(tester);
-    ({String url, String? ageSecretKey})? popped;
+    ({String url, String? ageSecretKey, bool useGlobalTemplate})? popped;
 
     await tester.pumpWidget(
       UncontrolledProviderScope(
@@ -158,7 +158,13 @@ void main() {
               builder: (context) => TextButton(
                 onPressed: () async {
                   popped =
-                      await showDialog<({String url, String? ageSecretKey})>(
+                      await showDialog<
+                        ({
+                          String url,
+                          String? ageSecretKey,
+                          bool useGlobalTemplate,
+                        })
+                      >(
                         context: context,
                         builder: (_) => const URLFormDialog(),
                       );
@@ -197,7 +203,7 @@ void main() {
 
   testWidgets('URL import dialog returns the entered value', (tester) async {
     final container = _containerFor(tester);
-    ({String url, String? ageSecretKey})? popped;
+    ({String url, String? ageSecretKey, bool useGlobalTemplate})? popped;
 
     await tester.pumpWidget(
       UncontrolledProviderScope(
@@ -208,7 +214,13 @@ void main() {
               builder: (context) => TextButton(
                 onPressed: () async {
                   popped =
-                      await showDialog<({String url, String? ageSecretKey})>(
+                      await showDialog<
+                        ({
+                          String url,
+                          String? ageSecretKey,
+                          bool useGlobalTemplate,
+                        })
+                      >(
                         context: context,
                         builder: (_) => const URLFormDialog(),
                       );
@@ -242,7 +254,7 @@ void main() {
     tester,
   ) async {
     final container = _containerFor(tester);
-    ({String url, String? ageSecretKey})? popped;
+    ({String url, String? ageSecretKey, bool useGlobalTemplate})? popped;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
       (call) async {
@@ -268,7 +280,13 @@ void main() {
               builder: (context) => TextButton(
                 onPressed: () async {
                   popped =
-                      await showDialog<({String url, String? ageSecretKey})>(
+                      await showDialog<
+                        ({
+                          String url,
+                          String? ageSecretKey,
+                          bool useGlobalTemplate,
+                        })
+                      >(
                         context: context,
                         builder: (_) => const URLFormDialog(),
                       );

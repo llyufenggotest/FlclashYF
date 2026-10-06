@@ -1695,6 +1695,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "Obtain a profile from a URL",
     ),
     "urlTip": m33,
+    "useGlobalTemplate": MessageLookupByLibrary.simpleMessage(
+      "Use global configuration template",
+    ),
+    "useGlobalTemplateDesc": MessageLookupByLibrary.simpleMessage(
+      "When enabled, complete YAML profiles also use nodes with the global template. Incomplete YAML and proxy links always use it. Overwrites still run afterwards. Remote updates keep this preference. Disabling does not restore an already converted file; download or import the original again.",
+    ),
     "useHosts": MessageLookupByLibrary.simpleMessage("Use hosts"),
     "useHostsDesc": MessageLookupByLibrary.simpleMessage(
       "Checks the hosts entries in the configuration before querying upstream DNS servers",
