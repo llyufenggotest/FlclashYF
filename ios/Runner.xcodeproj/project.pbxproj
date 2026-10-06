@@ -534,6 +534,7 @@
 				en,
 				Base,
 				"zh-Hans",
+				"zh-Hant",
 				ja,
 				ru,
 			);

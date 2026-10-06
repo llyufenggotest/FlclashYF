@@ -5,6 +5,7 @@ import 'package:fl_clash/providers/core.dart';
 import 'package:fl_clash/widgets/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 enum _TrafficDirection {
   both,
@@ -29,6 +30,8 @@ class TrafficDetails extends ConsumerStatefulWidget {
 
 class _TrafficDetailsState extends ConsumerState<TrafficDetails>
     with WidgetsBindingObserver, ActivePollingMixin<TrafficDetails> {
+  final _colorSlots = List<(String, String)?>.filled(6, null);
+  bool _showDirect = true;
   _TrafficDirection _direction = _TrafficDirection.both;
   AsyncSnapshot<List<NodeTraffic>> _snapshot = const AsyncSnapshot.waiting();
 
@@ -86,9 +89,21 @@ class _TrafficDetailsState extends ConsumerState<TrafficDetails>
               }
             },
             children: {
-              _TrafficDirection.both: Text(l10n.trafficBoth),
-              _TrafficDirection.upload: Text(l10n.upload),
-              _TrafficDirection.download: Text(l10n.download),
+              _TrafficDirection.both: _buildDirectionLabel(
+                context,
+                _TrafficDirection.both,
+                l10n.trafficBoth,
+              ),
+              _TrafficDirection.upload: _buildDirectionLabel(
+                context,
+                _TrafficDirection.upload,
+                l10n.upload,
+              ),
+              _TrafficDirection.download: _buildDirectionLabel(
+                context,
+                _TrafficDirection.download,
+                l10n.download,
+              ),
             },
           ),
           const SizedBox(height: 16),
@@ -109,15 +124,62 @@ class _TrafficDetailsState extends ConsumerState<TrafficDetails>
     );
   }
 
+  Widget _buildDirectionLabel(
+    BuildContext context,
+    _TrafficDirection direction,
+    String label,
+  ) {
+    final value = _snapshot.data
+        ?.where((node) => _showDirect || node.name != 'DIRECT')
+        .fold(0, (sum, node) => sum + direction.value(node));
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label),
+          if (value != null)
+            TweenAnimationBuilder<double>(
+              tween: Tween(end: direction == _direction ? 0 : 1),
+              duration: midDuration,
+              curve: Curves.easeInOutCubic,
+              builder: (context, progress, child) => ClipRect(
+                child: Align(
+                  heightFactor: progress,
+                  child: Opacity(opacity: progress, child: child),
+                ),
+              ),
+              child: ExcludeSemantics(
+                excluding: direction == _direction,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(switch (direction) {
+                      _TrafficDirection.upload => Symbols.arrow_upward,
+                      _TrafficDirection.download => Symbols.arrow_downward,
+                      _TrafficDirection.both => Symbols.mobiledata_arrows,
+                    }, size: 12),
+                    const SizedBox(width: 2),
+                    Text(
+                      _formatTraffic(value),
+                      style: context.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBreakdown(BuildContext context, List<NodeTraffic> nodes) {
     final l10n = context.appLocalizations;
     final total = nodes.fold(0, (sum, node) => sum + _direction.value(node));
-    if (total == 0) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32),
-        child: Center(child: Text(l10n.noData)),
-      );
-    }
+    final direct = nodes.where((node) => node.name == 'DIRECT').firstOrNull;
+    final directValue = direct == null ? 0 : _direction.value(direct);
+    final proxyTotal = total - directValue;
+    final chartTotal = _showDirect ? total : proxyTotal;
     final colors = context.colorScheme;
     final palette = [
       colors.primary,
@@ -127,37 +189,67 @@ class _TrafficDetailsState extends ConsumerState<TrafficDetails>
       colors.secondaryContainer,
       colors.tertiaryContainer,
     ];
-    final ordered = [...nodes]
+    final ordered = nodes.where((node) => node.name != 'DIRECT').toList()
       ..sort((a, b) {
+        final value = _direction.value(b).compareTo(_direction.value(a));
+        if (value != 0) return value;
         final provider = a.provider.compareTo(b.provider);
         return provider != 0 ? provider : a.name.compareTo(b.name);
       });
+    final selectedById = {
+      for (final node
+          in ordered
+              .where((node) => _direction.value(node) * 20 > chartTotal)
+              .take(palette.length))
+        (node.provider, node.name): node,
+    };
+    final otherNodes = ordered
+        .where(
+          (node) =>
+              _direction.value(node) > 0 &&
+              !selectedById.containsKey((node.provider, node.name)),
+        )
+        .toList();
+    if (otherNodes.length == 1 && selectedById.length < palette.length) {
+      final node = otherNodes.single;
+      selectedById[(node.provider, node.name)] = node;
+    }
+    for (var index = 0; index < _colorSlots.length; index++) {
+      if (!selectedById.containsKey(_colorSlots[index])) {
+        _colorSlots[index] = null;
+      }
+    }
+    for (final id in selectedById.keys) {
+      if (!_colorSlots.contains(id)) {
+        _colorSlots[_colorSlots.indexOf(null)] = id;
+      }
+    }
     final slices = <_TrafficSlice>[];
-    var other = 0;
-    for (var index = 0; index < ordered.length; index++) {
-      final node = ordered[index];
-      final value = _direction.value(node);
-      if (value * 20 <= total) {
-        other += value;
-        continue;
-      }
-      final base = HSVColor.fromColor(palette[index % palette.length]);
-      final color = base
-          .withHue((base.hue + 137.5 * (index ~/ palette.length)) % 360)
-          .toColor();
-      slices.add((node: node, value: value, color: color));
+    for (var index = 0; index < palette.length; index++) {
+      final node = selectedById[_colorSlots[index]];
+      slices.add((
+        node: node,
+        value: node == null ? 0 : _direction.value(node),
+        color: palette[index],
+      ));
     }
-    slices.sort((a, b) {
-      final value = b.value.compareTo(a.value);
-      if (value != 0) {
-        return value;
-      }
-      final provider = a.node!.provider.compareTo(b.node!.provider);
-      return provider != 0 ? provider : a.node!.name.compareTo(b.node!.name);
-    });
-    if (other > 0) {
-      slices.add((node: null, value: other, color: colors.outline));
-    }
+    slices.addAll([
+      (
+        node: null,
+        value:
+            proxyTotal -
+            selectedById.values.fold(
+              0,
+              (sum, node) => sum + _direction.value(node),
+            ),
+        color: colors.outline,
+      ),
+      (
+        node: direct ?? const NodeTraffic(name: 'DIRECT'),
+        value: directValue,
+        color: colors.onSurfaceVariant.opacity38,
+      ),
+    ]);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -174,7 +266,10 @@ class _TrafficDetailsState extends ConsumerState<TrafficDetails>
                     data: [
                       for (final slice in slices)
                         DonutChartData.exact(
-                          value: slice.value.toDouble(),
+                          value: slice.node?.name == 'DIRECT' && !_showDirect
+                              ? 0
+                              : slice.value.toDouble(),
+                          dashed: slice.node?.name == 'DIRECT',
                           color: slice.color,
                         ),
                     ],
@@ -197,7 +292,7 @@ class _TrafficDetailsState extends ConsumerState<TrafficDetails>
                       FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(
-                          _formatTraffic(total),
+                          _formatTraffic(chartTotal),
                           style: context.textTheme.titleMedium,
                         ),
                       ),
@@ -209,60 +304,136 @@ class _TrafficDetailsState extends ConsumerState<TrafficDetails>
           ),
         ),
         const SizedBox(height: 12),
-        for (final slice in slices)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
-              children: [
-                Container(
-                  width: 20,
-                  height: 8,
-                  decoration: ShapeDecoration(
-                    color: slice.color,
-                    shape: AppShape.full,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TooltipText(
-                        text: Text(
-                          slice.node?.name ?? l10n.other,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.textTheme.bodyMedium,
+        if (total == 0) Text(l10n.noData),
+        for (final slice in slices.where((slice) => slice.value > 0))
+          _buildLegendRow(context, slice, chartTotal),
+      ],
+    );
+  }
+
+  Widget _buildLegendRow(
+    BuildContext context,
+    _TrafficSlice slice,
+    int chartTotal,
+  ) {
+    final l10n = context.appLocalizations;
+    final colors = context.colorScheme;
+    final isDirect = slice.node?.name == 'DIRECT';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final textScaler = MediaQuery.textScalerOf(context);
+          final horizontal = constraints.maxWidth >= textScaler.scale(280);
+          final wideSpacing = constraints.maxWidth >= textScaler.scale(240);
+          return Row(
+            children: [
+              SizedBox(
+                width: 20,
+                child: isDirect
+                    ? Row(
+                        children: [
+                          for (var i = 0; i < 3; i++) ...[
+                            Container(
+                              width: 4,
+                              height: 4,
+                              decoration: ShapeDecoration(
+                                color: slice.color,
+                                shape: AppShape.circle,
+                              ),
+                            ),
+                            if (i < 2) const SizedBox(width: 3),
+                          ],
+                        ],
+                      )
+                    : Container(
+                        height: 8,
+                        decoration: ShapeDecoration(
+                          color: slice.color,
+                          shape: AppShape.full,
                         ),
                       ),
-                      if (slice.node?.provider.isNotEmpty ?? false)
-                        Text(
-                          slice.node!.provider,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.textTheme.bodySmall?.copyWith(
-                            color: colors.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: TooltipText(
+                            text: Text(
+                              isDirect
+                                  ? l10n.direct
+                                  : slice.node?.name ?? l10n.other,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: context.textTheme.bodyMedium,
+                            ),
                           ),
                         ),
-                    ],
+                        if (isDirect) ...[
+                          const SizedBox(width: 4),
+                          SizedBox.square(
+                            dimension: 24.ap,
+                            child: IconButton(
+                              tooltip: _showDirect ? l10n.hide : l10n.show,
+                              padding: EdgeInsets.zero,
+                              onPressed: () =>
+                                  setState(() => _showDirect = !_showDirect),
+                              icon: Icon(
+                                _showDirect
+                                    ? Symbols.visibility
+                                    : Symbols.visibility_off,
+                                size: 16.ap,
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (slice.node?.provider.isNotEmpty ?? false)
+                      Text(
+                        slice.node!.provider,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flex(
+                direction: horizontal ? Axis.horizontal : Axis.vertical,
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    _formatTraffic(slice.value),
+                    style: context.textTheme.bodySmall,
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _formatTraffic(slice.value),
-                  style: context.textTheme.bodySmall,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '${(slice.value / total * 100).toStringAsFixed(1)}%',
-                  style: context.textTheme.bodySmall?.copyWith(
-                    color: colors.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
+                  if (!isDirect || _showDirect) ...[
+                    SizedBox(
+                      width: wideSpacing ? 6 : 0,
+                      height: wideSpacing ? 0 : 2,
+                    ),
+                    Text(
+                      '${(chartTotal == 0 ? 0 : slice.value / chartTotal * 100).toStringAsFixed(1)}%',
+                      style: context.textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

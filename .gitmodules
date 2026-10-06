@@ -1,7 +1,7 @@
 [submodule "core/mihomo"]
 	path = core/mihomo
 	url = https://github.com/llyufenggotest/Clash.Meta-custom.git
-	branch = integration/v0.9.1-yf-core
+	branch = integration/v0.9.2-yf-core
 [submodule "core/sing-shadowsocks2"]
 	path = core/sing-shadowsocks2
 	url = https://github.com/llyufenggotest/sing-shadowsocks2-meta.git

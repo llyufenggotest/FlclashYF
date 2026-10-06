@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/permission.dart';
-import 'package:fl_clash/common/system_dns.dart';
+import 'package:fl_clash/common/legacy_dns_migration.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/manager/window_manager.dart';
 import 'package:fl_clash/models/models.dart';
@@ -38,6 +38,7 @@ class _AppStateManagerState extends ConsumerState<AppStateManager>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(restoreLegacySystemDns());
     _syncForegroundTickerSettings(ref.read(appSettingProvider));
     ref.listenManual(
       appSettingProvider.select(
@@ -86,12 +87,6 @@ class _AppStateManagerState extends ConsumerState<AppStateManager>
           });
         }
       });
-    }
-    final systemDns = systemDnsCoordinator;
-    if (systemDns != null) {
-      ref.listenManual(shouldPatchSystemDnsProvider, (prev, next) {
-        unawaited(systemDns.sync(next));
-      }, fireImmediately: true);
     }
   }
 

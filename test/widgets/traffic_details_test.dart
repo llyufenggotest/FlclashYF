@@ -44,6 +44,7 @@ void main() {
     await tester.tap(find.byIcon(Symbols.info));
     await tester.pumpAndSettle();
     expect(_values(tester), [700, 200, 100]);
+    expect(tester.widget<DonutChart>(_chart()).data, hasLength(8));
     expect(find.text('Boundary'), findsNothing);
     expect(find.text('Other'), findsOneWidget);
     expect(find.text('70.0%'), findsOneWidget);
@@ -55,9 +56,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(_values(tester), [600, 10]);
     expect(find.text('Beta'), findsNothing);
+    expect(find.text('Small upload'), findsOneWidget);
+    expect(find.text('Other'), findsNothing);
+    expect(tester.widget<DonutChart>(_chart()).data[6].value, 0);
     await tester.tap(_dialogText('Download'));
     await tester.pumpAndSettle();
-    expect(_values(tester), [200, 100, 50, 40]);
+    expect(_values(tester), [100, 200, 50, 40]);
     expect(find.text('Boundary'), findsOneWidget);
     expect(find.text('Other'), findsNothing);
     await tester.tap(find.text('Confirm'));
@@ -67,6 +71,37 @@ void main() {
     verifyNever(() => core.getNodeTraffic());
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  for (final proxyValue in [990, 0]) {
+    testWidgets('DIRECT can be hidden with proxy traffic $proxyValue', (
+      tester,
+    ) async {
+      final core = _Core();
+      when(() => core.getNodeTraffic()).thenAnswer(
+        (_) async => [
+          if (proxyValue > 0) NodeTraffic(name: 'Proxy', up: proxyValue),
+          const NodeTraffic(name: 'DIRECT', up: 10),
+        ],
+      );
+      await _pumpCard(tester, core);
+      await tester.tap(find.byIcon(Symbols.info));
+      await tester.pumpAndSettle();
+      expect(_values(tester), [if (proxyValue > 0) proxyValue, 10]);
+      expect(tester.widget<DonutChart>(_chart()).data.last.dashed, isTrue);
+      expect(find.text('Direct'), findsOneWidget);
+      expect(find.text('Other'), findsNothing);
+      await tester.tap(find.byIcon(Symbols.visibility));
+      await tester.pumpAndSettle();
+      expect(_values(tester), [if (proxyValue > 0) proxyValue]);
+      expect(find.text('Direct'), findsOneWidget);
+      expect(find.textContaining('NaN'), findsNothing);
+      if (proxyValue > 0) expect(find.text('100.0%'), findsOneWidget);
+      await tester.tap(find.byIcon(Symbols.visibility_off));
+      await tester.pumpAndSettle();
+      expect(_values(tester), [if (proxyValue > 0) proxyValue, 10]);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
 
   testWidgets('polls while open and keeps the selected direction', (
     tester,
@@ -101,13 +136,13 @@ void main() {
       await tester.tap(_dialogText('Upload'));
       await tester.pumpAndSettle();
       expect(find.text('No data'), findsOneWidget);
-      expect(_chart(), findsNothing);
+      expect(_values(tester), isEmpty);
       nodes = [];
       await tester.tap(_dialogText('Both'));
       await tester.pump(const Duration(seconds: 2));
       await tester.pumpAndSettle();
       expect(find.text('No data'), findsOneWidget);
-      expect(_chart(), findsNothing);
+      expect(_values(tester), isEmpty);
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
@@ -146,6 +181,7 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
     expect(_values(tester), [700, 200, 100]);
+    expect(tester.widget<DonutChart>(_chart()).data, hasLength(8));
     expect(find.text('Unable to read traffic. Retrying…'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -201,9 +237,9 @@ void main() {
       await _pumpCard(tester, core, width: width, textScale: 1.5);
       await tester.tap(find.byIcon(Symbols.info));
       await tester.pumpAndSettle();
-      expect(_values(tester), hasLength(19));
-      expect(find.text('Other'), findsNothing);
-      await tester.ensureVisible(find.text('Provider 9'));
+      expect(_values(tester), hasLength(7));
+      expect(find.text('Other'), findsOneWidget);
+      await tester.ensureVisible(find.text('Other'));
       await tester.tap(find.text('Confirm'));
       await tester.pumpAndSettle();
       await tester.pumpWidget(const SizedBox.shrink());
@@ -249,8 +285,11 @@ Finder _chart() => find.descendant(
   matching: find.byType(DonutChart),
 );
 
-Iterable<double> _values(WidgetTester tester) =>
-    tester.widget<DonutChart>(_chart()).data.map((item) => item.value);
+Iterable<double> _values(WidgetTester tester) => tester
+    .widget<DonutChart>(_chart())
+    .data
+    .map((item) => item.value)
+    .where((value) => value > 0);
 
 Finder _dialogText(String text) =>
     find.descendant(of: find.byType(TrafficDetails), matching: find.text(text));

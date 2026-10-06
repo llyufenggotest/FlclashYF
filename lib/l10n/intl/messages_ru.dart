@@ -261,12 +261,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "autoRunDesc": MessageLookupByLibrary.simpleMessage(
       "Включаться автоматически при открытии приложения",
     ),
-    "autoSetSystemDns": MessageLookupByLibrary.simpleMessage(
-      "Автонастройка системного DNS",
-    ),
-    "autoSetSystemDnsDesc": MessageLookupByLibrary.simpleMessage(
-      "Добавить резервный DNS-сервер в систему",
-    ),
     "autoUpdate": MessageLookupByLibrary.simpleMessage("Автообновление"),
     "autoUpdateInterval": MessageLookupByLibrary.simpleMessage(
       "Интервал автообновления (минуты)",
@@ -1837,5 +1831,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "yearsAgo": m34,
     "yes": MessageLookupByLibrary.simpleMessage("Да"),
     "zhCN": MessageLookupByLibrary.simpleMessage("Упрощённый китайский"),
+    "zhTW": MessageLookupByLibrary.simpleMessage("Традиционный китайский"),
   };
 }

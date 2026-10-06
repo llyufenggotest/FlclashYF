@@ -17,6 +17,7 @@ on:
       - integration/flclash-yf
       - integration/v0.8.126-yf
       - integration/v0.9.1-yf
+      - integration/v0.9.2-yf
     tags:
       - 'v*'
 
@@ -160,7 +161,7 @@ jobs:
         shell: bash
         run: |
           flutter pub get
-          dart setup.dart windows --arch amd64 --targets zip -v
+          dart setup.dart windows --arch x64 --targets zip -v
           test -n "$(find dist -type f -name '*.zip' -print -quit)"
       - uses: actions/upload-artifact@v7
         with:
@@ -199,6 +200,7 @@ jobs:
           python3 scripts/test_ios_switch_diagnostics.py
           python3 scripts/test_ios_provider_retry.py
           python3 scripts/test_ios_switch_wiring.py
+          python3 scripts/test_ios_command_bridge.py
       - name: Build IPA without Apple provisioning
         run: |
           flutter pub get
@@ -233,7 +235,7 @@ jobs:
             build_arch: arm64
           - os: macos-26-intel
             arch: x64
-            build_arch: amd64
+            build_arch: x64
     steps:
       - uses: actions/checkout@v7
         with:

@@ -295,6 +295,16 @@ class AppLocalizations {
     return Intl.message('Simplified Chinese', name: 'zhCN', desc: '', args: []);
   }
 
+  /// `Traditional Chinese`
+  String get zhTW {
+    return Intl.message(
+      'Traditional Chinese',
+      name: 'zhTW',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Theme`
   String get theme {
     return Intl.message('Theme', name: 'theme', desc: '', args: []);
@@ -3510,16 +3520,6 @@ class AppLocalizations {
     );
   }
 
-  /// `Auto-set system DNS`
-  String get autoSetSystemDns {
-    return Intl.message(
-      'Auto-set system DNS',
-      name: 'autoSetSystemDns',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `{label} details`
   String details(Object label) {
     return Intl.message(
@@ -6340,16 +6340,6 @@ class AppLocalizations {
     );
   }
 
-  /// `Add a fallback DNS server to the system`
-  String get autoSetSystemDnsDesc {
-    return Intl.message(
-      'Add a fallback DNS server to the system',
-      name: 'autoSetSystemDnsDesc',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `Capture system DNS`
   String get captureDns {
     return Intl.message(
@@ -7470,6 +7460,7 @@ class AppLocalizationDelegate extends LocalizationsDelegate<AppLocalizations> {
       Locale.fromSubtags(languageCode: 'ja'),
       Locale.fromSubtags(languageCode: 'ru'),
       Locale.fromSubtags(languageCode: 'zh', countryCode: 'CN'),
+      Locale.fromSubtags(languageCode: 'zh', countryCode: 'TW'),
     ];
   }
 
