@@ -18,6 +18,7 @@ on:
       - integration/v0.8.126-yf
       - integration/v0.9.1-yf
       - integration/v0.9.2-yf
+      - integration/v0.9.3-yf
     tags:
       - 'v*'
 
