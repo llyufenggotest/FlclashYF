@@ -7360,7 +7360,62 @@ class AppLocalizations {
     );
   }
 
-  /// `File import`
+  /// `View rules and matching statistics`
+  String get rulesDesc {
+    return Intl.message(
+      'View rules and matching statistics',
+      name: 'rulesDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Enabled`
+  String get ruleEnabled {
+    return Intl.message('Enabled', name: 'ruleEnabled', desc: '', args: []);
+  }
+
+  /// `Disabled`
+  String get ruleDisabled {
+    return Intl.message('Disabled', name: 'ruleDisabled', desc: '', args: []);
+  }
+
+  /// `Hits`
+  String get ruleHits {
+    return Intl.message('Hits', name: 'ruleHits', desc: '', args: []);
+  }
+
+  /// `Misses`
+  String get ruleMisses {
+    return Intl.message('Misses', name: 'ruleMisses', desc: '', args: []);
+  }
+
+  /// `Last hit`
+  String get ruleLastHit {
+    return Intl.message('Last hit', name: 'ruleLastHit', desc: '', args: []);
+  }
+
+  /// `Last miss`
+  String get ruleLastMiss {
+    return Intl.message('Last miss', name: 'ruleLastMiss', desc: '', args: []);
+  }
+
+  /// `Rule type`
+  String get ruleType {
+    return Intl.message('Rule type', name: 'ruleType', desc: '', args: []);
+  }
+
+  /// `Could not change the rule. The configuration may have changed; refresh and try again.`
+  String get ruleUpdateFailed {
+    return Intl.message(
+      'Could not change the rule. The configuration may have changed; refresh and try again.',
+      name: 'ruleUpdateFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
+
   String get fileImport {
     return Intl.message('File import', name: 'fileImport', desc: '', args: []);
   }
