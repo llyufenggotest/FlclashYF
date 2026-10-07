@@ -25,7 +25,8 @@ void main() {
     outcome: CoreLifecycleOutcome.applied,
   );
 
-  setUp(() {
+  setUp(() async {
+    await CoreService.resetInstance();
     lifecycle = _MockLifecycle();
     rpcClient = _MockRpcClient();
     crashes = StreamController<DesktopCoreFailure>.broadcast();
@@ -38,11 +39,13 @@ void main() {
     service = CoreService.forTesting(
       lifecycle: lifecycle,
       rpcClient: rpcClient,
+      installAsSingleton: true,
     );
   });
 
   tearDown(() async {
     await service.close();
+    await CoreService.resetInstance();
     await crashes.close();
   });
 
@@ -94,13 +97,62 @@ void main() {
   test(
     'resetInstance closes the retired singleton without replacing it',
     () async {
-      CoreService.resetInstance();
-      await pumpEventQueue();
+      final dynamic resetting = Function.apply(CoreService.resetInstance, []);
+      expect(resetting, isA<Future<void>>());
+      await resetting;
 
       verify(() => lifecycle.close()).called(1);
       verify(() => rpcClient.close()).called(1);
     },
   );
+
+  test('forTesting does not silently replace an installed singleton', () async {
+    final otherLifecycle = _MockLifecycle();
+    final otherRpc = _MockRpcClient();
+    when(() => otherLifecycle.crashEvents).thenAnswer((_) => crashes.stream);
+    when(() => otherLifecycle.close()).thenAnswer((_) async => result);
+    when(() => otherRpc.close()).thenAnswer((_) async {});
+    final other = CoreService.forTesting(
+      lifecycle: otherLifecycle,
+      rpcClient: otherRpc,
+    );
+    try {
+      expect(CoreService(), same(service));
+    } finally {
+      await other.close();
+    }
+  });
+
+  test('reset awaits RPC cleanup and detaches crash forwarding', () async {
+    final lifecycleClose = Completer<CoreLifecycleResult>();
+    final rpcClose = Completer<void>();
+    when(() => lifecycle.close()).thenAnswer((_) => lifecycleClose.future);
+    when(() => rpcClient.close()).thenAnswer((_) => rpcClose.future);
+    var finished = false;
+    final resetting = CoreService.resetInstance().then((_) => finished = true);
+    await pumpEventQueue();
+    expect(finished, isFalse);
+    lifecycleClose.complete(result);
+    await pumpEventQueue();
+    expect(finished, isFalse);
+    rpcClose.complete();
+    await resetting;
+    expect(crashes.hasListener, isFalse);
+    verify(() => lifecycle.close()).called(1);
+    verify(() => rpcClient.close()).called(1);
+  });
+
+  test('explicit installation rejects replacing a live singleton', () {
+    expect(
+      () => CoreService.forTesting(
+        lifecycle: lifecycle,
+        rpcClient: rpcClient,
+        installAsSingleton: true,
+      ),
+      throwsStateError,
+    );
+    expect(CoreService(), same(service));
+  });
 
   test('close coalesces lifecycle and RPC cleanup', () async {
     final first = service.close();

@@ -163,6 +163,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   }
 
   void _handleReady() {
+    if (!mounted) return;
     final controller = _editor?.controller;
     final previous = _listenedEditorController;
     if (previous != controller) {
@@ -217,6 +218,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   @override
   void dispose() {
     _listenedEditorController?.removeListener(_syncBarState);
+    _listenedEditorController = null;
     _undoController.dispose();
     _titleController.dispose();
     super.dispose();

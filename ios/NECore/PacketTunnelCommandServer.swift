@@ -21,16 +21,13 @@ final class PacketTunnelCommandServer {
   private let requestExtension = "req"
   private let responseExtension = "resp"
   private let maxOrphanAge: TimeInterval = 180
-  private let inFlightTimeout: TimeInterval = 30
   private let pollInterval: DispatchTimeInterval = .milliseconds(200)
-
-  private struct InFlightRequest {
-    let startedAt: TimeInterval
-  }
 
   private var running = false
   private var timer: DispatchSourceTimer?
-  private var inFlight: [String: InFlightRequest] = [:]
+  // Each admission owns a token, not just a reusable mailbox filename.
+  // Do not impose a server deadline: configuration clients allow 120 seconds.
+  private var inFlight: [String: UUID] = [:]
 
   init(
     sharedStateStore: PacketTunnelSharedStateStore,
@@ -60,7 +57,7 @@ final class PacketTunnelCommandServer {
   }
 
   func stop() {
-    queue.async { [weak self] in
+    queue.sync { [weak self] in
       guard let self, self.running else { return }
       self.running = false
       self.timer?.cancel()
@@ -95,7 +92,7 @@ final class PacketTunnelCommandServer {
   private func drain() {
     guard running, let requestDirectory = requestDirectory() else { return }
     pruneOrphans()
-    expireInFlightRequests()
+    // Client owns deadlines; configuration can legitimately take >30 seconds.
     guard let files = try? FileManager.default.contentsOfDirectory(
       at: requestDirectory,
       includingPropertiesForKeys: nil
@@ -115,14 +112,13 @@ final class PacketTunnelCommandServer {
       // Consume the request immediately so a mid-flight restart cannot run it
       // twice; the response is keyed by the same id.
       try? FileManager.default.removeItem(at: fileURL)
-      inFlight[id] = InFlightRequest(
-        startedAt: ProcessInfo.processInfo.systemUptime
-      )
-      process(id: id, data: data)
+      let token = UUID()
+      inFlight[id] = token
+      process(id: id, token: token, data: data)
     }
   }
 
-  private func process(id: String, data: Data) {
+  private func process(id: String, token: UUID, data: Data) {
     let receivedAt = ProcessInfo.processInfo.systemUptime
     let requestID = SwitchDiagnostics.requestID(data)
     let method = SwitchDiagnostics.method(data)
@@ -138,7 +134,7 @@ final class PacketTunnelCommandServer {
     invoke(data) { [weak self] response in
       guard let self else { return }
       self.queue.async {
-        guard self.inFlight[id] != nil else {
+        guard self.running, self.inFlight[id] == token else {
           self.logger.debug("ignoring late RPC response id=\(id, privacy: .public)")
           return
         }
@@ -166,26 +162,7 @@ final class PacketTunnelCommandServer {
     }
   }
 
-  private func expireInFlightRequests() {
-    let now = ProcessInfo.processInfo.systemUptime
-    for (id, request) in inFlight where now - request.startedAt >= inFlightTimeout {
-      writeResponse(id: id, data: timedOutResponse())
-      inFlight.removeValue(forKey: id)
-      logger.warning("RPC request timed out id=\(id, privacy: .public)")
-    }
-  }
-
-  private func timedOutResponse() -> Data {
-    let payload: [String: Any] = [
-      "result": NSNull(),
-      "error": [
-        "code": "timeout",
-        "message": "core response timed out",
-        "details": NSNull(),
-      ],
-    ]
-    return (try? JSONSerialization.data(withJSONObject: payload)) ?? Data()
-  }
+  // Pending admissions are invalidated on stop, without changing RPC errors.
   private func writeResponse(id: String, data: Data) {
     guard let responseDirectory = responseDirectory() else { return }
     do {

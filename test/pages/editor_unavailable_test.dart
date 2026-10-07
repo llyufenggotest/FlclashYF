@@ -52,6 +52,22 @@ void main() {
     });
   }
 
+  testWidgets('late ready callback is ignored after page disposal', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const TestApp(
+        wrapInProviderScope: true,
+        child: EditorPage(title: 'Editor', content: ''),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final onReady = tester.widget<EditorView>(find.byType(EditorView)).onReady!;
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(onReady, returnsNormally);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('shows the unavailable state when RustLib was not started', (
     tester,
   ) async {

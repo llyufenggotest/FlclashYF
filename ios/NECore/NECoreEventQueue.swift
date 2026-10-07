@@ -10,34 +10,50 @@ final class NECoreEventQueue {
     category: "NECoreEventQueue"
   )
 
+  private let queue = DispatchQueue(label: "com.follow.clash.event-queue")
   private var eventsSincePrune = 0
-  private var coreActive = true
+  private var coreActive = false
+  private var running = false
+  private var generation = UUID()
 
   init(sharedStateStore: PacketTunnelSharedStateStore) {
     self.sharedStateStore = sharedStateStore
   }
 
   func start() {
-    coreActive = true
-    eventsSincePrune = 0
-    NECoreBridge.setEventListener { [weak self] event in
-      guard let self,
-        let event,
-        !event.isEmpty
-      else {
-        return
+    queue.sync { [weak self] in
+      guard let self, !self.running else { return }
+      self.running = true
+      self.coreActive = true
+      self.eventsSincePrune = 0
+      let generation = UUID()
+      self.generation = generation
+      NECoreBridge.setEventListener { [weak self] event in
+        guard let self, let event, !event.isEmpty else { return }
+        self.queue.async {
+          guard self.running, self.generation == generation else { return }
+          self.enqueue(event)
+        }
       }
-      self.enqueue(event)
     }
   }
 
   func stop() {
-    NECoreBridge.setEventListener(nil)
-    coreActive = false
+    queue.sync { [weak self] in
+      guard let self else { return }
+      self.running = false
+      self.coreActive = false
+      self.generation = UUID()
+      NECoreBridge.setEventListener(nil)
+    }
   }
 
   func markCoreResponsive() {
-    coreActive = true
+    queue.async { [weak self] in
+      guard let self else { return }
+      guard self.running else { return }
+      self.coreActive = true
+    }
   }
 
   private func enqueue(_ event: Data) {

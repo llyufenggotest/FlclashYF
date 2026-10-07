@@ -29,11 +29,11 @@ class CoreService extends CoreHandlerInterface {
   }
 
   @visibleForTesting
-  static void resetInstance() {
+  static Future<void> resetInstance() async {
     final instance = _instance;
     _instance = null;
     if (instance != null) {
-      unawaited(instance.close());
+      await instance.close();
     }
   }
 
@@ -61,9 +61,17 @@ class CoreService extends CoreHandlerInterface {
   factory CoreService.forTesting({
     required DesktopCoreLifecycleController lifecycle,
     required CoreRpcChannel rpcClient,
+    bool installAsSingleton = false,
   }) {
+    if (installAsSingleton && _instance != null) {
+      throw StateError(
+        'Await resetInstance before installing a test singleton',
+      );
+    }
     final service = CoreService._(lifecycle: lifecycle, rpcClient: rpcClient);
-    _instance = service;
+    if (installAsSingleton) {
+      _instance = service;
+    }
     return service;
   }
 

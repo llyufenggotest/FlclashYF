@@ -43,7 +43,13 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
   private var memoryPressureSource: DispatchSourceMemoryPressure?
   private var eventQueueStarted = false
   private var commandServerStarted = false
+  // Main-queue owned, retained after success until stop/failure.
   private var activeCleanup: PacketTunnelLifecycleCleanup?
+  private var pendingStartupCompletion: ((Error?) -> Void)?
+  // Native quickSetup has no cancellation API. Do not overlap another attempt
+  // with an old setup still mutating the process-global core after stop.
+  private var coreSetupOwner: PacketTunnelLifecycleCleanup?
+  private var lifecycleGeneration = UUID()
 
   private func stopMemoryPressureDiagnostics() {
     memoryPressureSource?.cancel()
@@ -57,8 +63,10 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
       queue: DispatchQueue(label: "com.follow.clash.memory-pressure-diagnostics")
     )
     source.setEventHandler { [weak self] in
-      guard let source = self?.memoryPressureSource else { return }
-      SwitchDiagnostics.record("os_memory_pressure", fields: ["status": String(source.data.rawValue)])
+      DispatchQueue.main.async {
+        guard let source = self?.memoryPressureSource else { return }
+        SwitchDiagnostics.record("os_memory_pressure", fields: ["status": String(source.data.rawValue)])
+      }
     }
     memoryPressureSource = source
     source.resume()
@@ -84,13 +92,27 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     options: [String: NSObject]?,
     completionHandler: @escaping (Error?) -> Void
   ) {
+    guard Thread.isMainThread else {
+      DispatchQueue.main.async {
+        self.startTunnel(options: options, completionHandler: completionHandler)
+      }
+      return
+    }
+    guard activeCleanup == nil, coreSetupOwner == nil else {
+      completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
+      return
+    }
     NECoreSideloadCompatibilityLoader.loadIfPresent()
     SwitchDiagnostics.record("tunnel_start", fields: ["attempt_id": SwitchDiagnostics.processID])
     startMemoryPressureDiagnostics()
     let cleanup = makeLifecycleCleanup()
     activeCleanup = cleanup
-    let originalCompletion = completionHandler
+    lifecycleGeneration = UUID()
+    pendingStartupCompletion = completionHandler
     let completionHandler: (Error?) -> Void = { error in
+      guard self.activeCleanup === cleanup else { return }
+      guard let originalCompletion = self.pendingStartupCompletion else { return }
+      self.pendingStartupCompletion = nil
       if error != nil {
         cleanup.cleanup()
         self.activeCleanup = nil
@@ -125,113 +147,123 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     setTunnelNetworkSettings(
       networkConfiguration.makeSettings(for: vpnOptions)
     ) { error in
-      if let error {
-        self.logger.error(
-          "setTunnelNetworkSettings failed: \(error.localizedDescription, privacy: .public)"
-        )
-        self.diag("startup_failure phase=set_network_settings error=\(error.localizedDescription)")
-        completionHandler(error)
-        return
-      }
-      self.logger.info("setTunnelNetworkSettings completed")
-      self.diag("set_network_settings ok")
-      guard let tunnelFileDescriptor =
-        self.networkConfiguration.tunnelFileDescriptor()
-      else {
-        self.logger.error(
-          "startTunnel failed: tunnel file descriptor missing"
-        )
-        self.diag("startup_failure phase=tunnel_fd_missing")
-        completionHandler(
-          PacketTunnelProviderError.couldNotDetermineFileDescriptor
-        )
-        return
-      }
-      self.logger.debug(
-        "startTunnel fileDescriptor=\(tunnelFileDescriptor, privacy: .public)"
-      )
-      self.diag("tunnel_fd=\(tunnelFileDescriptor)")
-      self.eventQueue.start()
-      self.eventQueueStarted = true
-
-      self.diag(
-        "mem_before_quick_setup footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
-      )
-      NativeDiagnosticLog.shared.flush()
-      // Start sampling before the config load so a jetsam kill while the core
-      // builds rule-provider matchers leaves a footprint trail instead of silence.
-      self.resourceHeartbeat.start()
-      let initParams = self.sharedStateStore.makeInitParams()
-      let setupParams = self.sharedStateStore.loadSetupParams()
-      self.logger.info(
-        "quickSetup initParams=\(initParams, privacy: .public)"
-      )
-      NECoreBridge.quickSetup(
-        withInitParams: initParams,
-        setupParams: setupParams
-      ) { result in
-        if let result,
-          !result.isEmpty
-        {
-          let message = String(data: result, encoding: .utf8) ??
-            "unknown core error"
+      DispatchQueue.main.async {
+        guard self.activeCleanup === cleanup else { return }
+        if let error {
           self.logger.error(
-            "quickSetup failed: \(message, privacy: .public)"
+            "setTunnelNetworkSettings failed: \(error.localizedDescription, privacy: .public)"
           )
-          self.diag("startup_failure phase=quick_setup error=\(message)")
-          completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
+          self.diag("startup_failure phase=set_network_settings error=\(error.localizedDescription)")
+          completionHandler(error)
           return
         }
-        self.logger.info("quickSetup completed")
-        self.diag(
-          "quick_setup ok footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
-        )
-        NativeDiagnosticLog.shared.flush()
-        let coreTunOptions = CoreTunOptions(
-          stack: vpnOptions.stack,
-          address: self.networkConfiguration.tunAddress(for: vpnOptions),
-          dns: self.networkConfiguration.tunDNS(for: vpnOptions),
-          mtu: vpnOptions.mtu,
-          disableIcmpForwarding: vpnOptions.disableIcmpForwarding,
-          endpointIndependentNat: vpnOptions.endpointIndependentNat,
-          congestionController: vpnOptions.congestionController,
-          recvMsgX: vpnOptions.recvMsgX,
-          sendMsgX: vpnOptions.sendMsgX
-        )
-        guard let coreTunOptionsData = try? JSONEncoder().encode(coreTunOptions)
+        self.logger.info("setTunnelNetworkSettings completed")
+        self.diag("set_network_settings ok")
+        guard let tunnelFileDescriptor =
+          self.networkConfiguration.tunnelFileDescriptor()
         else {
-          self.diag("startup_failure phase=tun_options_encode")
-          NativeDiagnosticLog.shared.flush()
-          completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
+          self.logger.error(
+            "startTunnel failed: tunnel file descriptor missing"
+          )
+          self.diag("startup_failure phase=tunnel_fd_missing")
+          completionHandler(
+            PacketTunnelProviderError.couldNotDetermineFileDescriptor
+          )
           return
         }
+        self.logger.debug(
+          "startTunnel fileDescriptor=\(tunnelFileDescriptor, privacy: .public)"
+        )
+        self.diag("tunnel_fd=\(tunnelFileDescriptor)")
+        self.eventQueue.start()
+        self.eventQueueStarted = true
+
         self.diag(
-          "tun_start begin footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
+          "mem_before_quick_setup footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
         )
         NativeDiagnosticLog.shared.flush()
-        let started = NECoreBridge.startTun(
-          withFileDescriptor: tunnelFileDescriptor,
-          options: coreTunOptionsData
-        )
+        // Start sampling before the config load so a jetsam kill while the core
+        // builds rule-provider matchers leaves a footprint trail instead of silence.
+        self.resourceHeartbeat.start()
+        let initParams = self.sharedStateStore.makeInitParams()
+        let setupParams = self.sharedStateStore.loadSetupParams()
         self.logger.info(
-          "NECoreBridge.startTun result=\(started, privacy: .public)"
+          "quickSetup initParams=\(initParams, privacy: .public)"
         )
-        self.diag(
-          "start_tun result=\(started) footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
-        )
-        NativeDiagnosticLog.shared.flush()
-        if started {
-          self.sharedStateStore.saveRunTime(vpnOptions: snapshot.data)
-          self.commandServer.start()
-          self.commandServerStarted = true
-          self.activeCleanup = nil
-        } else {
-          cleanup.cleanup()
-          self.activeCleanup = nil
+        self.coreSetupOwner = cleanup
+        NECoreBridge.quickSetup(
+          withInitParams: initParams,
+          setupParams: setupParams
+        ) { result in
+          DispatchQueue.main.async {
+            guard self.coreSetupOwner === cleanup else { return }
+            self.coreSetupOwner = nil
+            guard self.activeCleanup === cleanup else {
+              // stop may have preceded quickSetup's listener creation. No newer
+              // attempt can enter while coreSetupOwner is held.
+              NECoreBridge.stopTun()
+              return
+            }
+            if let result,
+              !result.isEmpty
+            {
+              let message = String(data: result, encoding: .utf8) ??
+                "unknown core error"
+              self.logger.error(
+                "quickSetup failed: \(message, privacy: .public)"
+              )
+              self.diag("startup_failure phase=quick_setup error=\(message)")
+              completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
+              return
+            }
+            self.logger.info("quickSetup completed")
+            self.diag(
+              "quick_setup ok footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
+            )
+            NativeDiagnosticLog.shared.flush()
+            let coreTunOptions = CoreTunOptions(
+              stack: vpnOptions.stack,
+              address: self.networkConfiguration.tunAddress(for: vpnOptions),
+              dns: self.networkConfiguration.tunDNS(for: vpnOptions),
+              mtu: vpnOptions.mtu,
+              disableIcmpForwarding: vpnOptions.disableIcmpForwarding,
+              endpointIndependentNat: vpnOptions.endpointIndependentNat,
+              congestionController: vpnOptions.congestionController,
+              recvMsgX: vpnOptions.recvMsgX,
+              sendMsgX: vpnOptions.sendMsgX
+            )
+            guard let coreTunOptionsData = try? JSONEncoder().encode(coreTunOptions)
+            else {
+              self.diag("startup_failure phase=tun_options_encode")
+              NativeDiagnosticLog.shared.flush()
+              completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
+              return
+            }
+            self.diag(
+              "tun_start begin footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
+            )
+            NativeDiagnosticLog.shared.flush()
+            let started = NECoreBridge.startTun(
+              withFileDescriptor: tunnelFileDescriptor,
+              options: coreTunOptionsData
+            )
+            self.logger.info(
+              "NECoreBridge.startTun result=\(started, privacy: .public)"
+            )
+            self.diag(
+              "start_tun result=\(started) footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
+            )
+            NativeDiagnosticLog.shared.flush()
+            if started {
+              self.sharedStateStore.saveRunTime(vpnOptions: snapshot.data)
+              self.commandServer.start()
+              self.commandServerStarted = true
+            }
+            completionHandler(
+              started ? nil : PacketTunnelProviderError.couldNotStartCoreTun
+            )
+          }
         }
-        completionHandler(
-          started ? nil : PacketTunnelProviderError.couldNotStartCoreTun
-        )
       }
     }
   }
@@ -240,17 +272,23 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     with reason: NEProviderStopReason,
     completionHandler: @escaping () -> Void
   ) {
+    guard Thread.isMainThread else {
+      DispatchQueue.main.async {
+        self.stopTunnel(with: reason, completionHandler: completionHandler)
+      }
+      return
+    }
     SwitchDiagnostics.record("tunnel_stop", fields: ["reason": String(reason.rawValue)])
+    lifecycleGeneration = UUID()
+    let startupCompletion = pendingStartupCompletion
+    pendingStartupCompletion = nil
     activeCleanup?.cleanup()
     activeCleanup = nil
-    stopMemoryPressureDiagnostics()
     logger.info("stopTunnel reason=\(reason.rawValue, privacy: .public)")
     sharedStateStore.clearRunTime()
     reloadControlWidget()
-    commandServer.stop()
-    eventQueue.stop()
-    resourceHeartbeat.stop()
     NECoreBridge.stopTun()
+    startupCompletion?(PacketTunnelProviderError.couldNotStartCoreTun)
     guard reason == .userInitiated else {
       completionHandler()
       return
@@ -291,6 +329,13 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     _ messageData: Data,
     completionHandler: ((Data?) -> Void)?
   ) {
+    guard Thread.isMainThread else {
+      DispatchQueue.main.async {
+        self.handleAppMessage(messageData, completionHandler: completionHandler)
+      }
+      return
+    }
+    let generation = lifecycleGeneration
     let receivedAt = ProcessInfo.processInfo.systemUptime
     let requestID = SwitchDiagnostics.requestID(messageData)
     let method = SwitchDiagnostics.method(messageData)
@@ -321,27 +366,33 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     }
 
     NECoreBridge.invokeMethod(messageData) { response in
-      guard let response else {
-        SwitchDiagnostics.record("rpc_core_empty", fields: ["request_id": requestID, "method": method])
-        self.logger.warning("handleAppMessage empty core response")
-        reply(
-          self.methodErrorResponse(
-            messageData: messageData,
-            code: "empty_response",
-            message: "empty core response"
+      DispatchQueue.main.async {
+        guard self.lifecycleGeneration == generation else {
+          reply(self.methodErrorResponse(messageData: messageData, code: "empty_response", message: "tunnel lifecycle changed"))
+          return
+        }
+        guard let response else {
+          SwitchDiagnostics.record("rpc_core_empty", fields: ["request_id": requestID, "method": method])
+          self.logger.warning("handleAppMessage empty core response")
+          reply(
+            self.methodErrorResponse(
+              messageData: messageData,
+              code: "empty_response",
+              message: "empty core response"
+            )
           )
+          return
+        }
+        self.logger.debug(
+          "handleAppMessage response bytes=\(response.count, privacy: .public)"
         )
-        return
+        if (method == "setupConfig" || method == "updateConfig"),
+          self.methodResponseHasEmptyStringResult(response)
+        {
+          self.sharedStateStore.markConfigurationRequestApplied(requestID)
+        }
+        reply(response)
       }
-      self.logger.debug(
-        "handleAppMessage response bytes=\(response.count, privacy: .public)"
-      )
-      if (method == "setupConfig" || method == "updateConfig"),
-        self.methodResponseHasEmptyStringResult(response)
-      {
-        self.sharedStateStore.markConfigurationRequestApplied(requestID)
-      }
-      reply(response)
     }
   }
 

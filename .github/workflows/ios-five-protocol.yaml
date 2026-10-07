@@ -87,12 +87,14 @@ jobs:
           (cd core && CGO_ENABLED=0 go test ./... && CGO_ENABLED=0 go test -tags with_low_memory ./... && CGO_ENABLED=0 go vet ./...)
           python3 scripts/protocol_smoke.py
           python3 scripts/test_oix_ci_wiring.py
+          python3 scripts/test_ios_lifecycle_cleanup.py
 
       - name: Verify Flutter application
         run: |
           flutter pub get
           dart format --output=none --set-exit-if-changed lib test setup.dart
           flutter analyze --no-fatal-infos
+          flutter test test/common/cache_test.dart test/core/service_test.dart test/pages/editor_unavailable_test.dart
           flutter test test/common/native_log_export_test.dart test/providers/logs_clear_test.dart test/views/logs_clear_test.dart test/providers/setup_restoration_test.dart
           flutter test test/common/fastup_subscription_test.dart test/common/protocol_edit_policy_test.dart test/common/uri_subscription_test.dart test/common/profile_template_test.dart test/common/desktop_profile_drop_test.dart test/ios_profile_budget_test.dart test/ios_reclaim_battery_test.dart test/core/protocol_contract_test.dart test/providers/action_test.dart test/views/add_profile_view_test.dart test/views/clipboard_import_dialog_test.dart test/views/profile_template_test.dart test/views/tools_profile_template_test.dart
 
@@ -239,6 +241,9 @@ jobs:
           python3 scripts/test_ios_provider_retry.py
           python3 scripts/test_ios_switch_wiring.py
           python3 scripts/test_ios_command_bridge.py
+          command -v swiftc
+          python3 scripts/test_ios_lifecycle_cleanup.py
+          python3 scripts/test_ios_lifecycle_behavior.py
       - name: Build IPA without Apple provisioning
         run: |
           flutter pub get
