@@ -19,8 +19,21 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
-  final Map<PageLabel, GlobalKey<_NavigationPageState>> _navigatorKeys = {};
+  late final HomeNavigatorObserver _navigatorObserver = HomeNavigatorObserver(
+    onSubroutesChanged: _handleSubroutesChanged,
+  );
+  PageLabel? _routeOwner;
   bool _isSwitchingPage = false;
+
+  void _handleSubroutesChanged(bool hasSubroutes) {
+    final pageLabel = ref.read(currentPageLabelProvider);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final owner = hasSubroutes ? _routeOwner ?? pageLabel : null;
+      if (owner == _routeOwner) return;
+      setState(() => _routeOwner = owner);
+    });
+  }
 
   Future<void> _handleToPage(PageLabel pageLabel) async {
     final currentPageLabel = ref.read(currentPageLabelProvider);
@@ -29,8 +42,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
     _isSwitchingPage = true;
     try {
-      final navigatorState = _navigatorKeys[currentPageLabel]?.currentState;
-      if (navigatorState != null && !await navigatorState.popToRoot()) {
+      if (!await _navigatorObserver.popToRoot()) {
         return;
       }
       ref.read(currentPageLabelProvider.notifier).toPage(pageLabel);
@@ -47,33 +59,46 @@ class _HomePageState extends ConsumerState<HomePage> {
     if (!hasViewSize) {
       return const SizedBox.shrink();
     }
+    final pageLabel = ref.watch(currentPageLabelProvider);
     return HomeBackScopeContainer(
+      onMaybePop: _navigatorObserver.maybePop,
       child: AppSidebarContainer(
         onDestinationSelected: _handleToPage,
-        child: _HomeShell(
-          onDestinationSelected: _handleToPage,
-          child: Consumer(
-            builder: (_, ref, _) {
-              final navigationItems = ref
-                  .watch(currentNavigationItemsStateProvider)
-                  .value;
-              final isMobile = ref.watch(isMobileViewProvider);
-              return _HomePageView(
-                navigationItems: navigationItems,
-                pageBuilder: (_, index) {
-                  final navigationItem = navigationItems[index];
-                  return _NavigationPage(
-                    key: _navigatorKeys.putIfAbsent(
-                      navigationItem.label,
-                      GlobalKey<_NavigationPageState>.new,
+        child: FocusTraversalGroup(
+          policy: PageTraversalPolicy(),
+          child: PageActivityScope(
+            isActive: _routeOwner == null || _routeOwner == pageLabel,
+            child: NotificationListener<CommonPopScopeAttemptNotification>(
+              onNotification: _navigatorObserver.onPopScopeAttempt,
+              child: Navigator(
+                observers: [_navigatorObserver],
+                onGenerateRoute: (_) => CommonRoute<void>(
+                  builder: (context) => _HomeShell(
+                    onDestinationSelected: _handleToPage,
+                    child: Consumer(
+                      builder: (_, ref, _) {
+                        final navigationItems = ref
+                            .watch(currentNavigationItemsStateProvider)
+                            .value;
+                        return _HomePageView(
+                          navigationItems: navigationItems,
+                          pageBuilder: (_, index) {
+                            final item = navigationItems[index];
+                            return _NavigationPage(
+                              key: ValueKey(item.label),
+                              item: item,
+                              view: item.builder(context),
+                            );
+                          },
+                        );
+                      },
                     ),
-                    item: navigationItem,
-                    isMobile: isMobile,
-                    view: navigationItem.builder(context),
-                  );
-                },
-              );
-            },
+                  ),
+                ),
+                routeDirectionalTraversalEdgeBehavior:
+                    TraversalEdgeBehavior.parentScope,
+              ),
+            ),
           ),
         ),
       ),
@@ -140,68 +165,45 @@ class _HomeShell extends ConsumerWidget {
   }
 }
 
-class _NavigationPage extends StatefulWidget {
-  const _NavigationPage({
-    super.key,
-    required this.item,
-    required this.isMobile,
-    required this.view,
-  });
+class _NavigationPage extends ConsumerWidget {
+  const _NavigationPage({super.key, required this.item, required this.view});
 
   final NavigationItem item;
-  final bool isMobile;
   final Widget view;
 
   @override
-  State<_NavigationPage> createState() => _NavigationPageState();
-}
-
-class _NavigationPageState extends State<_NavigationPage> {
-  final HomeNavigatorObserver _navigatorObserver = HomeNavigatorObserver();
-
-  Future<bool> popToRoot() => _navigatorObserver.popToRoot();
-
-  @override
-  Widget build(BuildContext context) {
-    final scopedView = PageFocusScope(child: widget.view);
-    final keptView = KeepScope(
-      key: ValueKey(widget.item.label),
-      keep: widget.item.keep,
-      child: widget.isMobile
-          ? scopedView
-          : NotificationListener<CommonPopScopeAttemptNotification>(
-              onNotification: _navigatorObserver.onPopScopeAttempt,
-              child: Navigator(
-                key: ValueKey('${widget.item.label.name}_navigator'),
-                observers: [_navigatorObserver],
-                pages: [MaterialPage(child: scopedView)],
-                onDidRemovePage: (_) {},
-                routeDirectionalTraversalEdgeBehavior:
-                    TraversalEdgeBehavior.parentScope,
-              ),
-            ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isActive = ref.watch(
+      currentPageLabelProvider.select((label) => label == item.label),
     );
-    return Consumer(
-      builder: (_, ref, child) {
-        final isActive = ref.watch(
-          currentPageLabelProvider.select(
-            (label) => label == widget.item.label,
-          ),
-        );
-        return PageActivityScope(
-          isActive: isActive,
-          child: ExcludeFocus(excluding: !isActive, child: child!),
-        );
-      },
-      child: keptView,
+    return PageActivityScope(
+      isActive: isActive,
+      child: ExcludeFocus(
+        excluding: !isActive,
+        child: KeepScope(
+          keep: item.keep,
+          child: PageFocusScope(child: view),
+        ),
+      ),
     );
   }
 }
 
 class HomeNavigatorObserver extends NavigatorObserver {
+  HomeNavigatorObserver({this.onSubroutesChanged});
+
+  final ValueChanged<bool>? onSubroutesChanged;
   NavigatorState? _trackedNavigator;
   final List<Route<dynamic>> _routes = [];
   List<Future<void>>? _pendingPopAttempts;
+
+  void _notifySubroutesChanged() {
+    onSubroutesChanged?.call(
+      _routes
+          .skip(1)
+          .any((route) => route is ModalRoute && route is! PopupRoute),
+    );
+  }
 
   bool onPopScopeAttempt(CommonPopScopeAttemptNotification notification) {
     _pendingPopAttempts?.add(notification.completion);
@@ -220,18 +222,21 @@ class HomeNavigatorObserver extends NavigatorObserver {
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     _track(route);
     _routes.add(route);
+    _notifySubroutesChanged();
     super.didPush(route, previousRoute);
   }
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     _routes.remove(route);
+    _notifySubroutesChanged();
     super.didPop(route, previousRoute);
   }
 
   @override
   void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
     _routes.remove(route);
+    _notifySubroutesChanged();
     super.didRemove(route, previousRoute);
   }
 
@@ -249,6 +254,7 @@ class HomeNavigatorObserver extends NavigatorObserver {
       }
     }
     super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    _notifySubroutesChanged();
   }
 
   Future<bool> popToRoot() async {
@@ -277,6 +283,8 @@ class HomeNavigatorObserver extends NavigatorObserver {
     }
     return _routes.length <= 1;
   }
+
+  Future<bool> maybePop() async => await navigator?.maybePop() ?? false;
 }
 
 class _HomePageView extends ConsumerStatefulWidget {
@@ -428,8 +436,13 @@ class _HomePageViewState extends ConsumerState<_HomePageView> {
 
 class HomeBackScopeContainer extends ConsumerStatefulWidget {
   final Widget child;
+  final Future<bool> Function() onMaybePop;
 
-  const HomeBackScopeContainer({super.key, required this.child});
+  const HomeBackScopeContainer({
+    super.key,
+    required this.onMaybePop,
+    required this.child,
+  });
 
   @override
   ConsumerState<HomeBackScopeContainer> createState() =>
@@ -472,16 +485,7 @@ class _HomeBackScopeContainerState
                 )
               : isMobile),
       onPop: (context) async {
-        final pageLabel = ref.read(currentPageLabelProvider);
-        final realContext =
-            GlobalObjectKey(pageLabel).currentContext ?? context;
-        final navigator = Navigator.of(realContext);
-        if (isMobile) {
-          if (navigator.canPop()) {
-            navigator.pop();
-            return false;
-          }
-        } else if (await navigator.maybePop()) {
+        if (await widget.onMaybePop()) {
           return false;
         }
         if (!context.mounted) {
@@ -491,6 +495,7 @@ class _HomeBackScopeContainerState
           return false;
         }
         final backToDashboard = ref.read(appSettingProvider).backToDashboard;
+        final pageLabel = ref.read(currentPageLabelProvider);
         if (backToDashboard && pageLabel != PageLabel.dashboard) {
           ref
               .read(currentPageLabelProvider.notifier)

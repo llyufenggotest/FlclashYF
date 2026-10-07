@@ -100,11 +100,19 @@ mixin CoreInterface {
 
   FutureOr<void> stopDnsNotify();
 
+  Future<DnsQuery> queryDns(String domain, String type);
+
+  Future<RuleQuery> queryRule(RuleQueryParams params);
+
   Future<bool> crash();
 
   FutureOr<List<TrackerInfo>> getConnections();
 
   FutureOr<bool> closeConnection(String id);
+
+  Future<List<CoreRule>> getRules();
+
+  Future<bool> setRuleDisabled(SetRuleDisabledParams params);
 
   FutureOr<String> clearEffect(int profileId);
 
@@ -454,6 +462,26 @@ abstract class CoreHandlerInterface with CoreInterface {
   }
 
   @override
+  Future<List<CoreRule>> getRules() async {
+    final data = await _invokeMethod<List<dynamic>>(
+      method: CoreMethod.getRules,
+    );
+    return (data ?? const [])
+        .whereType<Map>()
+        .map((item) => CoreRule.fromJson(Map<String, Object?>.from(item)))
+        .toList();
+  }
+
+  @override
+  Future<bool> setRuleDisabled(SetRuleDisabledParams params) async {
+    return await _invokeMethod<bool>(
+          method: CoreMethod.setRuleDisabled,
+          arguments: params.toJson(),
+        ) ??
+        false;
+  }
+
+  @override
   Future<Traffic> getTotalTraffic(bool onlyStatisticsProxy) async {
     final data = await _invokeMethod<Map<String, dynamic>>(
       method: CoreMethod.getTotalTraffic,
@@ -558,6 +586,36 @@ abstract class CoreHandlerInterface with CoreInterface {
   @override
   FutureOr<void> stopDnsNotify() {
     _invokeMethod<bool>(method: CoreMethod.stopDnsNotify);
+  }
+
+  @override
+  Future<DnsQuery> queryDns(String domain, String type) async {
+    final data = await _invokeMethod<Map<String, dynamic>>(
+      method: CoreMethod.queryDns,
+      arguments: {'domain': domain, 'type': type},
+    );
+    if (data == null) {
+      throw const CoreMethodException(
+        code: 'invalid_response',
+        message: 'Missing DNS query result',
+      );
+    }
+    return DnsQuery.fromJson(data);
+  }
+
+  @override
+  Future<RuleQuery> queryRule(RuleQueryParams params) async {
+    final data = await _invokeMethod<Map<String, dynamic>>(
+      method: CoreMethod.queryRule,
+      arguments: params.toJson(),
+    );
+    if (data == null) {
+      throw const CoreMethodException(
+        code: 'invalid_response',
+        message: 'Missing rule query result',
+      );
+    }
+    return RuleQuery.fromJson(data);
   }
 
   @override

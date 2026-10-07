@@ -78,20 +78,22 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m27(count) => "${count} 个代理";
 
-  static String m28(count) => "${count} 条规则";
+  static String m28(maximum) => "请输入 0 到 ${maximum} 之间的整数。";
 
-  static String m29(count) => "${count} 秒";
+  static String m29(count) => "${count} 条规则";
 
-  static String m30(count) => "已选择 ${count} 项";
+  static String m30(count) => "${count} 秒";
 
-  static String m31(interval, idleInterval) =>
+  static String m31(count) => "已选择 ${count} 项";
+
+  static String m32(interval, idleInterval) =>
       "${interval} · 怠速 ${idleInterval}";
 
-  static String m32(interval) => "${interval} · 怠速已禁用";
+  static String m33(interval) => "${interval} · 怠速已禁用";
 
-  static String m33(label) => "${label} 必须为 URL";
+  static String m34(label) => "${label} 必须为 URL";
 
-  static String m34(count) => "${count} 年前";
+  static String m35(count) => "${count} 年前";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -257,6 +259,10 @@ class MessageLookup extends MessageLookupByLibrary {
       "是否关闭使用原代理的连接？",
     ),
     "collapse": MessageLookupByLibrary.simpleMessage("折叠"),
+    "collapseProxyChains": MessageLookupByLibrary.simpleMessage("折叠代理链"),
+    "collapseProxyChainsDesc": MessageLookupByLibrary.simpleMessage(
+      "代理链超过三个节点时隐藏中间节点",
+    ),
     "collapseQuickSettingsPanel": MessageLookupByLibrary.simpleMessage(
       "收起快捷设置面板",
     ),
@@ -653,6 +659,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "loopback": MessageLookupByLibrary.simpleMessage("回环解锁工具"),
     "loopbackDesc": MessageLookupByLibrary.simpleMessage("用于 UWP 回环解锁"),
     "loose": MessageLookupByLibrary.simpleMessage("宽松"),
+    "manual": MessageLookupByLibrary.simpleMessage("手动"),
     "matchSourceIp": MessageLookupByLibrary.simpleMessage("匹配来源 IP"),
     "matchTarget": MessageLookupByLibrary.simpleMessage("MATCH-TARGET"),
     "matchTargetDesc": MessageLookupByLibrary.simpleMessage(
@@ -875,9 +882,13 @@ class MessageLookup extends MessageLookupByLibrary {
     "pureBlackMode": MessageLookupByLibrary.simpleMessage("纯黑模式"),
     "qrcode": MessageLookupByLibrary.simpleMessage("二维码"),
     "qrcodeDesc": MessageLookupByLibrary.simpleMessage("扫描二维码获取配置文件"),
+    "query": MessageLookupByLibrary.simpleMessage("查询"),
+    "queryDns": MessageLookupByLibrary.simpleMessage("查询 DNS"),
+    "queryRule": MessageLookupByLibrary.simpleMessage("规则查询"),
     "quickFill": MessageLookupByLibrary.simpleMessage("一键填入"),
     "rainbowScheme": MessageLookupByLibrary.simpleMessage("彩虹"),
     "random": MessageLookupByLibrary.simpleMessage("随机"),
+    "recentRequests": MessageLookupByLibrary.simpleMessage("最近请求"),
     "recordType": MessageLookupByLibrary.simpleMessage("记录类型"),
     "recvMsgX": MessageLookupByLibrary.simpleMessage("启用 RecvMsgX"),
     "recvMsgXDesc": MessageLookupByLibrary.simpleMessage("在 Darwin 上批量接收数据包"),
@@ -1038,12 +1049,38 @@ class MessageLookup extends MessageLookupByLibrary {
     "ruleActionUidDesc": MessageLookupByLibrary.simpleMessage(
       "匹配 Linux USER ID",
     ),
+    "ruleDisabled": MessageLookupByLibrary.simpleMessage("已禁用"),
     "ruleEmpty": MessageLookupByLibrary.simpleMessage("规则为空"),
+    "ruleEnabled": MessageLookupByLibrary.simpleMessage("已启用"),
+    "ruleHits": MessageLookupByLibrary.simpleMessage("命中"),
+    "ruleLastHit": MessageLookupByLibrary.simpleMessage("最后命中"),
+    "ruleLastMiss": MessageLookupByLibrary.simpleMessage("最后未命中"),
+    "ruleMisses": MessageLookupByLibrary.simpleMessage("未命中"),
     "ruleName": MessageLookupByLibrary.simpleMessage("规则名称"),
+    "ruleQueryDestinationIP": MessageLookupByLibrary.simpleMessage("目标 IP"),
+    "ruleQueryInboundName": MessageLookupByLibrary.simpleMessage("入站名称"),
+    "ruleQueryInboundUser": MessageLookupByLibrary.simpleMessage("入站用户"),
+    "ruleQueryInvalidIP": MessageLookupByLibrary.simpleMessage("请输入有效的 IP 地址。"),
+    "ruleQueryNoMatch": MessageLookupByLibrary.simpleMessage(
+      "未命中规则（模式策略或 DIRECT 回退）",
+    ),
+    "ruleQueryNumberRange": m28,
+    "ruleQueryPortInvalid": MessageLookupByLibrary.simpleMessage(
+      "请输入 1 到 65535 之间的端口。",
+    ),
+    "ruleQueryProcessPath": MessageLookupByLibrary.simpleMessage("进程路径"),
+    "ruleQuerySniffHost": MessageLookupByLibrary.simpleMessage("嗅探域名"),
+    "ruleQuerySourcePort": MessageLookupByLibrary.simpleMessage("来源端口"),
+    "ruleQueryTarget": MessageLookupByLibrary.simpleMessage("域名或 IP 地址"),
     "ruleSet": MessageLookupByLibrary.simpleMessage("规则集"),
     "ruleTarget": MessageLookupByLibrary.simpleMessage("规则目标"),
+    "ruleType": MessageLookupByLibrary.simpleMessage("规则类型"),
+    "ruleUpdateFailed": MessageLookupByLibrary.simpleMessage(
+      "无法更改规则，配置可能已变化，请刷新后重试。",
+    ),
     "rules": MessageLookupByLibrary.simpleMessage("规则"),
-    "rulesCount": m28,
+    "rulesCount": m29,
+    "rulesDesc": MessageLookupByLibrary.simpleMessage("查看规则及匹配统计"),
     "save": MessageLookupByLibrary.simpleMessage("保存"),
     "saveChanges": MessageLookupByLibrary.simpleMessage("是否保存更改？"),
     "script": MessageLookupByLibrary.simpleMessage("脚本"),
@@ -1053,7 +1090,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "scrollToSelected": MessageLookupByLibrary.simpleMessage("滚动到已选"),
     "search": MessageLookupByLibrary.simpleMessage("搜索"),
     "seconds": MessageLookupByLibrary.simpleMessage("秒"),
-    "secondsCount": m29,
+    "secondsCount": m30,
     "selectAll": MessageLookupByLibrary.simpleMessage("全选"),
     "selectMatchTarget": MessageLookupByLibrary.simpleMessage(
       "选择 MATCH-TARGET",
@@ -1065,7 +1102,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "selectSplitStrategy": MessageLookupByLibrary.simpleMessage("请选择分流策略"),
     "selectSubRule": MessageLookupByLibrary.simpleMessage("请选择子规则"),
     "selected": MessageLookupByLibrary.simpleMessage("已选择"),
-    "selectedCountTitle": m30,
+    "selectedCountTitle": m31,
     "sendMsgX": MessageLookupByLibrary.simpleMessage("启用 SendMsgX"),
     "sendMsgXDesc": MessageLookupByLibrary.simpleMessage("在 Darwin 上批量发送数据包"),
     "server": MessageLookupByLibrary.simpleMessage("服务器"),
@@ -1197,8 +1234,8 @@ class MessageLookup extends MessageLookupByLibrary {
       "应用窗口失去焦点时使用怠速更新周期",
     ),
     "uiUpdateInterval": MessageLookupByLibrary.simpleMessage("UI 信息更新周期"),
-    "uiUpdateIntervalDesc": m31,
-    "uiUpdateIntervalIdleDisabledDesc": m32,
+    "uiUpdateIntervalDesc": m32,
+    "uiUpdateIntervalIdleDisabledDesc": m33,
     "unauthorized": MessageLookupByLibrary.simpleMessage("未授权"),
     "undo": MessageLookupByLibrary.simpleMessage("撤销"),
     "unifiedDelay": MessageLookupByLibrary.simpleMessage("统一延迟"),
@@ -1251,9 +1288,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "whitelistMode": MessageLookupByLibrary.simpleMessage("白名单模式"),
     "writeToSystem": MessageLookupByLibrary.simpleMessage("写入系统"),
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage("同时设置系统时钟"),
-    "yearsAgo": m34,
+    "yearsAgo": m35,
     "yes": MessageLookupByLibrary.simpleMessage("是"),
-    "zhCN": MessageLookupByLibrary.simpleMessage("中文简体"),
-    "zhTW": MessageLookupByLibrary.simpleMessage("中文繁体"),
+    "zhCN": MessageLookupByLibrary.simpleMessage("简体中文"),
+    "zhTW": MessageLookupByLibrary.simpleMessage("繁体中文"),
   };
 }

@@ -133,6 +133,12 @@ class _DnsQueriesViewState extends ConsumerState<DnsQueriesView> {
     _core.stopDnsNotify();
   }
 
+  Future<void> _showLookupDialog() async {
+    await dialogs.showCommonDialog<void>(
+      child: DnsLookupDialog(onQuery: _core.queryDns),
+    );
+  }
+
   void _updateDnsQueriesThrottler() {
     throttler.call(FunctionTag.dnsQueries, () {
       if (!mounted) {
@@ -151,6 +157,17 @@ class _DnsQueriesViewState extends ConsumerState<DnsQueriesView> {
           visible: _showFilterBar,
           filter: _filter,
           onPressed: _toggleFilterBar,
+        ),
+        Consumer(
+          builder: (_, ref, _) {
+            final isConnected =
+                ref.watch(coreStatusProvider) == CoreStatus.connected;
+            return IconButton(
+              tooltip: appLocalizations.queryDns,
+              onPressed: isConnected ? _showLookupDialog : null,
+              icon: const Icon(Symbols.send),
+            );
+          },
         ),
       ],
       searchState: AppBarSearchState(
@@ -251,6 +268,206 @@ class _DnsQueriesViewState extends ConsumerState<DnsQueriesView> {
   }
 }
 
+void showDnsQueryDetail(
+  BuildContext context, {
+  required DnsQuery dnsQuery,
+  DnsQueryFilter filter = const DnsQueryFilter(),
+  void Function(DnsQueryFilterType type, String value)? onClickFilter,
+}) {
+  showExtend(
+    context,
+    builder: (_) {
+      return AdaptiveSheetScaffold(
+        sheetTransparentToolBar: true,
+        title: context.appLocalizations.details('DNS'),
+        body: DnsQueryDetailView(
+          dnsQuery: dnsQuery,
+          filter: filter,
+          onClickFilter: onClickFilter,
+        ),
+      );
+    },
+  );
+}
+
+const dnsLookupTypes = [
+  'A',
+  'AAAA',
+  'CNAME',
+  'HTTPS',
+  'MX',
+  'TXT',
+  'NS',
+  'SRV',
+];
+
+class DnsLookupDialog extends StatefulWidget {
+  final Future<DnsQuery> Function(String domain, String type) onQuery;
+
+  const DnsLookupDialog({super.key, required this.onQuery});
+
+  @override
+  State<DnsLookupDialog> createState() => _DnsLookupDialogState();
+}
+
+class _DnsLookupDialogState extends State<DnsLookupDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _domainController = TextEditingController();
+  String _type = dnsLookupTypes.first;
+  bool _querying = false;
+  String? _error;
+  DnsQuery? _result;
+
+  @override
+  void dispose() {
+    _domainController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_querying || !(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+    setState(() {
+      _querying = true;
+      _error = null;
+      _result = null;
+    });
+    try {
+      final dnsQuery = await widget.onQuery(
+        _domainController.text.trim(),
+        _type,
+      );
+      if (mounted) {
+        _result = dnsQuery;
+      }
+    } catch (error) {
+      if (mounted) {
+        _error = userFacingErrorMessage(error, context.appLocalizations);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _querying = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appLocalizations = context.appLocalizations;
+    final error = _error;
+    final result = _result;
+    return CommonDialog(
+      title: appLocalizations.queryDns,
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(appLocalizations.close),
+        ),
+        _querying
+            ? TextButton.icon(
+                onPressed: null,
+                icon: const SizedBox.square(
+                  dimension: 18,
+                  child: CommonCircleLoading(),
+                ),
+                label: Text(appLocalizations.query),
+              )
+            : TextButton(
+                onPressed: _submit,
+                child: Text(appLocalizations.query),
+              ),
+      ],
+      child: Form(
+        key: _formKey,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            spacing: 16,
+            children: [
+              TextFormField(
+                autofocus: true,
+                enabled: !_querying,
+                controller: _domainController,
+                keyboardType: TextInputType.url,
+                inputFormatters: TextInputLimits.limit(TextInputLimits.domain),
+                onFieldSubmitted: (_) => _submit(),
+                decoration: InputDecoration(labelText: appLocalizations.domain),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return appLocalizations.emptyTip(appLocalizations.domain);
+                  }
+                  return null;
+                },
+              ),
+              FilledButton.tonal(
+                key: const ValueKey('dns-query-type'),
+                onPressed: _querying
+                    ? null
+                    : () async {
+                        final type = await dialogs.showCommonDialog<String>(
+                          filter: false,
+                          child: OptionsDialog<String>(
+                            title: appLocalizations.recordType,
+                            options: dnsLookupTypes,
+                            textBuilder: (item) => item,
+                            value: _type,
+                          ),
+                        );
+                        if (mounted && type != null) {
+                          setState(() => _type = type);
+                        }
+                      },
+                child: Text(_type),
+              ),
+              if (error != null)
+                Text(
+                  error,
+                  style: context.textTheme.bodyMedium?.copyWith(
+                    color: context.colorScheme.error,
+                  ),
+                ),
+              if (result != null) ...[
+                const Divider(),
+                for (final (label, value) in [
+                  (appLocalizations.domain, result.domain),
+                  (appLocalizations.recordType, result.type),
+                  (appLocalizations.answers, result.answers.join('\n')),
+                  (appLocalizations.responseCode, result.rcode),
+                  (appLocalizations.source, result.upstream),
+                  (
+                    appLocalizations.cache,
+                    result.cached ? appLocalizations.yes : appLocalizations.no,
+                  ),
+                  (appLocalizations.delay, '${result.delay} ms'),
+                  (appLocalizations.error, result.error),
+                ])
+                  if (value.isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(label, style: context.textTheme.labelMedium),
+                        SelectableText(
+                          value,
+                          style: label == appLocalizations.error
+                              ? TextStyle(color: context.colorScheme.error)
+                              : null,
+                        ),
+                      ],
+                    ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class DnsQueryItem extends StatelessWidget {
   final DnsQuery dnsQuery;
   final DnsQueryFilter filter;
@@ -264,19 +481,11 @@ class DnsQueryItem extends StatelessWidget {
   });
 
   void _showDetail(BuildContext context) {
-    showExtend(
+    showDnsQueryDetail(
       context,
-      builder: (_) {
-        return AdaptiveSheetScaffold(
-          sheetTransparentToolBar: true,
-          title: context.appLocalizations.details('DNS'),
-          body: DnsQueryDetailView(
-            dnsQuery: dnsQuery,
-            filter: filter,
-            onClickFilter: onClickFilter,
-          ),
-        );
-      },
+      dnsQuery: dnsQuery,
+      filter: filter,
+      onClickFilter: onClickFilter,
     );
   }
 

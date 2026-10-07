@@ -164,6 +164,14 @@ class CoreController {
     await _interface.closeConnections();
   }
 
+  Future<List<CoreRule>> getRules() {
+    return _interface.getRules();
+  }
+
+  Future<bool> setRuleDisabled(SetRuleDisabledParams params) {
+    return _interface.setRuleDisabled(params);
+  }
+
   Future<void> resetConnections() async {
     await _interface.resetConnections();
   }
@@ -284,6 +292,14 @@ class CoreController {
 
   void stopDnsNotify() {
     _interface.stopDnsNotify();
+  }
+
+  Future<DnsQuery> queryDns(String domain, String type) {
+    return _interface.queryDns(domain, type);
+  }
+
+  Future<RuleQuery> queryRule(RuleQueryParams params) {
+    return _interface.queryRule(params);
   }
 
   Future<void> requestGc() async {

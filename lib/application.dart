@@ -27,8 +27,7 @@ Widget buildManagerStack({
 }) {
   final platformApp = switch ((isDesktop, isAndroid)) {
     (true, _) => WindowHeaderContainer(child: child),
-    (false, true) => VpnManager(child: child),
-    _ => child,
+    (false, _) => VpnManager(child: child),
   };
   final state = AppStateManager(
     child: CoreManager(
@@ -231,7 +230,10 @@ class ApplicationState extends ConsumerState<Application> {
                   ).toPureBlack(themeProps.pureBlack),
                   tooltipTheme: _tooltipTheme,
                 ).withAppShapes,
-                home: child!,
+                onGenerateRoute: (settings) => CommonRoute<void>(
+                  settings: settings,
+                  builder: (_) => child!,
+                ),
               ),
             );
           },

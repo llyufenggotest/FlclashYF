@@ -1319,6 +1319,7 @@ func init() {
 	}
 	dns.DefaultQueryNotify = func(record dns.QueryRecord) {
 		query := newDnsQuery(record)
+		observeManualDnsQuery(record, query)
 		dnsNotifyMu.Lock()
 		if !dnsNotifyEnabled {
 			cacheDnsQuery(query)

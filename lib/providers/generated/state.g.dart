@@ -9,6 +9,105 @@ part of '../state.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 
+@ProviderFor(profileReloadState)
+final profileReloadStateProvider = ProfileReloadStateProvider._();
+
+final class ProfileReloadStateProvider
+    extends
+        $FunctionalProvider<
+          ({
+            bool appendSystemDns,
+            PatchClashConfig config,
+            bool overrideDns,
+            bool overrideNtp,
+          }),
+          ({
+            bool appendSystemDns,
+            PatchClashConfig config,
+            bool overrideDns,
+            bool overrideNtp,
+          }),
+          ({
+            bool appendSystemDns,
+            PatchClashConfig config,
+            bool overrideDns,
+            bool overrideNtp,
+          })
+        >
+    with
+        $Provider<
+          ({
+            bool appendSystemDns,
+            PatchClashConfig config,
+            bool overrideDns,
+            bool overrideNtp,
+          })
+        > {
+  ProfileReloadStateProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'profileReloadStateProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$profileReloadStateHash();
+
+  @$internal
+  @override
+  $ProviderElement<
+    ({
+      bool appendSystemDns,
+      PatchClashConfig config,
+      bool overrideDns,
+      bool overrideNtp,
+    })
+  >
+  $createElement($ProviderPointer pointer) => $ProviderElement(pointer);
+
+  @override
+  ({
+    bool appendSystemDns,
+    PatchClashConfig config,
+    bool overrideDns,
+    bool overrideNtp,
+  })
+  create(Ref ref) {
+    return profileReloadState(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(
+    ({
+      bool appendSystemDns,
+      PatchClashConfig config,
+      bool overrideDns,
+      bool overrideNtp,
+    })
+    value,
+  ) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride:
+          $SyncValueProvider<
+            ({
+              bool appendSystemDns,
+              PatchClashConfig config,
+              bool overrideDns,
+              bool overrideNtp,
+            })
+          >(value),
+    );
+  }
+}
+
+String _$profileReloadStateHash() =>
+    r'a377e23a71619e9361aedacff6cbf7eb31925c01';
+
 @ProviderFor(updateParams)
 final updateParamsProvider = UpdateParamsProvider._();
 
@@ -1270,7 +1369,7 @@ final class CurrentGroupsStateProvider
 }
 
 String _$currentGroupsStateHash() =>
-    r'7c895dbf7637e670214a5120ac4eb3faf3543c84';
+    r'3feef67f3d12cbb8af60b3bbee72288bec05909d';
 
 @ProviderFor(proxyState)
 final proxyStateProvider = ProxyStateProvider._();
@@ -1418,7 +1517,7 @@ final class FilterGroupsStateProvider
   }
 }
 
-String _$filterGroupsStateHash() => r'4df3532467e0886d9de7044e78222295262eebf8';
+String _$filterGroupsStateHash() => r'466a3018ce51017efa5b943ca4c3be179cc95f5d';
 
 final class FilterGroupsStateFamily extends $Family
     with $FunctionalFamilyOverride<GroupsState, String> {
@@ -3076,6 +3175,57 @@ final class ClashConfigFamily extends $Family
   String toString() => r'clashConfigProvider';
 }
 
+@ProviderFor(activeAddedRules)
+final activeAddedRulesProvider = ActiveAddedRulesProvider._();
+
+final class ActiveAddedRulesProvider
+    extends
+        $FunctionalProvider<
+          ({int? profileId, AsyncValue<List<Rule>> rules}),
+          ({int? profileId, AsyncValue<List<Rule>> rules}),
+          ({int? profileId, AsyncValue<List<Rule>> rules})
+        >
+    with $Provider<({int? profileId, AsyncValue<List<Rule>> rules})> {
+  ActiveAddedRulesProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'activeAddedRulesProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$activeAddedRulesHash();
+
+  @$internal
+  @override
+  $ProviderElement<({int? profileId, AsyncValue<List<Rule>> rules})>
+  $createElement($ProviderPointer pointer) => $ProviderElement(pointer);
+
+  @override
+  ({int? profileId, AsyncValue<List<Rule>> rules}) create(Ref ref) {
+    return activeAddedRules(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(
+    ({int? profileId, AsyncValue<List<Rule>> rules}) value,
+  ) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride:
+          $SyncValueProvider<({int? profileId, AsyncValue<List<Rule>> rules})>(
+            value,
+          ),
+    );
+  }
+}
+
+String _$activeAddedRulesHash() => r'f190849f2d47ec0c0a39b4921e59299098694069';
+
 @ProviderFor(setupState)
 final setupStateProvider = SetupStateFamily._();
 
@@ -3130,7 +3280,7 @@ final class SetupStateProvider
   }
 }
 
-String _$setupStateHash() => r'2c7e491f0c373a8ad8f982f1571bf35c30b3447b';
+String _$setupStateHash() => r'4f739aac7069de2ef67cee12e4bf433a59fd9ade';
 
 final class SetupStateFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<SetupState>, int?> {

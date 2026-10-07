@@ -6,6 +6,46 @@ part 'generated/core.freezed.dart';
 part 'generated/core.g.dart';
 
 @freezed
+abstract class RuleQueryParams with _$RuleQueryParams {
+  const factory RuleQueryParams({
+    required String target,
+    @Default(443) int port,
+    @Default(Network.tcp) Network network,
+    @JsonKey(includeIfNull: false) String? sourceIP,
+    @JsonKey(includeIfNull: false) int? sourcePort,
+    @JsonKey(includeIfNull: false) String? destinationIP,
+    @JsonKey(includeIfNull: false) String? process,
+    @JsonKey(includeIfNull: false) String? processPath,
+    @JsonKey(includeIfNull: false) int? uid,
+    @JsonKey(includeIfNull: false) String? inboundName,
+    @JsonKey(includeIfNull: false) String? inboundUser,
+    @JsonKey(includeIfNull: false) String? sniffHost,
+    @JsonKey(includeIfNull: false) int? dscp,
+  }) = _RuleQueryParams;
+
+  factory RuleQueryParams.fromJson(Map<String, dynamic> json) =>
+      _$RuleQueryParamsFromJson(json);
+}
+
+@freezed
+abstract class RuleQuery with _$RuleQuery {
+  const factory RuleQuery({
+    required String target,
+    required int port,
+    required Network network,
+    required Mode mode,
+    required String rule,
+    required String rulePayload,
+    required String proxy,
+    required String ip,
+    required int delay,
+  }) = _RuleQuery;
+
+  factory RuleQuery.fromJson(Map<String, dynamic> json) =>
+      _$RuleQueryFromJson(json);
+}
+
+@freezed
 abstract class SetupParams with _$SetupParams {
   const factory SetupParams({
     @JsonKey(name: 'selected-map') required Map<String, String> selectedMap,
@@ -197,6 +237,51 @@ extension ExternalProviderExt on ExternalProvider {
 
   bool get canEditAsText =>
       type != 'Rule' || format == 'YamlRule' || format == 'TextRule';
+}
+
+@freezed
+abstract class CoreRule with _$CoreRule {
+  const factory CoreRule({
+    required int index,
+    required String type,
+    @Default('') String payload,
+    @Default('') String proxy,
+    @Default(-1) int size,
+    @Default(false) bool disabled,
+    @Default(0) int hitCount,
+    DateTime? hitAt,
+    @Default(0) int missCount,
+    DateTime? missAt,
+  }) = _CoreRule;
+
+  factory CoreRule.fromJson(Map<String, Object?> json) =>
+      _$CoreRuleFromJson(json);
+}
+
+extension CoreRuleExt on CoreRule {
+  List<String> get searchFields => [type, payload, proxy];
+
+  SetRuleDisabledParams toDisabledParams(bool disabled) {
+    return SetRuleDisabledParams(
+      index: index,
+      type: type,
+      payload: payload,
+      disabled: disabled,
+    );
+  }
+}
+
+@freezed
+abstract class SetRuleDisabledParams with _$SetRuleDisabledParams {
+  const factory SetRuleDisabledParams({
+    required int index,
+    required String type,
+    required String payload,
+    required bool disabled,
+  }) = _SetRuleDisabledParams;
+
+  factory SetRuleDisabledParams.fromJson(Map<String, Object?> json) =>
+      _$SetRuleDisabledParamsFromJson(json);
 }
 
 class TailscaleNode {

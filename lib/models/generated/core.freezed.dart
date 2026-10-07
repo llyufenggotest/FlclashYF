@@ -14,6 +14,606 @@ part of '../core.dart';
 T _$identity<T>(T value) => value;
 
 /// @nodoc
+mixin _$RuleQueryParams {
+
+ String get target; int get port; Network get network;@JsonKey(includeIfNull: false) String? get sourceIP;@JsonKey(includeIfNull: false) int? get sourcePort;@JsonKey(includeIfNull: false) String? get destinationIP;@JsonKey(includeIfNull: false) String? get process;@JsonKey(includeIfNull: false) String? get processPath;@JsonKey(includeIfNull: false) int? get uid;@JsonKey(includeIfNull: false) String? get inboundName;@JsonKey(includeIfNull: false) String? get inboundUser;@JsonKey(includeIfNull: false) String? get sniffHost;@JsonKey(includeIfNull: false) int? get dscp;
+/// Create a copy of RuleQueryParams
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$RuleQueryParamsCopyWith<RuleQueryParams> get copyWith => _$RuleQueryParamsCopyWithImpl<RuleQueryParams>(this as RuleQueryParams, _$identity);
+
+  /// Serializes this RuleQueryParams to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as RuleQueryParams;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RuleQueryParams&&(identical(other.target, _this.target) || other.target == _this.target)&&(identical(other.port, _this.port) || other.port == _this.port)&&(identical(other.network, _this.network) || other.network == _this.network)&&(identical(other.sourceIP, _this.sourceIP) || other.sourceIP == _this.sourceIP)&&(identical(other.sourcePort, _this.sourcePort) || other.sourcePort == _this.sourcePort)&&(identical(other.destinationIP, _this.destinationIP) || other.destinationIP == _this.destinationIP)&&(identical(other.process, _this.process) || other.process == _this.process)&&(identical(other.processPath, _this.processPath) || other.processPath == _this.processPath)&&(identical(other.uid, _this.uid) || other.uid == _this.uid)&&(identical(other.inboundName, _this.inboundName) || other.inboundName == _this.inboundName)&&(identical(other.inboundUser, _this.inboundUser) || other.inboundUser == _this.inboundUser)&&(identical(other.sniffHost, _this.sniffHost) || other.sniffHost == _this.sniffHost)&&(identical(other.dscp, _this.dscp) || other.dscp == _this.dscp));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as RuleQueryParams;
+  return Object.hash(runtimeType,_this.target,_this.port,_this.network,_this.sourceIP,_this.sourcePort,_this.destinationIP,_this.process,_this.processPath,_this.uid,_this.inboundName,_this.inboundUser,_this.sniffHost,_this.dscp);
+}
+
+@override
+String toString() {
+  final _this = this as RuleQueryParams;
+  return 'RuleQueryParams(target: ${_this.target}, port: ${_this.port}, network: ${_this.network}, sourceIP: ${_this.sourceIP}, sourcePort: ${_this.sourcePort}, destinationIP: ${_this.destinationIP}, process: ${_this.process}, processPath: ${_this.processPath}, uid: ${_this.uid}, inboundName: ${_this.inboundName}, inboundUser: ${_this.inboundUser}, sniffHost: ${_this.sniffHost}, dscp: ${_this.dscp})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $RuleQueryParamsCopyWith<$Res>  {
+  factory $RuleQueryParamsCopyWith(RuleQueryParams value, $Res Function(RuleQueryParams) _then) = _$RuleQueryParamsCopyWithImpl;
+@useResult
+$Res call({
+ String target, int port, Network network,@JsonKey(includeIfNull: false) String? sourceIP,@JsonKey(includeIfNull: false) int? sourcePort,@JsonKey(includeIfNull: false) String? destinationIP,@JsonKey(includeIfNull: false) String? process,@JsonKey(includeIfNull: false) String? processPath,@JsonKey(includeIfNull: false) int? uid,@JsonKey(includeIfNull: false) String? inboundName,@JsonKey(includeIfNull: false) String? inboundUser,@JsonKey(includeIfNull: false) String? sniffHost,@JsonKey(includeIfNull: false) int? dscp
+});
+
+
+
+
+}
+/// @nodoc
+class _$RuleQueryParamsCopyWithImpl<$Res>
+    implements $RuleQueryParamsCopyWith<$Res> {
+  _$RuleQueryParamsCopyWithImpl(this._self, this._then);
+
+  final RuleQueryParams _self;
+  final $Res Function(RuleQueryParams) _then;
+
+/// Create a copy of RuleQueryParams
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? target = null,Object? port = null,Object? network = null,Object? sourceIP = freezed,Object? sourcePort = freezed,Object? destinationIP = freezed,Object? process = freezed,Object? processPath = freezed,Object? uid = freezed,Object? inboundName = freezed,Object? inboundUser = freezed,Object? sniffHost = freezed,Object? dscp = freezed,}) {
+  return _then(RuleQueryParams(
+target: null == target ? _self.target : target // ignore: cast_nullable_to_non_nullable
+as String,port: null == port ? _self.port : port // ignore: cast_nullable_to_non_nullable
+as int,network: null == network ? _self.network : network // ignore: cast_nullable_to_non_nullable
+as Network,sourceIP: freezed == sourceIP ? _self.sourceIP : sourceIP // ignore: cast_nullable_to_non_nullable
+as String?,sourcePort: freezed == sourcePort ? _self.sourcePort : sourcePort // ignore: cast_nullable_to_non_nullable
+as int?,destinationIP: freezed == destinationIP ? _self.destinationIP : destinationIP // ignore: cast_nullable_to_non_nullable
+as String?,process: freezed == process ? _self.process : process // ignore: cast_nullable_to_non_nullable
+as String?,processPath: freezed == processPath ? _self.processPath : processPath // ignore: cast_nullable_to_non_nullable
+as String?,uid: freezed == uid ? _self.uid : uid // ignore: cast_nullable_to_non_nullable
+as int?,inboundName: freezed == inboundName ? _self.inboundName : inboundName // ignore: cast_nullable_to_non_nullable
+as String?,inboundUser: freezed == inboundUser ? _self.inboundUser : inboundUser // ignore: cast_nullable_to_non_nullable
+as String?,sniffHost: freezed == sniffHost ? _self.sniffHost : sniffHost // ignore: cast_nullable_to_non_nullable
+as String?,dscp: freezed == dscp ? _self.dscp : dscp // ignore: cast_nullable_to_non_nullable
+as int?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [RuleQueryParams].
+extension RuleQueryParamsPatterns on RuleQueryParams {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _RuleQueryParams value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _RuleQueryParams() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _RuleQueryParams value)  $default,){
+final _that = this;
+switch (_that) {
+case _RuleQueryParams():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _RuleQueryParams value)?  $default,){
+final _that = this;
+switch (_that) {
+case _RuleQueryParams() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String target,  int port,  Network network, @JsonKey(includeIfNull: false)  String? sourceIP, @JsonKey(includeIfNull: false)  int? sourcePort, @JsonKey(includeIfNull: false)  String? destinationIP, @JsonKey(includeIfNull: false)  String? process, @JsonKey(includeIfNull: false)  String? processPath, @JsonKey(includeIfNull: false)  int? uid, @JsonKey(includeIfNull: false)  String? inboundName, @JsonKey(includeIfNull: false)  String? inboundUser, @JsonKey(includeIfNull: false)  String? sniffHost, @JsonKey(includeIfNull: false)  int? dscp)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _RuleQueryParams() when $default != null:
+return $default(_that.target,_that.port,_that.network,_that.sourceIP,_that.sourcePort,_that.destinationIP,_that.process,_that.processPath,_that.uid,_that.inboundName,_that.inboundUser,_that.sniffHost,_that.dscp);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String target,  int port,  Network network, @JsonKey(includeIfNull: false)  String? sourceIP, @JsonKey(includeIfNull: false)  int? sourcePort, @JsonKey(includeIfNull: false)  String? destinationIP, @JsonKey(includeIfNull: false)  String? process, @JsonKey(includeIfNull: false)  String? processPath, @JsonKey(includeIfNull: false)  int? uid, @JsonKey(includeIfNull: false)  String? inboundName, @JsonKey(includeIfNull: false)  String? inboundUser, @JsonKey(includeIfNull: false)  String? sniffHost, @JsonKey(includeIfNull: false)  int? dscp)  $default,) {final _that = this;
+switch (_that) {
+case _RuleQueryParams():
+return $default(_that.target,_that.port,_that.network,_that.sourceIP,_that.sourcePort,_that.destinationIP,_that.process,_that.processPath,_that.uid,_that.inboundName,_that.inboundUser,_that.sniffHost,_that.dscp);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String target,  int port,  Network network, @JsonKey(includeIfNull: false)  String? sourceIP, @JsonKey(includeIfNull: false)  int? sourcePort, @JsonKey(includeIfNull: false)  String? destinationIP, @JsonKey(includeIfNull: false)  String? process, @JsonKey(includeIfNull: false)  String? processPath, @JsonKey(includeIfNull: false)  int? uid, @JsonKey(includeIfNull: false)  String? inboundName, @JsonKey(includeIfNull: false)  String? inboundUser, @JsonKey(includeIfNull: false)  String? sniffHost, @JsonKey(includeIfNull: false)  int? dscp)?  $default,) {final _that = this;
+switch (_that) {
+case _RuleQueryParams() when $default != null:
+return $default(_that.target,_that.port,_that.network,_that.sourceIP,_that.sourcePort,_that.destinationIP,_that.process,_that.processPath,_that.uid,_that.inboundName,_that.inboundUser,_that.sniffHost,_that.dscp);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _RuleQueryParams implements RuleQueryParams {
+  const _RuleQueryParams({required this.target, this.port = 443, this.network = Network.tcp, @JsonKey(includeIfNull: false) this.sourceIP, @JsonKey(includeIfNull: false) this.sourcePort, @JsonKey(includeIfNull: false) this.destinationIP, @JsonKey(includeIfNull: false) this.process, @JsonKey(includeIfNull: false) this.processPath, @JsonKey(includeIfNull: false) this.uid, @JsonKey(includeIfNull: false) this.inboundName, @JsonKey(includeIfNull: false) this.inboundUser, @JsonKey(includeIfNull: false) this.sniffHost, @JsonKey(includeIfNull: false) this.dscp});
+  factory _RuleQueryParams.fromJson(Map<String, dynamic> json) => _$RuleQueryParamsFromJson(json);
+
+@override final  String target;
+@override@JsonKey() final  int port;
+@override@JsonKey() final  Network network;
+@override@JsonKey(includeIfNull: false) final  String? sourceIP;
+@override@JsonKey(includeIfNull: false) final  int? sourcePort;
+@override@JsonKey(includeIfNull: false) final  String? destinationIP;
+@override@JsonKey(includeIfNull: false) final  String? process;
+@override@JsonKey(includeIfNull: false) final  String? processPath;
+@override@JsonKey(includeIfNull: false) final  int? uid;
+@override@JsonKey(includeIfNull: false) final  String? inboundName;
+@override@JsonKey(includeIfNull: false) final  String? inboundUser;
+@override@JsonKey(includeIfNull: false) final  String? sniffHost;
+@override@JsonKey(includeIfNull: false) final  int? dscp;
+
+/// Create a copy of RuleQueryParams
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$RuleQueryParamsCopyWith<_RuleQueryParams> get copyWith => __$RuleQueryParamsCopyWithImpl<_RuleQueryParams>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$RuleQueryParamsToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _RuleQueryParams&&(identical(other.target, target) || other.target == target)&&(identical(other.port, port) || other.port == port)&&(identical(other.network, network) || other.network == network)&&(identical(other.sourceIP, sourceIP) || other.sourceIP == sourceIP)&&(identical(other.sourcePort, sourcePort) || other.sourcePort == sourcePort)&&(identical(other.destinationIP, destinationIP) || other.destinationIP == destinationIP)&&(identical(other.process, process) || other.process == process)&&(identical(other.processPath, processPath) || other.processPath == processPath)&&(identical(other.uid, uid) || other.uid == uid)&&(identical(other.inboundName, inboundName) || other.inboundName == inboundName)&&(identical(other.inboundUser, inboundUser) || other.inboundUser == inboundUser)&&(identical(other.sniffHost, sniffHost) || other.sniffHost == sniffHost)&&(identical(other.dscp, dscp) || other.dscp == dscp));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,target,port,network,sourceIP,sourcePort,destinationIP,process,processPath,uid,inboundName,inboundUser,sniffHost,dscp);
+}
+
+@override
+String toString() {
+    return 'RuleQueryParams(target: $target, port: $port, network: $network, sourceIP: $sourceIP, sourcePort: $sourcePort, destinationIP: $destinationIP, process: $process, processPath: $processPath, uid: $uid, inboundName: $inboundName, inboundUser: $inboundUser, sniffHost: $sniffHost, dscp: $dscp)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$RuleQueryParamsCopyWith<$Res> implements $RuleQueryParamsCopyWith<$Res> {
+  factory _$RuleQueryParamsCopyWith(_RuleQueryParams value, $Res Function(_RuleQueryParams) _then) = __$RuleQueryParamsCopyWithImpl;
+@override @useResult
+$Res call({
+ String target, int port, Network network,@JsonKey(includeIfNull: false) String? sourceIP,@JsonKey(includeIfNull: false) int? sourcePort,@JsonKey(includeIfNull: false) String? destinationIP,@JsonKey(includeIfNull: false) String? process,@JsonKey(includeIfNull: false) String? processPath,@JsonKey(includeIfNull: false) int? uid,@JsonKey(includeIfNull: false) String? inboundName,@JsonKey(includeIfNull: false) String? inboundUser,@JsonKey(includeIfNull: false) String? sniffHost,@JsonKey(includeIfNull: false) int? dscp
+});
+
+
+
+
+}
+/// @nodoc
+class __$RuleQueryParamsCopyWithImpl<$Res>
+    implements _$RuleQueryParamsCopyWith<$Res> {
+  __$RuleQueryParamsCopyWithImpl(this._self, this._then);
+
+  final _RuleQueryParams _self;
+  final $Res Function(_RuleQueryParams) _then;
+
+/// Create a copy of RuleQueryParams
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? target = null,Object? port = null,Object? network = null,Object? sourceIP = freezed,Object? sourcePort = freezed,Object? destinationIP = freezed,Object? process = freezed,Object? processPath = freezed,Object? uid = freezed,Object? inboundName = freezed,Object? inboundUser = freezed,Object? sniffHost = freezed,Object? dscp = freezed,}) {
+  return _then(_RuleQueryParams(
+target: null == target ? _self.target : target // ignore: cast_nullable_to_non_nullable
+as String,port: null == port ? _self.port : port // ignore: cast_nullable_to_non_nullable
+as int,network: null == network ? _self.network : network // ignore: cast_nullable_to_non_nullable
+as Network,sourceIP: freezed == sourceIP ? _self.sourceIP : sourceIP // ignore: cast_nullable_to_non_nullable
+as String?,sourcePort: freezed == sourcePort ? _self.sourcePort : sourcePort // ignore: cast_nullable_to_non_nullable
+as int?,destinationIP: freezed == destinationIP ? _self.destinationIP : destinationIP // ignore: cast_nullable_to_non_nullable
+as String?,process: freezed == process ? _self.process : process // ignore: cast_nullable_to_non_nullable
+as String?,processPath: freezed == processPath ? _self.processPath : processPath // ignore: cast_nullable_to_non_nullable
+as String?,uid: freezed == uid ? _self.uid : uid // ignore: cast_nullable_to_non_nullable
+as int?,inboundName: freezed == inboundName ? _self.inboundName : inboundName // ignore: cast_nullable_to_non_nullable
+as String?,inboundUser: freezed == inboundUser ? _self.inboundUser : inboundUser // ignore: cast_nullable_to_non_nullable
+as String?,sniffHost: freezed == sniffHost ? _self.sniffHost : sniffHost // ignore: cast_nullable_to_non_nullable
+as String?,dscp: freezed == dscp ? _self.dscp : dscp // ignore: cast_nullable_to_non_nullable
+as int?,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$RuleQuery {
+
+ String get target; int get port; Network get network; Mode get mode; String get rule; String get rulePayload; String get proxy; String get ip; int get delay;
+/// Create a copy of RuleQuery
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$RuleQueryCopyWith<RuleQuery> get copyWith => _$RuleQueryCopyWithImpl<RuleQuery>(this as RuleQuery, _$identity);
+
+  /// Serializes this RuleQuery to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as RuleQuery;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RuleQuery&&(identical(other.target, _this.target) || other.target == _this.target)&&(identical(other.port, _this.port) || other.port == _this.port)&&(identical(other.network, _this.network) || other.network == _this.network)&&(identical(other.mode, _this.mode) || other.mode == _this.mode)&&(identical(other.rule, _this.rule) || other.rule == _this.rule)&&(identical(other.rulePayload, _this.rulePayload) || other.rulePayload == _this.rulePayload)&&(identical(other.proxy, _this.proxy) || other.proxy == _this.proxy)&&(identical(other.ip, _this.ip) || other.ip == _this.ip)&&(identical(other.delay, _this.delay) || other.delay == _this.delay));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as RuleQuery;
+  return Object.hash(runtimeType,_this.target,_this.port,_this.network,_this.mode,_this.rule,_this.rulePayload,_this.proxy,_this.ip,_this.delay);
+}
+
+@override
+String toString() {
+  final _this = this as RuleQuery;
+  return 'RuleQuery(target: ${_this.target}, port: ${_this.port}, network: ${_this.network}, mode: ${_this.mode}, rule: ${_this.rule}, rulePayload: ${_this.rulePayload}, proxy: ${_this.proxy}, ip: ${_this.ip}, delay: ${_this.delay})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $RuleQueryCopyWith<$Res>  {
+  factory $RuleQueryCopyWith(RuleQuery value, $Res Function(RuleQuery) _then) = _$RuleQueryCopyWithImpl;
+@useResult
+$Res call({
+ String target, int port, Network network, Mode mode, String rule, String rulePayload, String proxy, String ip, int delay
+});
+
+
+
+
+}
+/// @nodoc
+class _$RuleQueryCopyWithImpl<$Res>
+    implements $RuleQueryCopyWith<$Res> {
+  _$RuleQueryCopyWithImpl(this._self, this._then);
+
+  final RuleQuery _self;
+  final $Res Function(RuleQuery) _then;
+
+/// Create a copy of RuleQuery
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? target = null,Object? port = null,Object? network = null,Object? mode = null,Object? rule = null,Object? rulePayload = null,Object? proxy = null,Object? ip = null,Object? delay = null,}) {
+  return _then(RuleQuery(
+target: null == target ? _self.target : target // ignore: cast_nullable_to_non_nullable
+as String,port: null == port ? _self.port : port // ignore: cast_nullable_to_non_nullable
+as int,network: null == network ? _self.network : network // ignore: cast_nullable_to_non_nullable
+as Network,mode: null == mode ? _self.mode : mode // ignore: cast_nullable_to_non_nullable
+as Mode,rule: null == rule ? _self.rule : rule // ignore: cast_nullable_to_non_nullable
+as String,rulePayload: null == rulePayload ? _self.rulePayload : rulePayload // ignore: cast_nullable_to_non_nullable
+as String,proxy: null == proxy ? _self.proxy : proxy // ignore: cast_nullable_to_non_nullable
+as String,ip: null == ip ? _self.ip : ip // ignore: cast_nullable_to_non_nullable
+as String,delay: null == delay ? _self.delay : delay // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [RuleQuery].
+extension RuleQueryPatterns on RuleQuery {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _RuleQuery value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _RuleQuery() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _RuleQuery value)  $default,){
+final _that = this;
+switch (_that) {
+case _RuleQuery():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _RuleQuery value)?  $default,){
+final _that = this;
+switch (_that) {
+case _RuleQuery() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String target,  int port,  Network network,  Mode mode,  String rule,  String rulePayload,  String proxy,  String ip,  int delay)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _RuleQuery() when $default != null:
+return $default(_that.target,_that.port,_that.network,_that.mode,_that.rule,_that.rulePayload,_that.proxy,_that.ip,_that.delay);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String target,  int port,  Network network,  Mode mode,  String rule,  String rulePayload,  String proxy,  String ip,  int delay)  $default,) {final _that = this;
+switch (_that) {
+case _RuleQuery():
+return $default(_that.target,_that.port,_that.network,_that.mode,_that.rule,_that.rulePayload,_that.proxy,_that.ip,_that.delay);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String target,  int port,  Network network,  Mode mode,  String rule,  String rulePayload,  String proxy,  String ip,  int delay)?  $default,) {final _that = this;
+switch (_that) {
+case _RuleQuery() when $default != null:
+return $default(_that.target,_that.port,_that.network,_that.mode,_that.rule,_that.rulePayload,_that.proxy,_that.ip,_that.delay);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _RuleQuery implements RuleQuery {
+  const _RuleQuery({required this.target, required this.port, required this.network, required this.mode, required this.rule, required this.rulePayload, required this.proxy, required this.ip, required this.delay});
+  factory _RuleQuery.fromJson(Map<String, dynamic> json) => _$RuleQueryFromJson(json);
+
+@override final  String target;
+@override final  int port;
+@override final  Network network;
+@override final  Mode mode;
+@override final  String rule;
+@override final  String rulePayload;
+@override final  String proxy;
+@override final  String ip;
+@override final  int delay;
+
+/// Create a copy of RuleQuery
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$RuleQueryCopyWith<_RuleQuery> get copyWith => __$RuleQueryCopyWithImpl<_RuleQuery>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$RuleQueryToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _RuleQuery&&(identical(other.target, target) || other.target == target)&&(identical(other.port, port) || other.port == port)&&(identical(other.network, network) || other.network == network)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.rule, rule) || other.rule == rule)&&(identical(other.rulePayload, rulePayload) || other.rulePayload == rulePayload)&&(identical(other.proxy, proxy) || other.proxy == proxy)&&(identical(other.ip, ip) || other.ip == ip)&&(identical(other.delay, delay) || other.delay == delay));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,target,port,network,mode,rule,rulePayload,proxy,ip,delay);
+}
+
+@override
+String toString() {
+    return 'RuleQuery(target: $target, port: $port, network: $network, mode: $mode, rule: $rule, rulePayload: $rulePayload, proxy: $proxy, ip: $ip, delay: $delay)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$RuleQueryCopyWith<$Res> implements $RuleQueryCopyWith<$Res> {
+  factory _$RuleQueryCopyWith(_RuleQuery value, $Res Function(_RuleQuery) _then) = __$RuleQueryCopyWithImpl;
+@override @useResult
+$Res call({
+ String target, int port, Network network, Mode mode, String rule, String rulePayload, String proxy, String ip, int delay
+});
+
+
+
+
+}
+/// @nodoc
+class __$RuleQueryCopyWithImpl<$Res>
+    implements _$RuleQueryCopyWith<$Res> {
+  __$RuleQueryCopyWithImpl(this._self, this._then);
+
+  final _RuleQuery _self;
+  final $Res Function(_RuleQuery) _then;
+
+/// Create a copy of RuleQuery
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? target = null,Object? port = null,Object? network = null,Object? mode = null,Object? rule = null,Object? rulePayload = null,Object? proxy = null,Object? ip = null,Object? delay = null,}) {
+  return _then(_RuleQuery(
+target: null == target ? _self.target : target // ignore: cast_nullable_to_non_nullable
+as String,port: null == port ? _self.port : port // ignore: cast_nullable_to_non_nullable
+as int,network: null == network ? _self.network : network // ignore: cast_nullable_to_non_nullable
+as Network,mode: null == mode ? _self.mode : mode // ignore: cast_nullable_to_non_nullable
+as Mode,rule: null == rule ? _self.rule : rule // ignore: cast_nullable_to_non_nullable
+as String,rulePayload: null == rulePayload ? _self.rulePayload : rulePayload // ignore: cast_nullable_to_non_nullable
+as String,proxy: null == proxy ? _self.proxy : proxy // ignore: cast_nullable_to_non_nullable
+as String,ip: null == ip ? _self.ip : ip // ignore: cast_nullable_to_non_nullable
+as String,delay: null == delay ? _self.delay : delay // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
 mixin _$SetupParams {
 
 @JsonKey(name: 'selected-map') Map<String, String> get selectedMap;@JsonKey(name: 'test-url') String get testUrl;
@@ -3769,6 +4369,582 @@ $SubscriptionInfoCopyWith<$Res>? get subscriptionInfo {
     return _then(_self.copyWith(subscriptionInfo: value));
   });
 }
+}
+
+
+/// @nodoc
+mixin _$CoreRule {
+
+ int get index; String get type; String get payload; String get proxy; int get size; bool get disabled; int get hitCount; DateTime? get hitAt; int get missCount; DateTime? get missAt;
+/// Create a copy of CoreRule
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$CoreRuleCopyWith<CoreRule> get copyWith => _$CoreRuleCopyWithImpl<CoreRule>(this as CoreRule, _$identity);
+
+  /// Serializes this CoreRule to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as CoreRule;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CoreRule&&(identical(other.index, _this.index) || other.index == _this.index)&&(identical(other.type, _this.type) || other.type == _this.type)&&(identical(other.payload, _this.payload) || other.payload == _this.payload)&&(identical(other.proxy, _this.proxy) || other.proxy == _this.proxy)&&(identical(other.size, _this.size) || other.size == _this.size)&&(identical(other.disabled, _this.disabled) || other.disabled == _this.disabled)&&(identical(other.hitCount, _this.hitCount) || other.hitCount == _this.hitCount)&&(identical(other.hitAt, _this.hitAt) || other.hitAt == _this.hitAt)&&(identical(other.missCount, _this.missCount) || other.missCount == _this.missCount)&&(identical(other.missAt, _this.missAt) || other.missAt == _this.missAt));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as CoreRule;
+  return Object.hash(runtimeType,_this.index,_this.type,_this.payload,_this.proxy,_this.size,_this.disabled,_this.hitCount,_this.hitAt,_this.missCount,_this.missAt);
+}
+
+@override
+String toString() {
+  final _this = this as CoreRule;
+  return 'CoreRule(index: ${_this.index}, type: ${_this.type}, payload: ${_this.payload}, proxy: ${_this.proxy}, size: ${_this.size}, disabled: ${_this.disabled}, hitCount: ${_this.hitCount}, hitAt: ${_this.hitAt}, missCount: ${_this.missCount}, missAt: ${_this.missAt})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $CoreRuleCopyWith<$Res>  {
+  factory $CoreRuleCopyWith(CoreRule value, $Res Function(CoreRule) _then) = _$CoreRuleCopyWithImpl;
+@useResult
+$Res call({
+ int index, String type, String payload, String proxy, int size, bool disabled, int hitCount, DateTime? hitAt, int missCount, DateTime? missAt
+});
+
+
+
+
+}
+/// @nodoc
+class _$CoreRuleCopyWithImpl<$Res>
+    implements $CoreRuleCopyWith<$Res> {
+  _$CoreRuleCopyWithImpl(this._self, this._then);
+
+  final CoreRule _self;
+  final $Res Function(CoreRule) _then;
+
+/// Create a copy of CoreRule
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? index = null,Object? type = null,Object? payload = null,Object? proxy = null,Object? size = null,Object? disabled = null,Object? hitCount = null,Object? hitAt = freezed,Object? missCount = null,Object? missAt = freezed,}) {
+  return _then(CoreRule(
+index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
+as int,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as String,payload: null == payload ? _self.payload : payload // ignore: cast_nullable_to_non_nullable
+as String,proxy: null == proxy ? _self.proxy : proxy // ignore: cast_nullable_to_non_nullable
+as String,size: null == size ? _self.size : size // ignore: cast_nullable_to_non_nullable
+as int,disabled: null == disabled ? _self.disabled : disabled // ignore: cast_nullable_to_non_nullable
+as bool,hitCount: null == hitCount ? _self.hitCount : hitCount // ignore: cast_nullable_to_non_nullable
+as int,hitAt: freezed == hitAt ? _self.hitAt : hitAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,missCount: null == missCount ? _self.missCount : missCount // ignore: cast_nullable_to_non_nullable
+as int,missAt: freezed == missAt ? _self.missAt : missAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [CoreRule].
+extension CoreRulePatterns on CoreRule {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _CoreRule value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _CoreRule() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _CoreRule value)  $default,){
+final _that = this;
+switch (_that) {
+case _CoreRule():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _CoreRule value)?  $default,){
+final _that = this;
+switch (_that) {
+case _CoreRule() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int index,  String type,  String payload,  String proxy,  int size,  bool disabled,  int hitCount,  DateTime? hitAt,  int missCount,  DateTime? missAt)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _CoreRule() when $default != null:
+return $default(_that.index,_that.type,_that.payload,_that.proxy,_that.size,_that.disabled,_that.hitCount,_that.hitAt,_that.missCount,_that.missAt);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int index,  String type,  String payload,  String proxy,  int size,  bool disabled,  int hitCount,  DateTime? hitAt,  int missCount,  DateTime? missAt)  $default,) {final _that = this;
+switch (_that) {
+case _CoreRule():
+return $default(_that.index,_that.type,_that.payload,_that.proxy,_that.size,_that.disabled,_that.hitCount,_that.hitAt,_that.missCount,_that.missAt);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int index,  String type,  String payload,  String proxy,  int size,  bool disabled,  int hitCount,  DateTime? hitAt,  int missCount,  DateTime? missAt)?  $default,) {final _that = this;
+switch (_that) {
+case _CoreRule() when $default != null:
+return $default(_that.index,_that.type,_that.payload,_that.proxy,_that.size,_that.disabled,_that.hitCount,_that.hitAt,_that.missCount,_that.missAt);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _CoreRule implements CoreRule {
+  const _CoreRule({required this.index, required this.type, this.payload = '', this.proxy = '', this.size = -1, this.disabled = false, this.hitCount = 0, this.hitAt, this.missCount = 0, this.missAt});
+  factory _CoreRule.fromJson(Map<String, dynamic> json) => _$CoreRuleFromJson(json);
+
+@override final  int index;
+@override final  String type;
+@override@JsonKey() final  String payload;
+@override@JsonKey() final  String proxy;
+@override@JsonKey() final  int size;
+@override@JsonKey() final  bool disabled;
+@override@JsonKey() final  int hitCount;
+@override final  DateTime? hitAt;
+@override@JsonKey() final  int missCount;
+@override final  DateTime? missAt;
+
+/// Create a copy of CoreRule
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$CoreRuleCopyWith<_CoreRule> get copyWith => __$CoreRuleCopyWithImpl<_CoreRule>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$CoreRuleToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CoreRule&&(identical(other.index, index) || other.index == index)&&(identical(other.type, type) || other.type == type)&&(identical(other.payload, payload) || other.payload == payload)&&(identical(other.proxy, proxy) || other.proxy == proxy)&&(identical(other.size, size) || other.size == size)&&(identical(other.disabled, disabled) || other.disabled == disabled)&&(identical(other.hitCount, hitCount) || other.hitCount == hitCount)&&(identical(other.hitAt, hitAt) || other.hitAt == hitAt)&&(identical(other.missCount, missCount) || other.missCount == missCount)&&(identical(other.missAt, missAt) || other.missAt == missAt));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,index,type,payload,proxy,size,disabled,hitCount,hitAt,missCount,missAt);
+}
+
+@override
+String toString() {
+    return 'CoreRule(index: $index, type: $type, payload: $payload, proxy: $proxy, size: $size, disabled: $disabled, hitCount: $hitCount, hitAt: $hitAt, missCount: $missCount, missAt: $missAt)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$CoreRuleCopyWith<$Res> implements $CoreRuleCopyWith<$Res> {
+  factory _$CoreRuleCopyWith(_CoreRule value, $Res Function(_CoreRule) _then) = __$CoreRuleCopyWithImpl;
+@override @useResult
+$Res call({
+ int index, String type, String payload, String proxy, int size, bool disabled, int hitCount, DateTime? hitAt, int missCount, DateTime? missAt
+});
+
+
+
+
+}
+/// @nodoc
+class __$CoreRuleCopyWithImpl<$Res>
+    implements _$CoreRuleCopyWith<$Res> {
+  __$CoreRuleCopyWithImpl(this._self, this._then);
+
+  final _CoreRule _self;
+  final $Res Function(_CoreRule) _then;
+
+/// Create a copy of CoreRule
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? index = null,Object? type = null,Object? payload = null,Object? proxy = null,Object? size = null,Object? disabled = null,Object? hitCount = null,Object? hitAt = freezed,Object? missCount = null,Object? missAt = freezed,}) {
+  return _then(_CoreRule(
+index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
+as int,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as String,payload: null == payload ? _self.payload : payload // ignore: cast_nullable_to_non_nullable
+as String,proxy: null == proxy ? _self.proxy : proxy // ignore: cast_nullable_to_non_nullable
+as String,size: null == size ? _self.size : size // ignore: cast_nullable_to_non_nullable
+as int,disabled: null == disabled ? _self.disabled : disabled // ignore: cast_nullable_to_non_nullable
+as bool,hitCount: null == hitCount ? _self.hitCount : hitCount // ignore: cast_nullable_to_non_nullable
+as int,hitAt: freezed == hitAt ? _self.hitAt : hitAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,missCount: null == missCount ? _self.missCount : missCount // ignore: cast_nullable_to_non_nullable
+as int,missAt: freezed == missAt ? _self.missAt : missAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$SetRuleDisabledParams {
+
+ int get index; String get type; String get payload; bool get disabled;
+/// Create a copy of SetRuleDisabledParams
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SetRuleDisabledParamsCopyWith<SetRuleDisabledParams> get copyWith => _$SetRuleDisabledParamsCopyWithImpl<SetRuleDisabledParams>(this as SetRuleDisabledParams, _$identity);
+
+  /// Serializes this SetRuleDisabledParams to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as SetRuleDisabledParams;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SetRuleDisabledParams&&(identical(other.index, _this.index) || other.index == _this.index)&&(identical(other.type, _this.type) || other.type == _this.type)&&(identical(other.payload, _this.payload) || other.payload == _this.payload)&&(identical(other.disabled, _this.disabled) || other.disabled == _this.disabled));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+  final _this = this as SetRuleDisabledParams;
+  return Object.hash(runtimeType,_this.index,_this.type,_this.payload,_this.disabled);
+}
+
+@override
+String toString() {
+  final _this = this as SetRuleDisabledParams;
+  return 'SetRuleDisabledParams(index: ${_this.index}, type: ${_this.type}, payload: ${_this.payload}, disabled: ${_this.disabled})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SetRuleDisabledParamsCopyWith<$Res>  {
+  factory $SetRuleDisabledParamsCopyWith(SetRuleDisabledParams value, $Res Function(SetRuleDisabledParams) _then) = _$SetRuleDisabledParamsCopyWithImpl;
+@useResult
+$Res call({
+ int index, String type, String payload, bool disabled
+});
+
+
+
+
+}
+/// @nodoc
+class _$SetRuleDisabledParamsCopyWithImpl<$Res>
+    implements $SetRuleDisabledParamsCopyWith<$Res> {
+  _$SetRuleDisabledParamsCopyWithImpl(this._self, this._then);
+
+  final SetRuleDisabledParams _self;
+  final $Res Function(SetRuleDisabledParams) _then;
+
+/// Create a copy of SetRuleDisabledParams
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? index = null,Object? type = null,Object? payload = null,Object? disabled = null,}) {
+  return _then(SetRuleDisabledParams(
+index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
+as int,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as String,payload: null == payload ? _self.payload : payload // ignore: cast_nullable_to_non_nullable
+as String,disabled: null == disabled ? _self.disabled : disabled // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [SetRuleDisabledParams].
+extension SetRuleDisabledParamsPatterns on SetRuleDisabledParams {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _SetRuleDisabledParams value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _SetRuleDisabledParams() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _SetRuleDisabledParams value)  $default,){
+final _that = this;
+switch (_that) {
+case _SetRuleDisabledParams():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _SetRuleDisabledParams value)?  $default,){
+final _that = this;
+switch (_that) {
+case _SetRuleDisabledParams() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int index,  String type,  String payload,  bool disabled)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _SetRuleDisabledParams() when $default != null:
+return $default(_that.index,_that.type,_that.payload,_that.disabled);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int index,  String type,  String payload,  bool disabled)  $default,) {final _that = this;
+switch (_that) {
+case _SetRuleDisabledParams():
+return $default(_that.index,_that.type,_that.payload,_that.disabled);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int index,  String type,  String payload,  bool disabled)?  $default,) {final _that = this;
+switch (_that) {
+case _SetRuleDisabledParams() when $default != null:
+return $default(_that.index,_that.type,_that.payload,_that.disabled);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _SetRuleDisabledParams implements SetRuleDisabledParams {
+  const _SetRuleDisabledParams({required this.index, required this.type, required this.payload, required this.disabled});
+  factory _SetRuleDisabledParams.fromJson(Map<String, dynamic> json) => _$SetRuleDisabledParamsFromJson(json);
+
+@override final  int index;
+@override final  String type;
+@override final  String payload;
+@override final  bool disabled;
+
+/// Create a copy of SetRuleDisabledParams
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$SetRuleDisabledParamsCopyWith<_SetRuleDisabledParams> get copyWith => __$SetRuleDisabledParamsCopyWithImpl<_SetRuleDisabledParams>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$SetRuleDisabledParamsToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SetRuleDisabledParams&&(identical(other.index, index) || other.index == index)&&(identical(other.type, type) || other.type == type)&&(identical(other.payload, payload) || other.payload == payload)&&(identical(other.disabled, disabled) || other.disabled == disabled));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode {
+    return Object.hash(runtimeType,index,type,payload,disabled);
+}
+
+@override
+String toString() {
+    return 'SetRuleDisabledParams(index: $index, type: $type, payload: $payload, disabled: $disabled)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$SetRuleDisabledParamsCopyWith<$Res> implements $SetRuleDisabledParamsCopyWith<$Res> {
+  factory _$SetRuleDisabledParamsCopyWith(_SetRuleDisabledParams value, $Res Function(_SetRuleDisabledParams) _then) = __$SetRuleDisabledParamsCopyWithImpl;
+@override @useResult
+$Res call({
+ int index, String type, String payload, bool disabled
+});
+
+
+
+
+}
+/// @nodoc
+class __$SetRuleDisabledParamsCopyWithImpl<$Res>
+    implements _$SetRuleDisabledParamsCopyWith<$Res> {
+  __$SetRuleDisabledParamsCopyWithImpl(this._self, this._then);
+
+  final _SetRuleDisabledParams _self;
+  final $Res Function(_SetRuleDisabledParams) _then;
+
+/// Create a copy of SetRuleDisabledParams
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? index = null,Object? type = null,Object? payload = null,Object? disabled = null,}) {
+  return _then(_SetRuleDisabledParams(
+index: null == index ? _self.index : index // ignore: cast_nullable_to_non_nullable
+as int,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
+as String,payload: null == payload ? _self.payload : payload // ignore: cast_nullable_to_non_nullable
+as String,disabled: null == disabled ? _self.disabled : disabled // ignore: cast_nullable_to_non_nullable
+as bool,
+  ));
+}
+
+
 }
 
 

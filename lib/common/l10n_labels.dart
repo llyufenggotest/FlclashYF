@@ -12,11 +12,12 @@ extension PageLabelL10n on PageLabel {
       PageLabel.profiles => appLocalizations.profiles,
       PageLabel.tools => appLocalizations.tools,
       PageLabel.logs => appLocalizations.logs,
-      PageLabel.requests => appLocalizations.requests,
+      PageLabel.requests => appLocalizations.recentRequests,
       PageLabel.resources => appLocalizations.resources,
       PageLabel.networking => appLocalizations.networking,
       PageLabel.connections => appLocalizations.connections,
       PageLabel.dnsQueries => appLocalizations.dnsQueries,
+      PageLabel.rules => appLocalizations.rules,
     };
   }
 
@@ -29,6 +30,7 @@ extension PageLabelL10n on PageLabel {
       PageLabel.networking => appLocalizations.networkingDesc,
       PageLabel.connections => appLocalizations.connectionsDesc,
       PageLabel.dnsQueries => appLocalizations.dnsQueriesDesc,
+      PageLabel.rules => appLocalizations.rulesDesc,
       PageLabel.dashboard ||
       PageLabel.proxies ||
       PageLabel.profiles ||
@@ -45,6 +47,7 @@ extension DnsQueryInitiatorL10n on DnsQueryInitiator {
       DnsQueryInitiator.rule => appLocalizations.rule,
       DnsQueryInitiator.direct => appLocalizations.direct,
       DnsQueryInitiator.proxy => appLocalizations.proxy,
+      DnsQueryInitiator.manual => appLocalizations.manual,
       DnsQueryInitiator.other => appLocalizations.other,
     };
   }

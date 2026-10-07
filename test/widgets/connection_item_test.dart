@@ -1,6 +1,8 @@
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/features/features.dart';
 import 'package:fl_clash/widgets/widgets.dart';
+import 'package:fl_clash/providers/config.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,6 +41,42 @@ TrackerInfo _tracker({
 }
 
 void main() {
+  testWidgets('proxy chain collapse setting updates connection rows', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      TestApp(
+        wrapInProviderScope: true,
+        homeBuilder: (child) => Scaffold(body: child),
+        child: TrackerInfoItem(
+          trackerInfo: _tracker(
+            chains: const ['last', 'middle-b', 'middle-a', 'first'],
+          ),
+          detailTitle: 'detail',
+        ),
+      ),
+    );
+    expect(find.text('...', findRichText: true), findsOneWidget);
+    expect(find.text('middle-a', findRichText: true), findsNothing);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(TrackerInfoItem)),
+    );
+    container
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(collapseProxyChains: false));
+    await tester.pump();
+    expect(find.text('...', findRichText: true), findsNothing);
+    expect(find.text('middle-a', findRichText: true), findsOneWidget);
+    expect(find.text('middle-b', findRichText: true), findsOneWidget);
+    container
+        .read(appSettingProvider.notifier)
+        .update((state) => state.copyWith(collapseProxyChains: true));
+    await tester.pump();
+    expect(find.text('...', findRichText: true), findsOneWidget);
+    expect(find.text('middle-a', findRichText: true), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('TrackerInfoDetailView renders formatted connection fields', (
     tester,
   ) async {
@@ -72,11 +110,11 @@ void main() {
     expect(find.text('5.6.7.8:443'), findsOneWidget);
     expect(find.text('example.com'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('DIRECT'),
+      find.text('DIRECT', findRichText: true),
       100,
       scrollable: find.byType(Scrollable),
     );
-    expect(find.text('DIRECT'), findsOneWidget);
+    expect(find.text('DIRECT', findRichText: true), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(const SizedBox.shrink());
@@ -120,21 +158,21 @@ void main() {
 
     expect(find.text('TCP'), findsOneWidget);
     expect(find.text('DOMAIN-SUFFIX'), findsOneWidget);
-    expect(find.text('Proxy A'), findsOneWidget);
-    expect(find.text('Proxy B'), findsOneWidget);
+    expect(find.text('Proxy A', findRichText: true), findsOneWidget);
+    expect(find.text('Proxy B', findRichText: true), findsOneWidget);
     expect(find.text('→'), findsNWidgets(2));
     expect(
       tester.getTopLeft(find.text('DOMAIN-SUFFIX')).dx,
-      lessThan(tester.getTopLeft(find.text('Proxy B')).dx),
+      lessThan(tester.getTopLeft(find.text('Proxy B', findRichText: true)).dx),
     );
     expect(
-      tester.getTopLeft(find.text('Proxy B')).dx,
-      lessThan(tester.getTopLeft(find.text('Proxy A')).dx),
+      tester.getTopLeft(find.text('Proxy B', findRichText: true)).dx,
+      lessThan(tester.getTopLeft(find.text('Proxy A', findRichText: true)).dx),
     );
 
-    await tester.tap(find.text('Proxy A'));
+    await tester.tap(find.text('Proxy A', findRichText: true));
     await tester.pump();
-    await tester.tap(find.text('Proxy B'));
+    await tester.tap(find.text('Proxy B', findRichText: true));
     await tester.pump();
 
     expect(clicked, ['Proxy A', 'Proxy B']);

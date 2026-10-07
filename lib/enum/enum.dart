@@ -232,6 +232,8 @@ enum TrackerInfoSortType {
   proxyChains,
 }
 
+enum CoreRuleSortType { ruleOrder, hitCount, lastHit }
+
 enum TunStack { mips, gvisor, system, mixed }
 
 enum TunCongestionController { cubic, reno, bbr, bbr3 }
@@ -253,7 +255,7 @@ enum ResultType {
 
 enum CoreEventType { log, delay, request, dns, loaded, crash, geoUpdate }
 
-enum DnsQueryInitiator { app, rule, direct, proxy, other }
+enum DnsQueryInitiator { app, rule, direct, proxy, manual, other }
 
 enum InvokeMessageType { protect, process }
 
@@ -453,6 +455,7 @@ enum PageLabel {
   networking,
   connections,
   dnsQueries,
+  rules,
 }
 
 enum RuleAction {

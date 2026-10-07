@@ -240,6 +240,12 @@ var methodHandlers = map[CoreMethod]methodHandler{
 	closeConnectionMethod: withArguments(func(id *string, response MethodResponse) {
 		response.success(handleCloseConnection(*id))
 	}),
+	getRulesMethod: withoutArguments(func(response MethodResponse) {
+		response.success(handleGetRules())
+	}),
+	setRuleDisabledMethod: withArguments(func(params *SetRuleDisabledParams, response MethodResponse) {
+		response.success(handleSetRuleDisabled(params))
+	}),
 	getExternalProvidersMethod: withoutArguments(func(response MethodResponse) {
 		response.success(handleGetExternalProviders())
 	}),
@@ -308,6 +314,26 @@ var methodHandlers = map[CoreMethod]methodHandler{
 	stopDnsNotifyMethod: withoutArguments(func(response MethodResponse) {
 		handleStopDnsNotify()
 		response.success(true)
+	}),
+	queryDnsMethod: withArguments(func(params *DnsQueryParams, response MethodResponse) {
+		safeGo(response, func() {
+			query, err := handleQueryDns(params)
+			if err != nil {
+				response.failure("core_error", err.Error(), nil)
+				return
+			}
+			response.success(query)
+		})
+	}),
+	queryRuleMethod: withArguments(func(params *RuleQueryParams, response MethodResponse) {
+		safeGo(response, func() {
+			query, err := handleQueryRule(params)
+			if err != nil {
+				response.failure("core_error", err.Error(), nil)
+				return
+			}
+			response.success(query)
+		})
 	}),
 	startListenerMethod: withoutArguments(func(response MethodResponse) {
 		response.success(handleStartListener())

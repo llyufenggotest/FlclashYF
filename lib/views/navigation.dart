@@ -49,7 +49,7 @@ class Navigation implements NavigationPort {
         label: PageLabel.requests,
         builder: (_) =>
             const RequestsView(key: GlobalObjectKey(PageLabel.requests)),
-        modes: [NavigationItemMode.desktop, NavigationItemMode.more],
+        modes: [NavigationItemMode.more],
       ),
       NavigationItem(
         icon: const Icon(Symbols.ballot),
@@ -57,6 +57,12 @@ class Navigation implements NavigationPort {
         builder: (_) =>
             const ConnectionsView(key: GlobalObjectKey(PageLabel.connections)),
         modes: [NavigationItemMode.desktop, NavigationItemMode.more],
+      ),
+      NavigationItem(
+        icon: const Icon(Symbols.rule),
+        label: PageLabel.rules,
+        builder: (_) => const RulesView(key: GlobalObjectKey(PageLabel.rules)),
+        modes: [NavigationItemMode.more],
       ),
       NavigationItem(
         icon: const Icon(Symbols.home_storage),

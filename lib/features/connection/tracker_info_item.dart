@@ -151,15 +151,14 @@ class TrackerInfoItem extends ConsumerWidget {
   }
 }
 
-class _TrackerInfoBody extends StatelessWidget {
+class _TrackerInfoBody extends ConsumerWidget {
   final TrackerInfo trackerInfo;
   final void Function(TrackerInfoFilterType type, String value) onSelect;
 
   const _TrackerInfoBody({required this.trackerInfo, required this.onSelect});
 
   @override
-  Widget build(BuildContext context) {
-    final colorScheme = context.colorScheme;
+  Widget build(BuildContext context, WidgetRef ref) {
     final styles = RecordTextStyles.of(context);
     final metadata = trackerInfo.metadata;
     final rule = _ruleText(trackerInfo);
@@ -189,30 +188,13 @@ class _TrackerInfoBody extends StatelessWidget {
             ],
           ),
         ),
-        Wrap(
-          spacing: 6,
-          runSpacing: 4,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            if (rule.isNotEmpty) Text(rule, style: styles.secondary),
-            for (final (index, chain) in trackerInfo.chains.reversed.indexed)
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                spacing: 6,
-                children: [
-                  if (index > 0 || rule.isNotEmpty) const RecordArrow(),
-                  Flexible(
-                    child: TonalChip(
-                      label: chain,
-                      color: colorScheme.secondaryContainer,
-                      foregroundColor: colorScheme.onSecondaryContainer,
-                      onPressed: () =>
-                          onSelect(TrackerInfoFilterType.chain, chain),
-                    ),
-                  ),
-                ],
-              ),
-          ],
+        ProxyChain(
+          chain: trackerInfo.chains.reversed,
+          hideTooMany: ref.watch(
+            appSettingProvider.select((state) => state.collapseProxyChains),
+          ),
+          leading: rule.isNotEmpty ? Text(rule, style: styles.secondary) : null,
+          onSelected: (chain) => onSelect(TrackerInfoFilterType.chain, chain),
         ),
         if (source.isNotEmpty) Text(source, style: styles.muted),
       ],

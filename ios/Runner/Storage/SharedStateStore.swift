@@ -10,6 +10,15 @@ final class SharedStateStore {
   let appGroupIdentifier = "group.\(Bundle.main.bundleIdentifier!)"
   let eventNotificationName = "\(Bundle.main.bundleIdentifier!).NECore.event"
 
+  func activeVpnOptions() -> String? {
+    guard let data = UserDefaults(suiteName: appGroupIdentifier)?
+      .data(forKey: "activeVpnOptions")
+    else {
+      return nil
+    }
+    return String(data: data, encoding: .utf8)
+  }
+
   func saveSharedState(_ data: Data) -> Bool {
     guard let userDefaults = UserDefaults(suiteName: appGroupIdentifier) else {
       return false

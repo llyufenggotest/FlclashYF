@@ -78,20 +78,22 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m27(count) => "プロキシ ${count} 件";
 
-  static String m28(count) => "ルール ${count} 件";
+  static String m28(maximum) => "0 から ${maximum} の整数を入力してください。";
 
-  static String m29(count) => "${count} 秒";
+  static String m29(count) => "ルール ${count} 件";
 
-  static String m30(count) => "${count} 件選択中";
+  static String m30(count) => "${count} 秒";
 
-  static String m31(interval, idleInterval) =>
+  static String m31(count) => "${count} 件選択中";
+
+  static String m32(interval, idleInterval) =>
       "${interval} · アイドル ${idleInterval}";
 
-  static String m32(interval) => "${interval} · アイドル無効";
+  static String m33(interval) => "${interval} · アイドル無効";
 
-  static String m33(label) => "${label} は URL である必要があります";
+  static String m34(label) => "${label} は URL である必要があります";
 
-  static String m34(count) => "${count} 年前";
+  static String m35(count) => "${count} 年前";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
   static Map<String, Function> _notInlinedMessages(_) => <String, Function>{
@@ -285,6 +287,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "以前のプロキシを使用している接続を切断しますか？",
     ),
     "collapse": MessageLookupByLibrary.simpleMessage("折りたたむ"),
+    "collapseProxyChains": MessageLookupByLibrary.simpleMessage(
+      "プロキシチェーンを折りたたむ",
+    ),
+    "collapseProxyChainsDesc": MessageLookupByLibrary.simpleMessage(
+      "プロキシチェーンのノードが3つを超える場合、中間ノードを非表示にします",
+    ),
     "collapseQuickSettingsPanel": MessageLookupByLibrary.simpleMessage(
       "クイック設定パネルを閉じる",
     ),
@@ -749,6 +757,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "loopback": MessageLookupByLibrary.simpleMessage("ループバック解除ツール"),
     "loopbackDesc": MessageLookupByLibrary.simpleMessage("UWP ループバック解除用"),
     "loose": MessageLookupByLibrary.simpleMessage("ゆったり"),
+    "manual": MessageLookupByLibrary.simpleMessage("手動"),
     "matchSourceIp": MessageLookupByLibrary.simpleMessage("送信元 IP をマッチング"),
     "matchTarget": MessageLookupByLibrary.simpleMessage("MATCH-TARGET"),
     "matchTargetDesc": MessageLookupByLibrary.simpleMessage(
@@ -1013,9 +1022,13 @@ class MessageLookup extends MessageLookupByLibrary {
     "qrcodeDesc": MessageLookupByLibrary.simpleMessage(
       "QR コードをスキャンしてプロファイルを取得",
     ),
+    "query": MessageLookupByLibrary.simpleMessage("照会"),
+    "queryDns": MessageLookupByLibrary.simpleMessage("DNS を照会"),
+    "queryRule": MessageLookupByLibrary.simpleMessage("ルールを照会"),
     "quickFill": MessageLookupByLibrary.simpleMessage("クイック入力"),
     "rainbowScheme": MessageLookupByLibrary.simpleMessage("レインボー"),
     "random": MessageLookupByLibrary.simpleMessage("ランダム"),
+    "recentRequests": MessageLookupByLibrary.simpleMessage("最近のリクエスト"),
     "recordType": MessageLookupByLibrary.simpleMessage("レコードタイプ"),
     "recvMsgX": MessageLookupByLibrary.simpleMessage("RecvMsgX を有効にする"),
     "recvMsgXDesc": MessageLookupByLibrary.simpleMessage("Darwin でパケットを一括受信"),
@@ -1206,12 +1219,40 @@ class MessageLookup extends MessageLookupByLibrary {
     "ruleActionUidDesc": MessageLookupByLibrary.simpleMessage(
       "Linux USER ID をマッチング",
     ),
+    "ruleDisabled": MessageLookupByLibrary.simpleMessage("無効"),
     "ruleEmpty": MessageLookupByLibrary.simpleMessage("ルールが空です"),
+    "ruleEnabled": MessageLookupByLibrary.simpleMessage("有効"),
+    "ruleHits": MessageLookupByLibrary.simpleMessage("一致"),
+    "ruleLastHit": MessageLookupByLibrary.simpleMessage("最終一致"),
+    "ruleLastMiss": MessageLookupByLibrary.simpleMessage("最終不一致"),
+    "ruleMisses": MessageLookupByLibrary.simpleMessage("不一致"),
     "ruleName": MessageLookupByLibrary.simpleMessage("ルール名"),
+    "ruleQueryDestinationIP": MessageLookupByLibrary.simpleMessage("宛先 IP"),
+    "ruleQueryInboundName": MessageLookupByLibrary.simpleMessage("インバウンド名"),
+    "ruleQueryInboundUser": MessageLookupByLibrary.simpleMessage("インバウンドユーザー"),
+    "ruleQueryInvalidIP": MessageLookupByLibrary.simpleMessage(
+      "有効な IP アドレスを入力してください。",
+    ),
+    "ruleQueryNoMatch": MessageLookupByLibrary.simpleMessage(
+      "一致するルールなし（モードのポリシーまたは DIRECT）",
+    ),
+    "ruleQueryNumberRange": m28,
+    "ruleQueryPortInvalid": MessageLookupByLibrary.simpleMessage(
+      "1 から 65535 のポートを入力してください。",
+    ),
+    "ruleQueryProcessPath": MessageLookupByLibrary.simpleMessage("プロセスのパス"),
+    "ruleQuerySniffHost": MessageLookupByLibrary.simpleMessage("検出されたドメイン"),
+    "ruleQuerySourcePort": MessageLookupByLibrary.simpleMessage("送信元ポート"),
+    "ruleQueryTarget": MessageLookupByLibrary.simpleMessage("ドメインまたは IP アドレス"),
     "ruleSet": MessageLookupByLibrary.simpleMessage("ルールセット"),
     "ruleTarget": MessageLookupByLibrary.simpleMessage("ルールターゲット"),
+    "ruleType": MessageLookupByLibrary.simpleMessage("ルールの種類"),
+    "ruleUpdateFailed": MessageLookupByLibrary.simpleMessage(
+      "ルールを変更できませんでした。設定が変更された可能性があります。更新して再試行してください。",
+    ),
     "rules": MessageLookupByLibrary.simpleMessage("ルール"),
-    "rulesCount": m28,
+    "rulesCount": m29,
+    "rulesDesc": MessageLookupByLibrary.simpleMessage("ルールとマッチ統計を表示"),
     "save": MessageLookupByLibrary.simpleMessage("保存"),
     "saveChanges": MessageLookupByLibrary.simpleMessage("変更を保存しますか？"),
     "script": MessageLookupByLibrary.simpleMessage("スクリプト"),
@@ -1221,7 +1262,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "scrollToSelected": MessageLookupByLibrary.simpleMessage("選択項目へスクロール"),
     "search": MessageLookupByLibrary.simpleMessage("検索"),
     "seconds": MessageLookupByLibrary.simpleMessage("秒"),
-    "secondsCount": m29,
+    "secondsCount": m30,
     "selectAll": MessageLookupByLibrary.simpleMessage("すべて選択"),
     "selectMatchTarget": MessageLookupByLibrary.simpleMessage(
       "MATCH-TARGET を選択",
@@ -1237,7 +1278,7 @@ class MessageLookup extends MessageLookupByLibrary {
     ),
     "selectSubRule": MessageLookupByLibrary.simpleMessage("サブルールを選択してください"),
     "selected": MessageLookupByLibrary.simpleMessage("選択済み"),
-    "selectedCountTitle": m30,
+    "selectedCountTitle": m31,
     "sendMsgX": MessageLookupByLibrary.simpleMessage("SendMsgX を有効にする"),
     "sendMsgXDesc": MessageLookupByLibrary.simpleMessage("Darwin でパケットを一括送信"),
     "server": MessageLookupByLibrary.simpleMessage("サーバー"),
@@ -1385,8 +1426,8 @@ class MessageLookup extends MessageLookupByLibrary {
       "アプリウィンドウがフォーカスを失ったときにアイドル更新間隔を使用",
     ),
     "uiUpdateInterval": MessageLookupByLibrary.simpleMessage("UI 情報の更新間隔"),
-    "uiUpdateIntervalDesc": m31,
-    "uiUpdateIntervalIdleDisabledDesc": m32,
+    "uiUpdateIntervalDesc": m32,
+    "uiUpdateIntervalIdleDisabledDesc": m33,
     "unauthorized": MessageLookupByLibrary.simpleMessage("未許可"),
     "undo": MessageLookupByLibrary.simpleMessage("元に戻す"),
     "unifiedDelay": MessageLookupByLibrary.simpleMessage("統一遅延"),
@@ -1443,7 +1484,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "whitelistMode": MessageLookupByLibrary.simpleMessage("ホワイトリストモード"),
     "writeToSystem": MessageLookupByLibrary.simpleMessage("システムに書き込む"),
     "writeToSystemDesc": MessageLookupByLibrary.simpleMessage("システムクロックも設定します"),
-    "yearsAgo": m34,
+    "yearsAgo": m35,
     "yes": MessageLookupByLibrary.simpleMessage("はい"),
     "zhCN": MessageLookupByLibrary.simpleMessage("簡体字中国語"),
     "zhTW": MessageLookupByLibrary.simpleMessage("繁体字中国語"),

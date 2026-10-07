@@ -73,12 +73,13 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     diag(configProbe())
     sharedStateStore.clearRunTime()
     reloadControlWidget()
-    guard let vpnOptions = sharedStateStore.loadVPNOptions() else {
+    guard let snapshot = sharedStateStore.loadVPNOptionsSnapshot() else {
       logger.error("startTunnel failed: missing vpn options")
       diag("startup_failure phase=vpn_options_missing")
       completionHandler(PacketTunnelProviderError.missingVPNOptions)
       return
     }
+    let vpnOptions = snapshot.options
     logger.info(
       "startTunnel options stack=\(vpnOptions.stack, privacy: .public) ipv6=\(vpnOptions.ipv6, privacy: .public) captureDns=\(vpnOptions.captureDns, privacy: .public) systemProxy=\(vpnOptions.systemProxy, privacy: .public)"
     )
