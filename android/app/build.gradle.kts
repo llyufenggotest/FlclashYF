@@ -24,6 +24,10 @@ val hasReleaseSigning = releaseStoreFile.exists() &&
     releaseKeyAlias != null &&
     releaseKeyPassword != null
 
+val releaseBuildRequested = gradle.startParameter.taskNames.any {
+    it.contains("Release", ignoreCase = true)
+}
+
 android {
     namespace = "cc.chenx.flclash"
     compileSdk = libs.versions.compileSdk.get().toInt()
@@ -68,13 +72,15 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            if (!hasReleaseSigning) {
+            if (!hasReleaseSigning && releaseBuildRequested) {
                 throw GradleException(
                     "Release signing is required for cc.llyufeng.flclash.dev; " +
                         "provide the repository keystore and signing properties."
                 )
             }
-            signingConfig = signingConfigs.getByName("release")
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
 
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

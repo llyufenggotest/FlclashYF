@@ -7415,7 +7415,6 @@ class AppLocalizations {
     );
   }
 
-
   String get fileImport {
     return Intl.message('File import', name: 'fileImport', desc: '', args: []);
   }
