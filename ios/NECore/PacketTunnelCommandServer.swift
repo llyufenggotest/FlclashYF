@@ -21,11 +21,16 @@ final class PacketTunnelCommandServer {
   private let requestExtension = "req"
   private let responseExtension = "resp"
   private let maxOrphanAge: TimeInterval = 180
+  private let inFlightTimeout: TimeInterval = 30
   private let pollInterval: DispatchTimeInterval = .milliseconds(200)
+
+  private struct InFlightRequest {
+    let startedAt: TimeInterval
+  }
 
   private var running = false
   private var timer: DispatchSourceTimer?
-  private var inFlight = Set<String>()
+  private var inFlight: [String: InFlightRequest] = [:]
 
   init(
     sharedStateStore: PacketTunnelSharedStateStore,
@@ -60,6 +65,7 @@ final class PacketTunnelCommandServer {
       self.running = false
       self.timer?.cancel()
       self.timer = nil
+      self.inFlight.removeAll()
       self.removeObserver()
     }
   }
@@ -89,6 +95,7 @@ final class PacketTunnelCommandServer {
   private func drain() {
     guard running, let requestDirectory = requestDirectory() else { return }
     pruneOrphans()
+    expireInFlightRequests()
     guard let files = try? FileManager.default.contentsOfDirectory(
       at: requestDirectory,
       includingPropertiesForKeys: nil
@@ -99,15 +106,18 @@ final class PacketTunnelCommandServer {
       .filter({ $0.pathExtension == requestExtension })
       .sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
       let id = fileURL.deletingPathExtension().lastPathComponent
-      guard inFlight.insert(id).inserted else { continue }
+      guard inFlight[id] == nil else { continue }
       guard let data = try? Data(contentsOf: fileURL), !data.isEmpty else {
         try? FileManager.default.removeItem(at: fileURL)
-        inFlight.remove(id)
+        inFlight.removeValue(forKey: id)
         continue
       }
       // Consume the request immediately so a mid-flight restart cannot run it
       // twice; the response is keyed by the same id.
       try? FileManager.default.removeItem(at: fileURL)
+      inFlight[id] = InFlightRequest(
+        startedAt: ProcessInfo.processInfo.systemUptime
+      )
       process(id: id, data: data)
     }
   }
@@ -128,6 +138,10 @@ final class PacketTunnelCommandServer {
     invoke(data) { [weak self] response in
       guard let self else { return }
       self.queue.async {
+        guard self.inFlight[id] != nil else {
+          self.logger.debug("ignoring late RPC response id=\(id, privacy: .public)")
+          return
+        }
         let payload = response ?? self.emptyCoreResponse(for: data)
         if configurationWrite,
           let response,
@@ -147,11 +161,31 @@ final class PacketTunnelCommandServer {
             Int((ProcessInfo.processInfo.systemUptime - receivedAt) * 1000)
           ),
         ])
-        self.inFlight.remove(id)
+        self.inFlight.removeValue(forKey: id)
       }
     }
   }
 
+  private func expireInFlightRequests() {
+    let now = ProcessInfo.processInfo.systemUptime
+    for (id, request) in inFlight where now - request.startedAt >= inFlightTimeout {
+      writeResponse(id: id, data: timedOutResponse())
+      inFlight.removeValue(forKey: id)
+      logger.warning("RPC request timed out id=\(id, privacy: .public)")
+    }
+  }
+
+  private func timedOutResponse() -> Data {
+    let payload: [String: Any] = [
+      "result": NSNull(),
+      "error": [
+        "code": "timeout",
+        "message": "core response timed out",
+        "details": NSNull(),
+      ],
+    ]
+    return (try? JSONSerialization.data(withJSONObject: payload)) ?? Data()
+  }
   private func writeResponse(id: String, data: Data) {
     guard let responseDirectory = responseDirectory() else { return }
     do {

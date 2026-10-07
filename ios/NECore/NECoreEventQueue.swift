@@ -18,6 +18,8 @@ final class NECoreEventQueue {
   }
 
   func start() {
+    coreActive = true
+    eventsSincePrune = 0
     NECoreBridge.setEventListener { [weak self] event in
       guard let self,
         let event,
@@ -31,6 +33,7 @@ final class NECoreEventQueue {
 
   func stop() {
     NECoreBridge.setEventListener(nil)
+    coreActive = false
   }
 
   func markCoreResponsive() {

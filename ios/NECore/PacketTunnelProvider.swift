@@ -41,9 +41,17 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
 
   private let resourceHeartbeat = NativeResourceHeartbeat()
   private var memoryPressureSource: DispatchSourceMemoryPressure?
+  private var eventQueueStarted = false
+  private var commandServerStarted = false
+  private var activeCleanup: PacketTunnelLifecycleCleanup?
+
+  private func stopMemoryPressureDiagnostics() {
+    memoryPressureSource?.cancel()
+    memoryPressureSource = nil
+  }
 
   private func startMemoryPressureDiagnostics() {
-    memoryPressureSource?.cancel()
+    stopMemoryPressureDiagnostics()
     let source = DispatchSource.makeMemoryPressureSource(
       eventMask: [.warning, .critical],
       queue: DispatchQueue(label: "com.follow.clash.memory-pressure-diagnostics")
@@ -56,6 +64,22 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     source.resume()
   }
 
+  private func makeLifecycleCleanup() -> PacketTunnelLifecycleCleanup {
+    PacketTunnelLifecycleCleanup(actions: [{ [weak self] in
+      guard let self else { return }
+      self.stopMemoryPressureDiagnostics()
+      if self.eventQueueStarted {
+        self.eventQueue.stop()
+        self.eventQueueStarted = false
+      }
+      self.resourceHeartbeat.stop()
+      if self.commandServerStarted {
+        self.commandServer.stop()
+        self.commandServerStarted = false
+      }
+    }])
+  }
+
   override func startTunnel(
     options: [String: NSObject]?,
     completionHandler: @escaping (Error?) -> Void
@@ -63,8 +87,14 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     NECoreSideloadCompatibilityLoader.loadIfPresent()
     SwitchDiagnostics.record("tunnel_start", fields: ["attempt_id": SwitchDiagnostics.processID])
     startMemoryPressureDiagnostics()
+    let cleanup = makeLifecycleCleanup()
+    activeCleanup = cleanup
     let originalCompletion = completionHandler
     let completionHandler: (Error?) -> Void = { error in
+      if error != nil {
+        cleanup.cleanup()
+        self.activeCleanup = nil
+      }
       SwitchDiagnostics.record("tunnel_start_complete", fields: ["success": String(error == nil)])
       originalCompletion(error)
     }
@@ -122,6 +152,8 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
       )
       self.diag("tunnel_fd=\(tunnelFileDescriptor)")
       self.eventQueue.start()
+      self.eventQueueStarted = true
+
       self.diag(
         "mem_before_quick_setup footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
       )
@@ -191,8 +223,11 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         if started {
           self.sharedStateStore.saveRunTime(vpnOptions: snapshot.data)
           self.commandServer.start()
+          self.commandServerStarted = true
+          self.activeCleanup = nil
         } else {
-          self.resourceHeartbeat.stop()
+          cleanup.cleanup()
+          self.activeCleanup = nil
         }
         completionHandler(
           started ? nil : PacketTunnelProviderError.couldNotStartCoreTun
@@ -206,8 +241,9 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     completionHandler: @escaping () -> Void
   ) {
     SwitchDiagnostics.record("tunnel_stop", fields: ["reason": String(reason.rawValue)])
-    memoryPressureSource?.cancel()
-    memoryPressureSource = nil
+    activeCleanup?.cleanup()
+    activeCleanup = nil
+    stopMemoryPressureDiagnostics()
     logger.info("stopTunnel reason=\(reason.rawValue, privacy: .public)")
     sharedStateStore.clearRunTime()
     reloadControlWidget()
