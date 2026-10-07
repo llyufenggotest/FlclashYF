@@ -86,6 +86,7 @@ jobs:
           (cd core/mihomo && go vet ./adapter ./adapter/outbound ./component/updater ./hub/executor ./hub/route ./rules/provider ./tunnel)
           (cd core && CGO_ENABLED=0 go test ./... && CGO_ENABLED=0 go test -tags with_low_memory ./... && CGO_ENABLED=0 go vet ./...)
           python3 scripts/protocol_smoke.py
+          python3 scripts/test_oix_ci_wiring.py
 
       - name: Verify Flutter application
         run: |
@@ -115,6 +116,11 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: core/go.sum
+      - name: Prepare private Oix DNS-Auth build input
+        shell: bash
+        env:
+          OIX_DNS_AUTH_SEED: ${{ secrets.OIX_DNS_AUTH_SEED }}
+        run: python scripts/prepare_oix_dns_auth.py
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -174,6 +180,11 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: core/go.sum
+      - name: Prepare private Oix DNS-Auth build input
+        shell: bash
+        env:
+          OIX_DNS_AUTH_SEED: ${{ secrets.OIX_DNS_AUTH_SEED }}
+        run: python scripts/prepare_oix_dns_auth.py
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -205,6 +216,11 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: core/go.sum
+      - name: Prepare private Oix DNS-Auth build input
+        shell: bash
+        env:
+          OIX_DNS_AUTH_SEED: ${{ secrets.OIX_DNS_AUTH_SEED }}
+        run: python scripts/prepare_oix_dns_auth.py
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -266,6 +282,11 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: core/go.sum
+      - name: Prepare private Oix DNS-Auth build input
+        shell: bash
+        env:
+          OIX_DNS_AUTH_SEED: ${{ secrets.OIX_DNS_AUTH_SEED }}
+        run: python scripts/prepare_oix_dns_auth.py
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
