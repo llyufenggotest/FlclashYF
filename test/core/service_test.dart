@@ -91,6 +91,17 @@ void main() {
     coreEventManager.removeListener(listener);
   });
 
+  test(
+    'resetInstance closes the retired singleton without replacing it',
+    () async {
+      CoreService.resetInstance();
+      await pumpEventQueue();
+
+      verify(() => lifecycle.close()).called(1);
+      verify(() => rpcClient.close()).called(1);
+    },
+  );
+
   test('close coalesces lifecycle and RPC cleanup', () async {
     final first = service.close();
     final second = service.close();

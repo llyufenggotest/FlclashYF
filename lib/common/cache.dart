@@ -12,7 +12,16 @@ extension CacheManagerExt on CacheManager {
   }) {
     key ??= url;
     final streamController = StreamController<FileInfo>();
-    _pushFileToStream(streamController, url, key, headers, onRemoteNewLoaded);
+    var cancelled = false;
+    streamController.onCancel = () => cancelled = true;
+    _pushFileToStream(
+      streamController,
+      url,
+      key,
+      headers,
+      onRemoteNewLoaded,
+      () => cancelled,
+    );
     return streamController.stream;
   }
 
@@ -22,6 +31,7 @@ extension CacheManagerExt on CacheManager {
     String? key,
     Map<String, String>? headers,
     VoidCallback? onRemoteNewLoaded,
+    bool Function()? isCancelled,
   ) async {
     key ??= url;
     FileInfo? cacheFile;
@@ -36,12 +46,18 @@ extension CacheManagerExt on CacheManager {
         CacheManagerLogLevel.debug,
       );
     }
+    if (isCancelled?.call() == true) {
+      unawaited(streamController.close());
+      return;
+    }
     if (cacheFile == null || cacheFile.validTill.isBefore(DateTime.now())) {
       try {
         final res = (await downloadFile(url, key: key, authHeaders: headers));
-        streamController.add(res);
-        if (cacheFile == null) {
-          onRemoteNewLoaded?.call();
+        if (isCancelled?.call() != true) {
+          streamController.add(res);
+          if (cacheFile == null) {
+            onRemoteNewLoaded?.call();
+          }
         }
       } on Object catch (e) {
         cacheLogger.log(

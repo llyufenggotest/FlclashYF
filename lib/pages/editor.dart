@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/features/editor/editor.dart';
@@ -96,6 +97,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   late bool readOnly = false;
   String? _loaded;
   bool _loadStarted = false, _saving = false, _findActive = false;
+  CodeForgeController? _listenedEditorController;
   ({bool isDirty, bool canUndo, bool canRedo}) _barState = (
     isDirty: false,
     canUndo: false,
@@ -161,7 +163,13 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   }
 
   void _handleReady() {
-    _editor?.controller?.addListener(_syncBarState);
+    final controller = _editor?.controller;
+    final previous = _listenedEditorController;
+    if (previous != controller) {
+      previous?.removeListener(_syncBarState);
+      controller?.addListener(_syncBarState);
+      _listenedEditorController = controller;
+    }
     setState(() => _barState = _currentBarState);
   }
 
@@ -208,6 +216,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
 
   @override
   void dispose() {
+    _listenedEditorController?.removeListener(_syncBarState);
     _undoController.dispose();
     _titleController.dispose();
     super.dispose();

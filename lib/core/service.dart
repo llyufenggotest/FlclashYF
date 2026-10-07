@@ -30,7 +30,11 @@ class CoreService extends CoreHandlerInterface {
 
   @visibleForTesting
   static void resetInstance() {
+    final instance = _instance;
     _instance = null;
+    if (instance != null) {
+      unawaited(instance.close());
+    }
   }
 
   factory CoreService._create() {
@@ -54,10 +58,14 @@ class CoreService extends CoreHandlerInterface {
   }
 
   @visibleForTesting
-  CoreService.forTesting({
+  factory CoreService.forTesting({
     required DesktopCoreLifecycleController lifecycle,
     required CoreRpcChannel rpcClient,
-  }) : this._(lifecycle: lifecycle, rpcClient: rpcClient);
+  }) {
+    final service = CoreService._(lifecycle: lifecycle, rpcClient: rpcClient);
+    _instance = service;
+    return service;
+  }
 
   CoreService._({
     required DesktopCoreLifecycleController lifecycle,
