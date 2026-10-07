@@ -28,9 +28,7 @@ void main() {
         addTearDown(tester.view.resetPhysicalSize);
         await tester.pumpWidget(_buildHome(Size(initialWidth, 800)));
         await tester.pumpAndSettle();
-        await tester.tap(
-          find.byKey(const ValueKey('capsule-icon-tools')),
-        );
+        await tester.tap(find.byKey(const ValueKey('capsule-icon-tools')));
         await tester.pumpAndSettle();
 
         final context = tester.element(find.text('page-tools'));
