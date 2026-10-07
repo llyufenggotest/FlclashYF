@@ -395,10 +395,10 @@ Widget _buildHome(Size viewSize) {
 NavigationItem _navigationItem(PageLabel label) {
   return NavigationItem(
     icon: Icon(switch (label) {
-      PageLabel.dashboard => Icons.home,
-      PageLabel.profiles => Icons.folder,
-      PageLabel.tools => Icons.construction,
-      _ => Icons.circle,
+      PageLabel.dashboard => Symbols.home,
+      PageLabel.profiles => Symbols.folder,
+      PageLabel.tools => Symbols.construction,
+      _ => Symbols.circle,
     }),
     label: label,
     builder: (_) => Center(child: Text('page-${label.name}')),
