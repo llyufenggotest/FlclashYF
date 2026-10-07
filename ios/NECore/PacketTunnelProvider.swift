@@ -189,7 +189,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         )
         NativeDiagnosticLog.shared.flush()
         if started {
-          self.sharedStateStore.saveRunTime()
+          self.sharedStateStore.saveRunTime(vpnOptions: snapshot.data)
           self.commandServer.start()
         } else {
           self.resourceHeartbeat.stop()

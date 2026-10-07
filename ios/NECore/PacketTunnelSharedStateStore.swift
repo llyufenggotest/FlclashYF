@@ -19,6 +19,7 @@ final class PacketTunnelSharedStateStore {
   private let sharedStateKey = "sharedState"
   private let setupParamsKey = "setupParams"
   private let runTimeKey = "runTime"
+  private let activeVpnOptionsKey = "activeVpnOptions"
   private let appliedConfigurationRequestKey = "appliedConfigurationRequest"
 
   func loadVPNOptionsSnapshot() -> (options: PacketTunnelVPNOptions, data: Data)? {
