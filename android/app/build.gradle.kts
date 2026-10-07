@@ -17,6 +17,8 @@ val releaseStoreFile = file("keystore.jks")
 val releaseStorePassword = localProperties.getProperty("storePassword")
 val releaseKeyAlias = localProperties.getProperty("keyAlias")
 val releaseKeyPassword = localProperties.getProperty("keyPassword")
+// Stable Android builds use the repository signing key so updates retain
+// the same certificate and can be installed over previous releases.
 val hasReleaseSigning = releaseStoreFile.exists() &&
     releaseStorePassword != null &&
     releaseKeyAlias != null &&
@@ -34,7 +36,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "cc.chenx.flclash"
+        applicationId = "cc.llyufeng.flclash.dev"
         minSdk = flutter.minSdkVersion
         targetSdk = libs.versions.targetSdk.get().toInt()
         versionCode = flutter.versionCode
@@ -61,18 +63,18 @@ android {
     buildTypes {
         debug {
             isMinifyEnabled = false
-            applicationIdSuffix = ".dev"
         }
 
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            if (hasReleaseSigning) {
-                signingConfig = signingConfigs.getByName("release")
-            } else {
-                signingConfig = signingConfigs.getByName("debug")
-                applicationIdSuffix = ".dev"
+            if (!hasReleaseSigning) {
+                throw GradleException(
+                    "Release signing is required for cc.llyufeng.flclash.dev; " +
+                        "provide the repository keystore and signing properties."
+                )
             }
+            signingConfig = signingConfigs.getByName("release")
 
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

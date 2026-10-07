@@ -125,6 +125,21 @@ jobs:
           ndk-version: ${{ env.NDK_VERSION }}
           add-to-path: true
           link-to-sdk: true
+      - name: Verify Android signing inputs
+        shell: bash
+        run: |
+          test -n "${{ secrets.KEYSTORE }}"
+          test -n "${{ secrets.KEY_ALIAS }}"
+          test -n "${{ secrets.STORE_PASSWORD }}"
+          test -n "${{ secrets.KEY_PASSWORD }}"
+      - name: Setup Android Signing
+        run: |
+          echo "${{ secrets.KEYSTORE }}" | base64 --decode > android/app/keystore.jks
+          {
+            echo "keyAlias=${{ secrets.KEY_ALIAS }}"
+            echo "storePassword=${{ secrets.STORE_PASSWORD }}"
+            echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
+          } >> android/local.properties
       - name: Build APK
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
@@ -205,7 +220,7 @@ jobs:
       - name: Build IPA without Apple provisioning
         run: |
           flutter pub get
-          dart setup.dart ios --no-codesign --ios-bundle-id com.follow.clash.llyufeng -v
+          dart setup.dart ios --no-codesign --ios-bundle-id cc.llyufeng.flclash.dev -v
       - name: Verify sideload compatibility dylib
         env:
           EXPECTED_SIDELOAD_DYLIB_SHA256: cd903ea15657cbd356398adcb60c8872c41c29b69acc1a5dfb78a49d6e75dea5

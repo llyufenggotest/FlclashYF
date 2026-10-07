@@ -415,7 +415,7 @@ Future<int> _package(
   if (platform == 'ios' && iosNoSign) {
     return packageIOSNoSign(
       rootDir: rootDir,
-      appBundleId: iosBundleId ?? 'cc.chenx.flclash',
+      appBundleId: iosBundleId ?? 'cc.llyufeng.flclash.dev',
       iosDevelopmentTeam: iosDevelopmentTeam,
       verbose: verbose,
     );
