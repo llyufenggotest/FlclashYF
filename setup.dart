@@ -217,7 +217,11 @@ Map<String, String> createBuildEnvironment(
 }) {
   // YF release identity (e.g. 0.9.4-yf.1) is kept separate from the numeric
   // native version so Apple/Windows version fields stay valid.
-  final release = releaseVersion?.trim();
+  // CI passes the git tag name (v0.9.4-yf.1); the identity has no `v`.
+  var release = releaseVersion?.trim();
+  if (release != null && release.startsWith('v')) {
+    release = release.substring(1);
+  }
   if (release != null &&
       release.isNotEmpty &&
       !RegExp(r'^\d+\.\d+\.\d+-yf\.[1-9]\d*$').hasMatch(release)) {

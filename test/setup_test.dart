@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
@@ -57,6 +58,24 @@ void main() {
         'APP_ENV': 'stable',
         'APP_ARCH': 'x64-v3',
       });
+    });
+
+    test('YF release identity accepts the CI tag name with v prefix', () {
+      expect(
+        setup.createBuildEnvironment('stable', releaseVersion: 'v0.9.4-yf.1'),
+        {'APP_ENV': 'stable', 'APP_RELEASE_VERSION': '0.9.4-yf.1'},
+      );
+      expect(
+        setup.createBuildEnvironment('stable', releaseVersion: '0.9.4-yf.2'),
+        {'APP_ENV': 'stable', 'APP_RELEASE_VERSION': '0.9.4-yf.2'},
+      );
+      expect(setup.createBuildEnvironment('stable', releaseVersion: ''), {
+        'APP_ENV': 'stable',
+      });
+      expect(
+        () => setup.createBuildEnvironment('stable', releaseVersion: 'v0.9.4'),
+        throwsFormatException,
+      );
     });
 
     test('parses iOS bundle identifier override', () {
@@ -266,8 +285,27 @@ void main() {
         },
       );
 
-      final file = File(p.join(tempDir.path, 'assets', 'data', 'GeoIP.metadb'));
-      expect(await file.readAsBytes(), [1, 2, 3, 4]);
+      // Geo databases ship packed (xz, or zlib when xz is absent) and are
+      // described by geo-manifest.json; the raw copy must not be bundled.
+      final dataDir = p.join(tempDir.path, 'assets', 'data');
+      expect(File(p.join(dataDir, 'GeoIP.metadb')).existsSync(), isFalse);
+      final manifest =
+          jsonDecode(
+                await File(p.join(dataDir, 'geo-manifest.json')).readAsString(),
+              )
+              as Map<String, dynamic>;
+      final entry = (manifest['resources'] as List).single as Map;
+      expect(entry['name'], 'GeoIP.metadb');
+      expect(entry['size'], 4);
+      final packed = await File(
+        p.join(dataDir, entry['asset'] as String),
+      ).readAsBytes();
+      final decoded = switch (entry['codec']) {
+        'xz' => XZDecoder().decodeBytes(packed),
+        'zlib' => const ZLibDecoder().decodeBytes(packed),
+        final codec => fail('unexpected codec $codec'),
+      };
+      expect(decoded, [1, 2, 3, 4]);
     });
 
     test('omits verbose from flutter build args by default', () {
