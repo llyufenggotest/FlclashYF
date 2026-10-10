@@ -16,6 +16,7 @@ export 'fastup_subscription.dart';
 export 'file.dart';
 export 'fixed.dart';
 export 'function.dart';
+export 'geo_assets.dart';
 export 'future.dart';
 export 'http.dart';
 export 'icons.dart';

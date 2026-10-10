@@ -8,7 +8,6 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
-import 'package:path/path.dart';
 
 class CoreController {
   static CoreController? _instance;
@@ -61,22 +60,32 @@ class CoreController {
   static Future<void> initGeo() async {
     final homePath = await appPath.homeDirPath;
     const geoFileNameList = [MMDB, GEOIP, GEOSITE, ASN, BUNDLE_MRS];
-    for (final geoFileName in geoFileNameList) {
-      try {
-        final geoFile = File(join(homePath, geoFileName));
-        final isExists = await geoFile.exists();
-        if (isExists) {
-          continue;
+    try {
+      final results = await installGeoAssets(
+        homePath: homePath,
+        names: geoFileNameList,
+        loadAsset: (path) async {
+          final data = await rootBundle.load(path);
+          return data.buffer.asUint8List(
+            data.offsetInBytes,
+            data.lengthInBytes,
+          );
+        },
+      );
+      for (final result in results) {
+        if (result.status == GeoInstallStatus.failed ||
+            result.status == GeoInstallStatus.suspicious) {
+          commonPrint.log(
+            'Failed to initialize geo data: $result',
+            logLevel: LogLevel.error,
+          );
         }
-        final data = await rootBundle.load('assets/data/$geoFileName');
-        final List<int> bytes = data.buffer.asUint8List();
-        await geoFile.writeAsBytes(bytes, flush: true);
-      } catch (e) {
-        commonPrint.log(
-          'Failed to initialize geo data: $e',
-          logLevel: LogLevel.error,
-        );
       }
+    } catch (e) {
+      commonPrint.log(
+        'Failed to initialize geo data: $e',
+        logLevel: LogLevel.error,
+      );
     }
   }
 
