@@ -1074,6 +1074,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "onlyStatisticsProxyDesc": MessageLookupByLibrary.simpleMessage(
       "When enabled, only proxy traffic is counted",
     ),
+    "openInGitHub": MessageLookupByLibrary.simpleMessage("Open in GitHub"),
     "optional": MessageLookupByLibrary.simpleMessage("Optional"),
     "options": MessageLookupByLibrary.simpleMessage("Options"),
     "other": MessageLookupByLibrary.simpleMessage("Other"),
@@ -1555,6 +1556,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "Show a stop button on the persistent notification. Turn it off if your system keeps the notification expanded because of it",
     ),
     "showPassword": MessageLookupByLibrary.simpleMessage("Show password"),
+    "showQuickSettingsProfileName": MessageLookupByLibrary.simpleMessage(
+      "Show current profile name",
+    ),
+    "showQuickSettingsProfileNameDesc": MessageLookupByLibrary.simpleMessage(
+      "Show profile name on the quick toggle when connected",
+    ),
     "showTrayProxySelection": MessageLookupByLibrary.simpleMessage(
       "Show proxy selection in tray",
     ),
@@ -1701,6 +1708,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "tunDesc": MessageLookupByLibrary.simpleMessage(
       "Only effective in administrator mode",
     ),
+    "tunDnsMode": MessageLookupByLibrary.simpleMessage("System DNS mode"),
+    "tunDnsModeDisabled": MessageLookupByLibrary.simpleMessage("Disabled"),
+    "tunDnsModeHijack": MessageLookupByLibrary.simpleMessage("Hijack"),
+    "tunDnsModeNative": MessageLookupByLibrary.simpleMessage("Native"),
     "turnOff": MessageLookupByLibrary.simpleMessage("Turn off"),
     "turnOn": MessageLookupByLibrary.simpleMessage("Turn on"),
     "tvMode": MessageLookupByLibrary.simpleMessage("TV mode"),
@@ -1742,6 +1753,22 @@ class MessageLookup extends MessageLookupByLibrary {
       "Unsupported profile file type",
     ),
     "update": MessageLookupByLibrary.simpleMessage("Update"),
+    "updateChecksumMismatch": MessageLookupByLibrary.simpleMessage(
+      "The downloaded file does not match the published checksum and was discarded.",
+    ),
+    "updateDownloading": MessageLookupByLibrary.simpleMessage(
+      "Downloading update",
+    ),
+    "updateInstallFailed": MessageLookupByLibrary.simpleMessage(
+      "The installer could not be started.",
+    ),
+    "updateInstallPermission": MessageLookupByLibrary.simpleMessage(
+      "FlClash was not allowed to install apps, so the update was not installed.",
+    ),
+    "updateNotWritable": MessageLookupByLibrary.simpleMessage(
+      "FlClash cannot write to the folder it is installed in. Download the update manually.",
+    ),
+    "updateNow": MessageLookupByLibrary.simpleMessage("Update now"),
     "upload": MessageLookupByLibrary.simpleMessage("Upload"),
     "uploadSpeed": MessageLookupByLibrary.simpleMessage("Upload speed"),
     "uploadTraffic": MessageLookupByLibrary.simpleMessage("Upload traffic"),

@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') }}
 
 env:
-  IS_STABLE: ${{ !contains(github.ref, '-') }}
+  IS_STABLE: ${{ !contains(github.ref, '-') || contains(github.ref, '-yf.') }}
   FLUTTER_VERSION: '3.47.6'
   GO_VERSION: '1.26.8'
   NDK_VERSION: r30
@@ -313,7 +313,7 @@ jobs:
             arch: x64-v3
           - platform: macos
             os: macos-26
-            arch: x64-v3
+            arch: x64
           - platform: macos
             os: macos-26
             arch: arm64
@@ -406,6 +406,7 @@ jobs:
       - name: Setup
         env:
           ANDROID_NDK_HOME: ${{ steps.build-ndk.outputs.ndk-path }}
+          YF_RELEASE_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && contains(github.ref, '-yf.') && github.ref_name || '' }}
         run: dart setup.dart ${{ matrix.platform }} ${{ env.IS_STABLE == 'true' && '--env stable' || '' }} ${{ matrix.platform == 'ios' && '--no-codesign' || '' }} ${{ (matrix.platform == 'macos' || matrix.platform == 'linux' || matrix.platform == 'windows') && format('--arch {0}', matrix.arch) || '' }} -v
 
       - name: Upload
@@ -446,9 +447,17 @@ jobs:
           version=$(echo "${{ github.ref_name }}" | sed 's/^v//')
           sed "s|VERSION|$version|g" ./.github/release_template.md >> release.md
 
+      - name: Gate YF release assets
+        # Exactly five owned assets (android arm64-v8a apk, windows x64 zip,
+        # ios arm64 unsigned ipa, macos arm64/x64 dmg) plus version.json with
+        # size/SHA256; rejects non-YF tags and foreign repositories.
+        run: python3 scripts/release_manifest_yf.py dist release "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" release.md
+
       - name: Release
         uses: softprops/action-gh-release@v3
         with:
-          prerelease: ${{ env.IS_STABLE != 'true' }}
-          files: ./dist/*
+          draft: true
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: ./release/*
           body_path: './release.md'

@@ -1390,6 +1390,71 @@ class AppLocalizations {
     );
   }
 
+  /// `Update now`
+  String get updateNow {
+    return Intl.message('Update now', name: 'updateNow', desc: '', args: []);
+  }
+
+  /// `Downloading update`
+  String get updateDownloading {
+    return Intl.message(
+      'Downloading update',
+      name: 'updateDownloading',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Open in GitHub`
+  String get openInGitHub {
+    return Intl.message(
+      'Open in GitHub',
+      name: 'openInGitHub',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The downloaded file does not match the published checksum and was discarded.`
+  String get updateChecksumMismatch {
+    return Intl.message(
+      'The downloaded file does not match the published checksum and was discarded.',
+      name: 'updateChecksumMismatch',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `FlClash cannot write to the folder it is installed in. Download the update manually.`
+  String get updateNotWritable {
+    return Intl.message(
+      'FlClash cannot write to the folder it is installed in. Download the update manually.',
+      name: 'updateNotWritable',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `FlClash was not allowed to install apps, so the update was not installed.`
+  String get updateInstallPermission {
+    return Intl.message(
+      'FlClash was not allowed to install apps, so the update was not installed.',
+      name: 'updateInstallPermission',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `The installer could not be started.`
+  String get updateInstallFailed {
+    return Intl.message(
+      'The installer could not be started.',
+      name: 'updateInstallFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
   /// `Download`
   String get goDownload {
     return Intl.message('Download', name: 'goDownload', desc: '', args: []);
@@ -1800,6 +1865,26 @@ class AppLocalizations {
     return Intl.message(
       'Collapse after tapping the tile',
       name: 'collapseQuickSettingsPanelDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Show current profile name`
+  String get showQuickSettingsProfileName {
+    return Intl.message(
+      'Show current profile name',
+      name: 'showQuickSettingsProfileName',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Show profile name on the quick toggle when connected`
+  String get showQuickSettingsProfileNameDesc {
+    return Intl.message(
+      'Show profile name on the quick toggle when connected',
+      name: 'showQuickSettingsProfileNameDesc',
       desc: '',
       args: [],
     );
@@ -6043,6 +6128,36 @@ class AppLocalizations {
       desc: '',
       args: [],
     );
+  }
+
+  /// `System DNS mode`
+  String get tunDnsMode {
+    return Intl.message(
+      'System DNS mode',
+      name: 'tunDnsMode',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Disabled`
+  String get tunDnsModeDisabled {
+    return Intl.message(
+      'Disabled',
+      name: 'tunDnsModeDisabled',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Native`
+  String get tunDnsModeNative {
+    return Intl.message('Native', name: 'tunDnsModeNative', desc: '', args: []);
+  }
+
+  /// `Hijack`
+  String get tunDnsModeHijack {
+    return Intl.message('Hijack', name: 'tunDnsModeHijack', desc: '', args: []);
   }
 
   /// `NAT enhancement`

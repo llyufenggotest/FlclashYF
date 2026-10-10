@@ -885,6 +885,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "onlyStatisticsProxyDesc": MessageLookupByLibrary.simpleMessage(
       "有効にすると、プロキシのトラフィックのみを集計します",
     ),
+    "openInGitHub": MessageLookupByLibrary.simpleMessage("GitHub で開く"),
     "optional": MessageLookupByLibrary.simpleMessage("任意"),
     "options": MessageLookupByLibrary.simpleMessage("オプション"),
     "other": MessageLookupByLibrary.simpleMessage("その他"),
@@ -1294,6 +1295,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "常駐通知に停止ボタンを表示します。これが原因で通知が常に展開される場合はオフにしてください",
     ),
     "showPassword": MessageLookupByLibrary.simpleMessage("パスワードを表示"),
+    "showQuickSettingsProfileName": MessageLookupByLibrary.simpleMessage(
+      "現在のプロファイル名を表示",
+    ),
+    "showQuickSettingsProfileNameDesc": MessageLookupByLibrary.simpleMessage(
+      "接続時にクイックスイッチにプロファイル名を表示します",
+    ),
     "showTrayProxySelection": MessageLookupByLibrary.simpleMessage(
       "トレイにプロキシ選択を表示",
     ),
@@ -1412,6 +1419,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "trafficUsage": MessageLookupByLibrary.simpleMessage("トラフィック統計"),
     "tun": MessageLookupByLibrary.simpleMessage("TUN"),
     "tunDesc": MessageLookupByLibrary.simpleMessage("管理者モードでのみ有効"),
+    "tunDnsMode": MessageLookupByLibrary.simpleMessage("システム DNS モード"),
+    "tunDnsModeDisabled": MessageLookupByLibrary.simpleMessage("無効"),
+    "tunDnsModeHijack": MessageLookupByLibrary.simpleMessage("ハイジャック"),
+    "tunDnsModeNative": MessageLookupByLibrary.simpleMessage("ネイティブ"),
     "turnOff": MessageLookupByLibrary.simpleMessage("オフにする"),
     "turnOn": MessageLookupByLibrary.simpleMessage("オンにする"),
     "tvMode": MessageLookupByLibrary.simpleMessage("TVモード"),
@@ -1447,6 +1458,20 @@ class MessageLookup extends MessageLookupByLibrary {
       "対応していないプロファイルファイル形式です",
     ),
     "update": MessageLookupByLibrary.simpleMessage("更新"),
+    "updateChecksumMismatch": MessageLookupByLibrary.simpleMessage(
+      "ダウンロードしたファイルが公開されたチェックサムと一致しないため、破棄しました。",
+    ),
+    "updateDownloading": MessageLookupByLibrary.simpleMessage("更新をダウンロード中"),
+    "updateInstallFailed": MessageLookupByLibrary.simpleMessage(
+      "インストーラーを起動できませんでした。",
+    ),
+    "updateInstallPermission": MessageLookupByLibrary.simpleMessage(
+      "FlClash にアプリのインストールが許可されなかったため、更新をインストールしませんでした。",
+    ),
+    "updateNotWritable": MessageLookupByLibrary.simpleMessage(
+      "FlClash はインストール先のフォルダに書き込めません。更新を手動でダウンロードしてください。",
+    ),
+    "updateNow": MessageLookupByLibrary.simpleMessage("今すぐ更新"),
     "upload": MessageLookupByLibrary.simpleMessage("アップロード"),
     "uploadSpeed": MessageLookupByLibrary.simpleMessage("アップロード速度"),
     "uploadTraffic": MessageLookupByLibrary.simpleMessage("アップロード通信量"),

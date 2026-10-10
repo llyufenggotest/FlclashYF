@@ -210,8 +210,24 @@ List<String> createFlutterBuildArgs({
   return flutterBuildArgs;
 }
 
-Map<String, String> createBuildEnvironment(String env) {
-  return {'APP_ENV': env};
+Map<String, String> createBuildEnvironment(
+  String env, {
+  String? arch,
+  String? releaseVersion,
+}) {
+  // YF release identity (e.g. 0.9.4-yf.1) is kept separate from the numeric
+  // native version so Apple/Windows version fields stay valid.
+  final release = releaseVersion?.trim();
+  if (release != null &&
+      release.isNotEmpty &&
+      !RegExp(r'^\d+\.\d+\.\d+-yf\.[1-9]\d*$').hasMatch(release)) {
+    throw FormatException('Invalid YF_RELEASE_VERSION', release);
+  }
+  return {
+    'APP_ENV': env,
+    'APP_ARCH': ?arch,
+    if (release != null && release.isNotEmpty) 'APP_RELEASE_VERSION': release,
+  };
 }
 
 String createMacosBuildConfig(String arch) {
@@ -387,7 +403,17 @@ Future<int> _package(
   await ensureGeoData(rootDir: rootDir);
 
   final file = File(p.join(rootDir, 'env.json'));
-  await file.writeAsString(jsonEncode(createBuildEnvironment(env)));
+  await file.writeAsString(
+    jsonEncode(
+      createBuildEnvironment(
+        env,
+        arch: platform == 'android' || platform == 'ios'
+            ? null
+            : packageArch.name,
+        releaseVersion: Platform.environment['YF_RELEASE_VERSION'],
+      ),
+    ),
+  );
   if (platform == 'ios') {
     await writeIOSGeneratedBundleConfig(
       rootDir,
@@ -486,10 +512,19 @@ Future<int> _package(
 }
 
 Future<void> _injectPortableConfigDir(String rootDir) async {
+  final pubspec = File(p.join(rootDir, 'pubspec.yaml')).readAsStringSync();
+  final version =
+      RegExp(
+        r'^version:\s*([^\s+]+)',
+        multiLine: true,
+      ).firstMatch(pubspec)?.group(1) ??
+      'unknown';
   final distDir = Directory(p.join(rootDir, 'dist'));
   if (!await distDir.exists()) return;
   await for (final entity in distDir.list(recursive: true)) {
-    if (entity is! File || !entity.path.toLowerCase().endsWith('.zip')) {
+    if (entity is! File ||
+        !entity.path.toLowerCase().endsWith('.zip') ||
+        !p.basename(entity.path).contains(version)) {
       continue;
     }
     try {

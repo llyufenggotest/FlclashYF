@@ -1120,6 +1120,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "onlyStatisticsProxyDesc": MessageLookupByLibrary.simpleMessage(
       "При включении учитывается только трафик через прокси",
     ),
+    "openInGitHub": MessageLookupByLibrary.simpleMessage("Открыть в GitHub"),
     "optional": MessageLookupByLibrary.simpleMessage("Необязательно"),
     "options": MessageLookupByLibrary.simpleMessage("Опции"),
     "other": MessageLookupByLibrary.simpleMessage("Другое"),
@@ -1633,6 +1634,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "Показывать кнопку остановки в постоянном уведомлении. Отключите, если из-за неё система всегда разворачивает уведомление",
     ),
     "showPassword": MessageLookupByLibrary.simpleMessage("Показать пароль"),
+    "showQuickSettingsProfileName": MessageLookupByLibrary.simpleMessage(
+      "Показывать имя текущего профиля",
+    ),
+    "showQuickSettingsProfileNameDesc": MessageLookupByLibrary.simpleMessage(
+      "Показывать имя профиля на быстром переключателе при подключении",
+    ),
     "showTrayProxySelection": MessageLookupByLibrary.simpleMessage(
       "Показывать выбор прокси в трее",
     ),
@@ -1799,6 +1806,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "tunDesc": MessageLookupByLibrary.simpleMessage(
       "Работает только в режиме администратора",
     ),
+    "tunDnsMode": MessageLookupByLibrary.simpleMessage("Режим системного DNS"),
+    "tunDnsModeDisabled": MessageLookupByLibrary.simpleMessage("Отключено"),
+    "tunDnsModeHijack": MessageLookupByLibrary.simpleMessage("Перехват"),
+    "tunDnsModeNative": MessageLookupByLibrary.simpleMessage("Нативный"),
     "turnOff": MessageLookupByLibrary.simpleMessage("Выключить"),
     "turnOn": MessageLookupByLibrary.simpleMessage("Включить"),
     "tvMode": MessageLookupByLibrary.simpleMessage("Режим ТВ"),
@@ -1842,6 +1853,22 @@ class MessageLookup extends MessageLookupByLibrary {
       "Неподдерживаемый формат файла профиля",
     ),
     "update": MessageLookupByLibrary.simpleMessage("Обновить"),
+    "updateChecksumMismatch": MessageLookupByLibrary.simpleMessage(
+      "Загруженный файл не совпадает с опубликованной контрольной суммой и был удалён.",
+    ),
+    "updateDownloading": MessageLookupByLibrary.simpleMessage(
+      "Загрузка обновления",
+    ),
+    "updateInstallFailed": MessageLookupByLibrary.simpleMessage(
+      "Не удалось запустить установщик.",
+    ),
+    "updateInstallPermission": MessageLookupByLibrary.simpleMessage(
+      "FlClash не получил разрешение на установку приложений, поэтому обновление не установлено.",
+    ),
+    "updateNotWritable": MessageLookupByLibrary.simpleMessage(
+      "FlClash не может записывать в папку установки. Загрузите обновление вручную.",
+    ),
+    "updateNow": MessageLookupByLibrary.simpleMessage("Обновить сейчас"),
     "upload": MessageLookupByLibrary.simpleMessage("Отдача"),
     "uploadSpeed": MessageLookupByLibrary.simpleMessage("Скорость загрузки"),
     "uploadTraffic": MessageLookupByLibrary.simpleMessage("Исходящий трафик"),

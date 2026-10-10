@@ -47,6 +47,17 @@ void main() {
     }
   });
 
+  test('TUN DNS mode defaults to hijack and round-trips', () {
+    expect(const Tun().dnsMode, TunDnsMode.hijack);
+    expect(Tun.fromJson({}).dnsMode, TunDnsMode.hijack);
+    expect(Tun.fromJson({'dns-mode': 'future'}).dnsMode, TunDnsMode.hijack);
+    for (final mode in TunDnsMode.values) {
+      final tun = Tun.fromJson({'dns-mode': mode.name});
+      expect(tun.dnsMode, mode);
+      expect(tun.toJson()['dns-mode'], mode.name);
+    }
+  });
+
   test('TUN defaults to mips and preserves saved stack choices', () {
     expect(const Tun().stack, TunStack.mips);
     expect(Tun.fromJson({}).stack, TunStack.mips);
@@ -131,6 +142,18 @@ void main() {
   });
 
   group('AppSettingProps JSON round-trip', () {
+    test('quick settings profile visibility defaults on and persists', () {
+      expect(AppSettingProps.fromJson({}).showQuickSettingsProfileName, isTrue);
+      const props = AppSettingProps(showQuickSettingsProfileName: false);
+      expect(
+        roundTrip(
+          props.toJson,
+          AppSettingProps.fromJson,
+        ).showQuickSettingsProfileName,
+        isFalse,
+      );
+    });
+
     test('older settings default to collapsed proxy chains', () {
       expect(AppSettingProps.fromJson({}).collapseProxyChains, true);
     });

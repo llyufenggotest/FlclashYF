@@ -76,14 +76,13 @@ final class TunnelCoordinator {
     driveCoordinator()
   }
 
-  func toggleTunnelRequest(notifyExternalOnCompletion: Bool) {
+  func toggleTunnelRequest() {
     let currentTarget = tunnelRequest?.target ??
       observedTunnelStatus?.tunnelState ??
       publishedTunnelState ??
       .stopped
     submitTunnelRequest(
-      target: currentTarget == .running ? .stopped : .running,
-      notifyExternalOnCompletion: notifyExternalOnCompletion
+      target: currentTarget == .running ? .stopped : .running
     )
   }
 
@@ -548,11 +547,6 @@ final class TunnelCoordinator {
       "\(request.target.description) completed actual=\(actualState.description) generation=\(request.generation)"
     )
 
-    guard request.notifyExternalOnCompletion ||
-      actualState != request.target
-    else {
-      return
-    }
     Task { @MainActor [weak self] in
       guard let self,
         self.requestGeneration == request.generation,

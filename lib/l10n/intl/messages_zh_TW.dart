@@ -787,6 +787,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "onlyStatisticsProxyDesc": MessageLookupByLibrary.simpleMessage(
       "開啟後，將只統計代理流量",
     ),
+    "openInGitHub": MessageLookupByLibrary.simpleMessage("在 GitHub 開啟"),
     "optional": MessageLookupByLibrary.simpleMessage("可選"),
     "options": MessageLookupByLibrary.simpleMessage("選項"),
     "other": MessageLookupByLibrary.simpleMessage("其他"),
@@ -1140,6 +1141,12 @@ class MessageLookup extends MessageLookupByLibrary {
       "在常駐通知中顯示停止按鈕。若系統因此總是展開通知，可關閉此選項",
     ),
     "showPassword": MessageLookupByLibrary.simpleMessage("顯示密碼"),
+    "showQuickSettingsProfileName": MessageLookupByLibrary.simpleMessage(
+      "顯示目前設定檔名稱",
+    ),
+    "showQuickSettingsProfileNameDesc": MessageLookupByLibrary.simpleMessage(
+      "連線時在快捷開關上顯示設定檔名稱",
+    ),
     "showTrayProxySelection": MessageLookupByLibrary.simpleMessage("在系統匣中選擇代理"),
     "showTrayProxySelectionDesc": MessageLookupByLibrary.simpleMessage(
       "在系統匣選單中顯示代理群組與節點，方便快速切換",
@@ -1246,6 +1253,10 @@ class MessageLookup extends MessageLookupByLibrary {
     "trafficUsage": MessageLookupByLibrary.simpleMessage("流量統計"),
     "tun": MessageLookupByLibrary.simpleMessage("虛擬網路卡"),
     "tunDesc": MessageLookupByLibrary.simpleMessage("僅在系統管理員模式下生效"),
+    "tunDnsMode": MessageLookupByLibrary.simpleMessage("系統 DNS 模式"),
+    "tunDnsModeDisabled": MessageLookupByLibrary.simpleMessage("不設定"),
+    "tunDnsModeHijack": MessageLookupByLibrary.simpleMessage("劫持"),
+    "tunDnsModeNative": MessageLookupByLibrary.simpleMessage("原生"),
     "turnOff": MessageLookupByLibrary.simpleMessage("關閉"),
     "turnOn": MessageLookupByLibrary.simpleMessage("開啟"),
     "tvMode": MessageLookupByLibrary.simpleMessage("電視模式"),
@@ -1277,6 +1288,18 @@ class MessageLookup extends MessageLookupByLibrary {
       "不支援的設定檔類型",
     ),
     "update": MessageLookupByLibrary.simpleMessage("更新"),
+    "updateChecksumMismatch": MessageLookupByLibrary.simpleMessage(
+      "下載的檔案與發佈的校驗值不符，已捨棄。",
+    ),
+    "updateDownloading": MessageLookupByLibrary.simpleMessage("正在下載更新"),
+    "updateInstallFailed": MessageLookupByLibrary.simpleMessage("無法啟動安裝程式。"),
+    "updateInstallPermission": MessageLookupByLibrary.simpleMessage(
+      "FlClash 未獲得安裝應用程式的權限，因此未安裝更新。",
+    ),
+    "updateNotWritable": MessageLookupByLibrary.simpleMessage(
+      "FlClash 無法寫入其安裝目錄，請手動下載更新。",
+    ),
+    "updateNow": MessageLookupByLibrary.simpleMessage("立即更新"),
     "upload": MessageLookupByLibrary.simpleMessage("上傳"),
     "uploadSpeed": MessageLookupByLibrary.simpleMessage("上傳速度"),
     "uploadTraffic": MessageLookupByLibrary.simpleMessage("上傳流量"),

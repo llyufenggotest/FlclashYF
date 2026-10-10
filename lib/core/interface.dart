@@ -46,9 +46,9 @@ mixin CoreInterface {
     bool closeConnections = false,
   });
 
-  Future<bool> startListener();
+  Future<bool?> startListener();
 
-  Future<bool> stopListener();
+  Future<bool?> stopListener();
 
   Future<List<ExternalProvider>> getExternalProviders();
 
@@ -619,13 +619,13 @@ abstract class CoreHandlerInterface with CoreInterface {
   }
 
   @override
-  Future<bool> startListener() async {
-    return await _invokeMethod<bool>(method: CoreMethod.startListener) ?? false;
+  Future<bool?> startListener() async {
+    return _invokeMethod<bool>(method: CoreMethod.startListener);
   }
 
   @override
-  Future<bool> stopListener() async {
-    return await _invokeMethod<bool>(method: CoreMethod.stopListener) ?? false;
+  Future<bool?> stopListener() async {
+    return _invokeMethod<bool>(method: CoreMethod.stopListener);
   }
 
   @override

@@ -129,10 +129,8 @@ final class TunnelController {
     coordinator.submitTunnelRequest(target: .stopped)
   }
 
-  func toggle(notifyExternal: Bool) {
-    coordinator.toggleTunnelRequest(
-      notifyExternalOnCompletion: notifyExternal
-    )
+  func toggle() {
+    coordinator.toggleTunnelRequest()
   }
 
   func reloadOnDemandRules() async throws {
