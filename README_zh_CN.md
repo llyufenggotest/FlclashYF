@@ -4,11 +4,11 @@
 
 </div>
 
-# FlClash Patched
+# FlClashYF
 
-[![Downloads](https://img.shields.io/github/downloads/chenx-dust/FlClash-Patched/total?style=flat-square&logo=github)](https://github.com/chenx-dust/FlClash-Patched/releases/)[![Last Version](https://img.shields.io/github/release/chenx-dust/FlClash-Patched/all.svg?style=flat-square)](https://github.com/chenx-dust/FlClash-Patched/releases/)[![License](https://img.shields.io/github/license/chenx-dust/FlClash-Patched?style=flat-square)](LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/llyufenggotest/FlclashYF/total?style=flat-square&logo=github)](https://github.com/llyufenggotest/FlclashYF/releases/)[![Last Version](https://img.shields.io/github/release/llyufenggotest/FlclashYF/all.svg?style=flat-square)](https://github.com/llyufenggotest/FlclashYF/releases/)[![License](https://img.shields.io/github/license/llyufenggotest/FlclashYF?style=flat-square)](LICENSE)
 
-[FlClash](https://github.com/chen08209/FlClash) 的分支版本，修复数个 bug，提升效能，增加功能。
+[FlClash](https://github.com/chen08209/FlClash) 的分支版本，集成验证后的自有协议并改进生命周期管理。
 
 ## 免责声明
 
@@ -19,33 +19,29 @@
 
 ## 特性
 
-> [!WARNING]
-> 本分叉版本的维护有较强个人色彩，您可以提出建议，但不一定被采纳。版本分发节奏较快，且代码强制推送，保持最新可能会遇到问题，不保证与原项目的兼容性，请做好备份措施。
-
 - 支持 iOS 平台（需使用 Apple 开发者账号自行编译安装）
-- 优化 Linux 平台体验（Pacman 包分发、修复 RPM 依赖、WM_CLASS 问题）
-- 修复原项目 Bug（启动时间、窗口定位、程序通知）
+- 已验证的自有协议集成（Oix、X365 及私有协议）
+- 生命周期和内存管理改进
 - 能效优化（优化 Android Doze 支持、统一 UI 定时器休眠）
 - UI 优化（代理选择界面、日志与连接筛选排序）
-- 新增功能（Age-Key 加密支持、Windows 高优先级启动、Tailscale 集成等）
+- 地理数据库压缩以减小安装包体积
+- 自托管更新检查与包完整性校验
 
-更多信息请查看 [Applied Patches (#1)](https://github.com/chenx-dust/FlClash-Patched/issues/1)
+## 下载
 
-# 原介绍
+**最新版本：** [v0.9.4-yf.1](https://github.com/llyufenggotest/FlclashYF/releases/latest)
 
-基于 mihomo 的多平台代理客户端，简单易用，开源无广告。
+<a href="https://github.com/llyufenggotest/FlclashYF/releases"><img alt="Get it on GitHub" src="snapshots/get-it-on-github.svg" width="200px"/></a>
 
-## 特性
+| 平台 | 文件 |
+|------|------|
+| Android arm64-v8a | `FlClash-0.9.4-android-arm64-v8a.apk` |
+| Windows x64 便携版 | `FlClash-0.9.4-windows-x64.zip` |
+| iOS arm64（未签名，需自行侧载签名） | `FlClash-0.9.4-ios-arm64-unsigned.ipa` |
+| macOS Apple Silicon | `FlClash-0.9.4-macos-arm64.dmg` |
+| macOS Intel | `FlClash-0.9.4-macos-x64.dmg` |
 
-✈️ 多平台: Android, iOS, Windows, macOS and Linux
-
-💻 自适应多个屏幕尺寸,多种颜色主题可供选择
-
-💡 基于 Material You 设计，采用类似 [Surfboard](https://github.com/getsurfboard/surfboard) 的用户界面
-
-☁️ 支持通过 WebDAV 同步数据
-
-✨ 支持一键导入订阅、深色模式
+Android 包名 `cc.llyufeng.flclash.dev`，签名与此前版本一致，可覆盖安装并保留数据。
 
 ## 使用
 
@@ -62,16 +58,12 @@
 支持下列操作
 
    ```bash
-    cc.chenx.flclash.action.START
+    cc.llyufeng.flclash.dev.action.START
     
-    cc.chenx.flclash.action.STOP
+    cc.llyufeng.flclash.dev.action.STOP
     
-    cc.chenx.flclash.action.TOGGLE
+    cc.llyufeng.flclash.dev.action.TOGGLE
    ```
-
-## 下载
-
-<a href="https://github.com/chenx-dust/FlClash-Patched/releases"><img alt="Get it on GitHub" src="snapshots/get-it-on-github.svg" width="200px"/></a>
 
 ## 构建
 
@@ -144,3 +136,14 @@
            ```bash
            dart setup.dart ios --ios-bundle-id com.example.flclash
            ```
+
+## 致谢
+
+本项目基于：
+- [FlClash](https://github.com/chen08209/FlClash) by chen08209
+- [FlClash-Patched](https://github.com/chenx-dust/FlClash-Patched) by chenx-dust
+- [mihomo](https://github.com/MetaCubeX/mihomo)
+
+## 许可证
+
+[GPL-3.0](LICENSE)
