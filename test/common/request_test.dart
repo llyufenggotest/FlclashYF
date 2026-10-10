@@ -142,7 +142,11 @@ void main() {
             Response<Object?>(
               requestOptions: options,
               statusCode: 200,
-              data: {'tag_name': 'v0.9.4-yf.1', 'body': '- notes', 'assets': []},
+              data: {
+                'tag_name': 'v0.9.4-yf.1',
+                'body': '- notes',
+                'assets': [],
+              },
             ),
           );
         },

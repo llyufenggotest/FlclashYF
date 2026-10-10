@@ -6,6 +6,8 @@ on:
       - '**'
     tags:
       - 'v*'
+      # YF releases are drafted by ios-five-protocol.yaml only.
+      - '!v*-yf.*'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

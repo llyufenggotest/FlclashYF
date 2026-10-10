@@ -11,7 +11,8 @@ const _hashA =
 
 Map<String, dynamic> _asset(String name, {Object? sha256 = _hashA}) => {
   'name': name,
-  'url': 'https://github.com/llyufenggotest/FlclashYF/releases/download/v0.9.4-yf.1/$name',
+  'url':
+      'https://github.com/llyufenggotest/FlclashYF/releases/download/v0.9.4-yf.1/$name',
   'size': 42,
   'sha256': sha256,
 };
@@ -213,7 +214,10 @@ void main() {
       expect(_release.notes, '- notes');
       expect(_release.assets, hasLength(10));
       final asset = _release.assets.first;
-      expect(asset.url, 'https://github.com/llyufenggotest/FlclashYF/releases/download/v0.9.4-yf.1/${asset.name}');
+      expect(
+        asset.url,
+        'https://github.com/llyufenggotest/FlclashYF/releases/download/v0.9.4-yf.1/${asset.name}',
+      );
       expect(asset.size, 42);
       expect(asset.sha256, _hashA);
     });
@@ -244,7 +248,8 @@ void main() {
     test('reads a GitHub API release and its sha256 digests', () {
       Map<String, dynamic> apiAsset(String name, Object? digest) => {
         'name': name,
-        'browser_download_url': 'https://github.com/llyufenggotest/FlclashYF/releases/download/v0.9.4-yf.1/$name',
+        'browser_download_url':
+            'https://github.com/llyufenggotest/FlclashYF/releases/download/v0.9.4-yf.1/$name',
         'size': 42,
         'digest': digest,
       };
@@ -261,7 +266,10 @@ void main() {
       expect(release.notes, '- notes');
       expect(release.assets.map((asset) => asset.name), ['FlClash-ok.apk']);
       expect(release.assets.single.sha256, _hashA);
-      expect(release.assets.single.url, 'https://github.com/llyufenggotest/FlclashYF/releases/download/v0.9.4-yf.1/FlClash-ok.apk');
+      expect(
+        release.assets.single.url,
+        'https://github.com/llyufenggotest/FlclashYF/releases/download/v0.9.4-yf.1/FlClash-ok.apk',
+      );
       expect(
         () => ReleaseManifest.fromGitHubRelease({'body': ''}),
         throwsFormatException,

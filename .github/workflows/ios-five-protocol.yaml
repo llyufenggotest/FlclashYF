@@ -19,6 +19,7 @@ on:
       - integration/v0.9.1-yf
       - integration/v0.9.2-yf
       - integration/v0.9.3-yf
+      - integration/v0.9.4-yf
     tags:
       - 'v*'
 
@@ -30,6 +31,8 @@ concurrency:
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') }}
 
 env:
+  # YF release identity for update checks; empty on branch builds.
+  YF_RELEASE_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && contains(github.ref, '-yf.') && github.ref_name || '' }}
   FLUTTER_VERSION: '3.47.6'
   GO_VERSION: '1.26.8'
   NDK_VERSION: r30
@@ -161,6 +164,7 @@ jobs:
           flutter pub get
           dart setup.dart android --arch arm64 -v
           test -n "$(find dist -type f -name '*.apk' -print -quit)"
+          python3 -c "import json,sys;m=json.load(open('assets/data/geo-manifest.json'));c=sorted({r['name']:r['codec'] for r in m['resources']}.items());print(c);sys.exit(0 if all(v=='xz' for k,v in c if k!='BundleMRS.7z') and len(c)==5 else 1)"
       - uses: actions/upload-artifact@v7
         with:
           name: FlclashYF-android-arm64-v8a
@@ -198,6 +202,7 @@ jobs:
           flutter pub get
           dart setup.dart windows --arch x64 --targets zip -v
           test -n "$(find dist -type f -name '*.zip' -print -quit)"
+          python -c "import json,sys;m=json.load(open('assets/data/geo-manifest.json'));c=sorted({r['name']:r['codec'] for r in m['resources']}.items());print(c);sys.exit(0 if all(v=='xz' for k,v in c if k!='BundleMRS.7z') and len(c)==5 else 1)"
       - uses: actions/upload-artifact@v7
         with:
           name: FlclashYF-windows-x64
@@ -248,6 +253,7 @@ jobs:
         run: |
           flutter pub get
           dart setup.dart ios --no-codesign --ios-bundle-id cc.llyufeng.flclash.dev -v
+          python3 -c "import json,sys;m=json.load(open('assets/data/geo-manifest.json'));c=sorted({r['name']:r['codec'] for r in m['resources']}.items());print(c);sys.exit(0 if all(v=='xz' for k,v in c if k!='BundleMRS.7z') and len(c)==5 else 1)"
       - name: Verify sideload compatibility dylib
         env:
           EXPECTED_SIDELOAD_DYLIB_SHA256: cd903ea15657cbd356398adcb60c8872c41c29b69acc1a5dfb78a49d6e75dea5
@@ -302,8 +308,39 @@ jobs:
           flutter pub get
           dart setup.dart macos --arch ${{ matrix.build_arch }} -v
           test -n "$(find dist -type f -name '*.dmg' -print -quit)"
+          python3 -c "import json,sys;m=json.load(open('assets/data/geo-manifest.json'));c=sorted({r['name']:r['codec'] for r in m['resources']}.items());print(c);sys.exit(0 if all(v=='xz' for k,v in c if k!='BundleMRS.7z') and len(c)==5 else 1)"
       - uses: actions/upload-artifact@v7
         with:
           name: FlclashYF-macos-${{ matrix.arch }}
           path: dist/*.dmg
           if-no-files-found: error
+
+  release:
+    name: Draft YF release
+    if: startsWith(github.ref, 'refs/tags/v') && contains(github.ref, '-yf.')
+    needs: [android, windows, ios, macos]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: FlclashYF-*
+          path: dist
+          merge-multiple: true
+      - name: Gate five release assets
+        run: |
+          ls -la dist
+          version="${GITHUB_REF_NAME#v}"
+          native="${version%%-yf.*}"
+          sed -e "s|VERSION|$version|g" -e "s|NATIVE|$native|g" .github/release_notes_yf.md > release.md
+          python3 scripts/release_manifest_yf.py dist release "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" release.md
+          ls -la release
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release/* --repo "$GITHUB_REPOSITORY" \
+            --draft --title "FlClashYF ${GITHUB_REF_NAME#v}" --notes-file release.md --verify-tag
