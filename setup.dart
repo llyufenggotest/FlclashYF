@@ -190,7 +190,6 @@ ArgParser createSetupArgParser() {
 List<String> createFlutterBuildArgs({
   required String platform,
   required bool verbose,
-  String? androidBuildNumber,
   String? iosExportMethod,
   String? iosExportOptionsPlist,
 }) {
@@ -201,9 +200,6 @@ List<String> createFlutterBuildArgs({
   switch (platform) {
     case 'android':
       flutterBuildArgs.add('split-per-abi');
-      if (androidBuildNumber != null && androidBuildNumber.isNotEmpty) {
-        flutterBuildArgs.add('build-number=$androidBuildNumber');
-      }
     case 'ios':
       if (iosExportOptionsPlist != null && iosExportOptionsPlist.isNotEmpty) {
         flutterBuildArgs.add('export-options-plist=$iosExportOptionsPlist');
@@ -429,7 +425,6 @@ Future<int> _package(
   final flutterBuildArgs = createFlutterBuildArgs(
     platform: platform,
     verbose: verbose,
-    androidBuildNumber: platform == 'android' ? '2026101001' : null,
     iosExportMethod: iosExportMethod,
     iosExportOptionsPlist: iosExportOptionsPlist,
   );
