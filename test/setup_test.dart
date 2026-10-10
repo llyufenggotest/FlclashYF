@@ -274,21 +274,28 @@ void main() {
       final args = setup.createFlutterBuildArgs(
         platform: 'android',
         verbose: false,
+        androidBuildNumber: '2026101001',
       );
 
-      expect(args, ['dart-define-from-file=env.json', 'split-per-abi']);
+      expect(args, [
+        'dart-define-from-file=env.json',
+        'split-per-abi',
+        'build-number=2026101001',
+      ]);
     });
 
     test('adds verbose to flutter build args with -v', () {
       final args = setup.createFlutterBuildArgs(
         platform: 'android',
         verbose: true,
+        androidBuildNumber: '2026101001',
       );
 
       expect(args, [
         'verbose',
         'dart-define-from-file=env.json',
         'split-per-abi',
+        'build-number=2026101001',
       ]);
     });
 
