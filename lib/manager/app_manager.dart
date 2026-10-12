@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:fl_clash/common/common.dart';
-import 'package:fl_clash/common/permission.dart';
 import 'package:fl_clash/common/legacy_dns_migration.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/manager/window_manager.dart';
@@ -120,7 +119,7 @@ class _AppStateManagerState extends ConsumerState<AppStateManager>
         globalState.handleBackground();
         break;
       case AppLifecycleState.resumed:
-        permissions.check(ref.read);
+        unawaited(ref.read(locationPermissionsProvider.notifier).refresh());
         globalState.handleForeground();
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;

@@ -27,17 +27,17 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m2(count) => "${count} 天前";
 
-  static String m3(label) => "确定删除选中的 ${label} 吗？";
+  static String m3(label) => "确定删除选中的${label}吗？";
 
-  static String m4(label) => "确定删除当前 ${label} 吗？";
+  static String m4(label) => "确定删除当前${label}吗？";
 
-  static String m5(label) => "${label} 详情";
+  static String m5(label) => "${label}详情";
 
-  static String m6(label) => "${label} 不能为空";
+  static String m6(label) => "${label}不能为空";
 
   static String m7(count) => "${count} 个条目";
 
-  static String m8(label) => "${label} 当前已存在";
+  static String m8(label) => "${label}当前已存在";
 
   static String m9(name) => "${name} 已是最新版本";
 
@@ -70,11 +70,11 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m23(count) => "${count} 个月前";
 
-  static String m24(label) => "暂无 ${label}";
+  static String m24(label) => "暂无${label}";
 
-  static String m25(label) => "${label} 必须为数字";
+  static String m25(label) => "${label}必须为数字";
 
-  static String m26(label) => "${label} 必须在 1024 到 49151 之间，0 为禁用";
+  static String m26(label) => "${label}必须在 1024 到 49151 之间，0 为禁用";
 
   static String m27(count) => "${count} 个代理";
 
@@ -91,7 +91,7 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m33(interval) => "${interval} · 怠速已禁用";
 
-  static String m34(label) => "${label} 必须为 URL";
+  static String m34(label) => "${label}必须为 URL";
 
   static String m35(count) => "${count} 年前";
 
@@ -214,9 +214,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "basicStrategy": MessageLookupByLibrary.simpleMessage("基础策略"),
     "batteryOptimizationDesc": MessageLookupByLibrary.simpleMessage(
       "为保证后台运行，请关闭本应用的电池优化。点击前往设置。",
-    ),
-    "batteryOptimizationStatusTip": MessageLookupByLibrary.simpleMessage(
-      "由于系统限制，运行状态下无法正确获取电池优化状态",
     ),
     "bind": MessageLookupByLibrary.simpleMessage("绑定"),
     "blacklistMode": MessageLookupByLibrary.simpleMessage("黑名单模式"),
@@ -475,6 +472,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "fallbackIpcidrDesc": MessageLookupByLibrary.simpleMessage(
       "nameserver 结果命中这些 CIDR 前缀时改用 fallback 结果",
     ),
+    "features": MessageLookupByLibrary.simpleMessage("特性"),
     "fidelityScheme": MessageLookupByLibrary.simpleMessage("高保真"),
     "file": MessageLookupByLibrary.simpleMessage("文件"),
     "fileDesc": MessageLookupByLibrary.simpleMessage("直接上传配置文件"),
@@ -872,6 +870,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "proxyNameserverPolicyDesc": MessageLookupByLibrary.simpleMessage(
       "指定代理节点的域名服务器策略",
     ),
+    "proxyProvider": MessageLookupByLibrary.simpleMessage("代理集"),
     "proxyProviderDetectedAbnormal": MessageLookupByLibrary.simpleMessage(
       "检测到选中的代理集存在异常",
     ),
@@ -963,6 +962,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "routeRules": MessageLookupByLibrary.simpleMessage("路由规则"),
     "routeTarget": MessageLookupByLibrary.simpleMessage("目标"),
     "routes": MessageLookupByLibrary.simpleMessage("路由"),
+    "routingMark": MessageLookupByLibrary.simpleMessage("路由标记"),
     "ru": MessageLookupByLibrary.simpleMessage("俄语"),
     "rule": MessageLookupByLibrary.simpleMessage("规则"),
     "ruleActionAndDesc": MessageLookupByLibrary.simpleMessage("逻辑规则 AND"),
@@ -1171,6 +1171,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "subRuleNotEmpty": MessageLookupByLibrary.simpleMessage("子规则不能为空"),
     "submit": MessageLookupByLibrary.simpleMessage("提交"),
     "subscriptionInfo": MessageLookupByLibrary.simpleMessage("订阅信息"),
+    "sudoPasswordTitle": MessageLookupByLibrary.simpleMessage("输入 sudo 密码"),
     "suspendSupport": MessageLookupByLibrary.simpleMessage("休眠支持"),
     "suspendSupportDesc": MessageLookupByLibrary.simpleMessage(
       "设备空闲时挂起核心以降低耗电",
@@ -1281,7 +1282,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "uploadTraffic": MessageLookupByLibrary.simpleMessage("上传流量"),
     "url": MessageLookupByLibrary.simpleMessage("URL"),
     "urlDesc": MessageLookupByLibrary.simpleMessage("通过 URL 获取配置文件"),
-    "urlTip": m33,
+    "urlTip": m34,
     "useGlobalTemplate": MessageLookupByLibrary.simpleMessage("使用全局配置模板"),
     "useGlobalTemplateDesc": MessageLookupByLibrary.simpleMessage(
       "开启后，完整 YAML 也仅提取节点并套用全局模板；不完整 YAML 和节点链接始终套用模板，随后仍执行覆写。远程更新沿用此设置。关闭不会还原已转换的文件，请重新下载或导入原始配置。",

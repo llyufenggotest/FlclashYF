@@ -149,26 +149,17 @@ class App {
   }
 
   Future<bool?> initShortcuts() async {
-    return methodChannel.invokeMethod<bool>(
-      'initShortcuts',
-      currentAppLocalizations.toggle,
-    );
+    return methodChannel.invokeMethod<bool>('initShortcuts', {
+      'start': currentAppLocalizations.start,
+      'stop': currentAppLocalizations.stop,
+      'toggle': currentAppLocalizations.toggle,
+    });
   }
 
   Future<bool?> updateExcludeFromRecents(bool value) async {
     return methodChannel.invokeMethod<bool>('updateExcludeFromRecents', {
       'value': value,
     });
-  }
-
-  Future<bool?> isBatteryOptimizationDisabled() async {
-    if (!Platform.isAndroid) return true;
-    return methodChannel.invokeMethod<bool>('isBatteryOptimizationDisabled');
-  }
-
-  Future<bool?> openBatteryOptimizationSettings() async {
-    if (!Platform.isAndroid) return false;
-    return methodChannel.invokeMethod<bool>('openBatteryOptimizationSettings');
   }
 
   Future<bool?> openAppSettings() async {

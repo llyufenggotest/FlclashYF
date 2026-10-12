@@ -7,6 +7,7 @@ import 'package:proxy/proxy_method_channel.dart';
 import 'package:proxy/src/linux_proxy.dart';
 import 'package:proxy/src/macos_proxy.dart';
 import 'package:proxy/src/proxy_command.dart';
+import 'package:proxy/src/windows_proxy.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -68,6 +69,30 @@ void main() {
 
       expect(await runner.run([ProxyCommand('missing', const [])]), isFalse);
     });
+
+    test('carries on past an optional command that fails', () async {
+      final started = <String>[];
+      final runner = ProxyCommandRunner((
+        executable,
+        arguments, {
+        runInShell = false,
+      }) async {
+        started.add(executable);
+        if (executable == 'missing') {
+          throw ProcessException(executable, arguments);
+        }
+        return ProcessResult(0, executable == 'refused' ? 1 : 0, '', '');
+      });
+
+      final result = await runner.run([
+        ProxyCommand('missing', const [], optional: true),
+        ProxyCommand('refused', const [], optional: true),
+        ProxyCommand('last', const []),
+      ]);
+
+      expect(result, isTrue);
+      expect(started, ['missing', 'refused', 'last']);
+    });
   });
 
   group('Linux proxy command builders', () {
@@ -104,7 +129,7 @@ void main() {
           'kwriteconfig6',
           'kwriteconfig5',
         ]);
-        expect(executedCommands, everyElement('kwriteconfig5'));
+        expect(executedCommands.toSet(), {'kwriteconfig5', 'dbus-send'});
       },
     );
 
@@ -261,7 +286,36 @@ void main() {
 
       expect(commands.map((command) => command.executable).toSet(), {
         'kwriteconfig6',
+        'dbus-send',
       });
+    });
+
+    test('tells running KIO programs to reload after a KDE change', () {
+      for (final commands in [
+        LinuxProxyCommands.buildStart(
+          port: 7890,
+          bypassDomain: ['localhost'],
+          desktop: 'KDE',
+          homeDir: '/home/user',
+          availableExecutables: {'kwriteconfig6'},
+        ),
+        LinuxProxyCommands.buildStop(
+          desktop: 'KDE',
+          homeDir: '/home/user',
+          availableExecutables: {'kwriteconfig6'},
+        ),
+      ]) {
+        final reload = commands.last;
+        expect(reload.executable, 'dbus-send');
+        expect(reload.args, [
+          '--session',
+          '--type=signal',
+          '/KIO/Scheduler',
+          'org.kde.KIO.Scheduler.reparseSlaveConfiguration',
+          'string:',
+        ]);
+        expect(reload.optional, isTrue);
+      }
     });
 
     test(
@@ -277,6 +331,7 @@ void main() {
 
         expect(commands.map((command) => command.executable).toSet(), {
           'kwriteconfig5',
+          'dbus-send',
         });
       },
     );
@@ -292,6 +347,7 @@ void main() {
 
       expect(commands.map((command) => command.executable).toSet(), {
         'kwriteconfig5',
+        'dbus-send',
       });
     });
 
@@ -378,6 +434,36 @@ USB 10/100/1000 LAN
 
       expect(await proxy.start(7890, const []), isFalse);
       expect(callCount, 1);
+    });
+  });
+
+  group('windowsBypassList', () {
+    test('passes the intranet token through only when listed', () {
+      expect(windowsBypassList(['localhost', '127.*', '<local>']), [
+        'localhost',
+        '127.*',
+        '<local>',
+      ]);
+      expect(windowsBypassList(['localhost']), ['localhost']);
+    });
+
+    test('brackets bare IPv6 literals and drops blank entries', () {
+      expect(
+        windowsBypassList([' ::1 ', 'fe80::1', '', '[fd00::1]', '*.lan']),
+        ['[::1]', '[fe80::1]', '[fd00::1]', '*.lan'],
+      );
+    });
+
+    test('brackets IPv6 CIDR blocks and drops zone IDs', () {
+      expect(
+        windowsBypassList([
+          'fc00::/7',
+          'fe80::1%1',
+          'fe80::%eth0/10',
+          '10.0.0.0/8',
+        ]),
+        ['[fc00::]/7', '[fe80::1]', '[fe80::]/10', '10.0.0.0/8'],
+      );
     });
   });
 

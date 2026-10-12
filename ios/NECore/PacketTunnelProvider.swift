@@ -124,7 +124,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     diag("startup begin")
     diag(configProbe())
     sharedStateStore.clearRunTime()
-    reloadControlWidget()
+    reloadWidgets()
     guard let snapshot = sharedStateStore.loadVPNOptionsSnapshot() else {
       logger.error("startTunnel failed: missing vpn options")
       diag("startup_failure phase=vpn_options_missing")
@@ -286,7 +286,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     activeCleanup = nil
     logger.info("stopTunnel reason=\(reason.rawValue, privacy: .public)")
     sharedStateStore.clearRunTime()
-    reloadControlWidget()
+    reloadWidgets()
     NECoreBridge.stopTun()
     startupCompletion?(PacketTunnelProviderError.couldNotStartCoreTun)
     guard reason == .userInitiated else {
@@ -301,15 +301,17 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         completionHandler()
         return
       }
-      guard let manager = managers?.first(where: { manager in
-        guard let proto = manager.protocolConfiguration
-          as? NETunnelProviderProtocol
-        else {
-          return false
-        }
-        return proto.providerBundleIdentifier ==
-          PacketTunnelEnvironment.extensionBundleIdentifier
-      }) else {
+      guard
+        let manager = managers?.first(where: { manager in
+          guard
+            let proto = manager.protocolConfiguration
+              as? NETunnelProviderProtocol
+          else {
+            return false
+          }
+          return proto.providerBundleIdentifier == PacketTunnelEnvironment.extensionBundleIdentifier
+        })
+      else {
         completionHandler()
         return
       }
@@ -435,15 +437,17 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
   }
 
   private func methodCallID(_ messageData: Data) -> String? {
-    guard let object = try? JSONSerialization.jsonObject(with: messageData)
-      as? [String: Any]
+    guard
+      let object = try? JSONSerialization.jsonObject(with: messageData)
+        as? [String: Any]
     else {
       return nil
     }
     return object["id"] as? String
   }
 
-  private func reloadControlWidget() {
+  private func reloadWidgets() {
+    WidgetCenter.shared.reloadAllTimelines()
     if #available(iOS 18.0, *) {
       ControlCenter.shared.reloadControls(
         ofKind: PacketTunnelEnvironment.widgetIdentifier

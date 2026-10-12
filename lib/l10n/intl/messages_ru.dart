@@ -305,9 +305,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "batteryOptimizationDesc": MessageLookupByLibrary.simpleMessage(
       "Чтобы обеспечить работу в фоне, отключите оптимизацию батареи для этого приложения. Нажмите, чтобы перейти к настройкам.",
     ),
-    "batteryOptimizationStatusTip": MessageLookupByLibrary.simpleMessage(
-      "Из-за системных ограничений во время работы невозможно корректно получить статус оптимизации батареи",
-    ),
     "bind": MessageLookupByLibrary.simpleMessage("Привязать"),
     "blacklistMode": MessageLookupByLibrary.simpleMessage(
       "Режим чёрного списка",
@@ -699,6 +696,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "fallbackIpcidrDesc": MessageLookupByLibrary.simpleMessage(
       "Результаты nameserver из этих префиксов CIDR заменяются результатами fallback",
     ),
+    "features": MessageLookupByLibrary.simpleMessage("Возможности"),
     "fidelityScheme": MessageLookupByLibrary.simpleMessage("Точная передача"),
     "file": MessageLookupByLibrary.simpleMessage("Файл"),
     "fileDesc": MessageLookupByLibrary.simpleMessage(
@@ -1269,6 +1267,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "proxyNameserverPolicyDesc": MessageLookupByLibrary.simpleMessage(
       "Указать политику сервера имен для прокси-узлов",
     ),
+    "proxyProvider": MessageLookupByLibrary.simpleMessage("Провайдер прокси"),
     "proxyProviderDetectedAbnormal": MessageLookupByLibrary.simpleMessage(
       "Обнаружены отклонения в выбранных провайдерах прокси",
     ),
@@ -1416,6 +1415,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "routeRules": MessageLookupByLibrary.simpleMessage("Правила маршрутизации"),
     "routeTarget": MessageLookupByLibrary.simpleMessage("Назначение"),
     "routes": MessageLookupByLibrary.simpleMessage("Маршруты"),
+    "routingMark": MessageLookupByLibrary.simpleMessage("Метка маршрутизации"),
     "ru": MessageLookupByLibrary.simpleMessage("Русский"),
     "rule": MessageLookupByLibrary.simpleMessage("Правило"),
     "ruleActionAndDesc": MessageLookupByLibrary.simpleMessage(
@@ -1708,6 +1708,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "subscriptionInfo": MessageLookupByLibrary.simpleMessage(
       "Информация о подписке",
     ),
+    "sudoPasswordTitle": MessageLookupByLibrary.simpleMessage(
+      "Введите пароль для sudo",
+    ),
     "suspendSupport": MessageLookupByLibrary.simpleMessage(
       "Поддержка приостановки",
     ),
@@ -1874,7 +1877,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "uploadTraffic": MessageLookupByLibrary.simpleMessage("Исходящий трафик"),
     "url": MessageLookupByLibrary.simpleMessage("URL"),
     "urlDesc": MessageLookupByLibrary.simpleMessage("Получить профиль по URL"),
-    "urlTip": m33,
+    "urlTip": m34,
     "useGlobalTemplate": MessageLookupByLibrary.simpleMessage(
       "Использовать глобальный шаблон конфигурации",
     ),

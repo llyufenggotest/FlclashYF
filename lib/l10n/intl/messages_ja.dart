@@ -27,17 +27,17 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m2(count) => "${count} 日前";
 
-  static String m3(label) => "選択された ${label} を削除してもよろしいですか？";
+  static String m3(label) => "選択された${label}を削除してもよろしいですか？";
 
-  static String m4(label) => "現在の ${label} を削除してもよろしいですか？";
+  static String m4(label) => "現在の${label}を削除してもよろしいですか？";
 
-  static String m5(label) => "${label} 詳細";
+  static String m5(label) => "${label}詳細";
 
-  static String m6(label) => "${label} は空欄にできません";
+  static String m6(label) => "${label}は空欄にできません";
 
   static String m7(count) => "${count} 件";
 
-  static String m8(label) => "現在の ${label} は既に存在しています";
+  static String m8(label) => "現在の${label}は既に存在しています";
 
   static String m9(name) => "${name} はすでに最新です";
 
@@ -70,11 +70,11 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m23(count) => "${count} ヶ月前";
 
-  static String m24(label) => "まだ ${label} はありません";
+  static String m24(label) => "まだ${label}はありません";
 
-  static String m25(label) => "${label} は数字でなければなりません";
+  static String m25(label) => "${label}は数字でなければなりません";
 
-  static String m26(label) => "${label} は 1024 から 49151 の間でなければなりません，0 は無効です";
+  static String m26(label) => "${label}は 1024 から 49151 の間でなければなりません，0 は無効です";
 
   static String m27(count) => "プロキシ ${count} 件";
 
@@ -91,7 +91,7 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m33(interval) => "${interval} · アイドル無効";
 
-  static String m34(label) => "${label} は URL である必要があります";
+  static String m34(label) => "${label}は URL である必要があります";
 
   static String m35(count) => "${count} 年前";
 
@@ -236,9 +236,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "basicStrategy": MessageLookupByLibrary.simpleMessage("基本ポリシー"),
     "batteryOptimizationDesc": MessageLookupByLibrary.simpleMessage(
       "バックグラウンド動作を確保するため、このアプリのバッテリー最適化を無効にしてください。タップして設定へ移動します。",
-    ),
-    "batteryOptimizationStatusTip": MessageLookupByLibrary.simpleMessage(
-      "システムの制限により、実行中は電池の最適化の状態を正しく取得できません",
     ),
     "bind": MessageLookupByLibrary.simpleMessage("連携"),
     "blacklistMode": MessageLookupByLibrary.simpleMessage("ブラックリストモード"),
@@ -547,6 +544,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "fallbackIpcidrDesc": MessageLookupByLibrary.simpleMessage(
       "nameserver の結果がこれらの CIDR プレフィックスに一致すると fallback の結果へ切り替えます",
     ),
+    "features": MessageLookupByLibrary.simpleMessage("機能"),
     "fidelityScheme": MessageLookupByLibrary.simpleMessage("フィデリティ"),
     "file": MessageLookupByLibrary.simpleMessage("ファイル"),
     "fileDesc": MessageLookupByLibrary.simpleMessage("プロファイルファイルを直接アップロードします"),
@@ -1006,6 +1004,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "proxyNameserverPolicyDesc": MessageLookupByLibrary.simpleMessage(
       "プロキシノードのネームサーバーポリシーを指定",
     ),
+    "proxyProvider": MessageLookupByLibrary.simpleMessage("プロキシプロバイダー"),
     "proxyProviderDetectedAbnormal": MessageLookupByLibrary.simpleMessage(
       "選択したプロキシプロバイダーに異常が見つかりました",
     ),
@@ -1117,6 +1116,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "routeRules": MessageLookupByLibrary.simpleMessage("ルートルール"),
     "routeTarget": MessageLookupByLibrary.simpleMessage("ターゲット"),
     "routes": MessageLookupByLibrary.simpleMessage("ルート"),
+    "routingMark": MessageLookupByLibrary.simpleMessage("ルーティングマーク"),
     "ru": MessageLookupByLibrary.simpleMessage("ロシア語"),
     "rule": MessageLookupByLibrary.simpleMessage("ルール"),
     "ruleActionAndDesc": MessageLookupByLibrary.simpleMessage("論理ルール AND"),
@@ -1353,6 +1353,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "subRuleNotEmpty": MessageLookupByLibrary.simpleMessage("サブルールは空にできません"),
     "submit": MessageLookupByLibrary.simpleMessage("送信"),
     "subscriptionInfo": MessageLookupByLibrary.simpleMessage("サブスクリプション情報"),
+    "sudoPasswordTitle": MessageLookupByLibrary.simpleMessage("sudo のパスワードを入力"),
     "suspendSupport": MessageLookupByLibrary.simpleMessage("サスペンド対応"),
     "suspendSupportDesc": MessageLookupByLibrary.simpleMessage(
       "デバイスがアイドル状態の間、バッテリー消費を抑えるためコアを一時停止します",
@@ -1477,7 +1478,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "uploadTraffic": MessageLookupByLibrary.simpleMessage("アップロード通信量"),
     "url": MessageLookupByLibrary.simpleMessage("URL"),
     "urlDesc": MessageLookupByLibrary.simpleMessage("URL 経由でプロファイルを取得"),
-    "urlTip": m33,
+    "urlTip": m34,
     "useGlobalTemplate": MessageLookupByLibrary.simpleMessage(
       "グローバル設定テンプレートを使用",
     ),

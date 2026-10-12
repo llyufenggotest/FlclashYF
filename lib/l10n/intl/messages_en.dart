@@ -295,9 +295,6 @@ class MessageLookup extends MessageLookupByLibrary {
     "batteryOptimizationDesc": MessageLookupByLibrary.simpleMessage(
       "To keep the app running in the background, disable battery optimization for it. Tap to open settings.",
     ),
-    "batteryOptimizationStatusTip": MessageLookupByLibrary.simpleMessage(
-      "Due to system limitations, the battery optimization status cannot be read correctly while running",
-    ),
     "bind": MessageLookupByLibrary.simpleMessage("Bind"),
     "blacklistMode": MessageLookupByLibrary.simpleMessage("Blacklist mode"),
     "blockConnection": MessageLookupByLibrary.simpleMessage("Block connection"),
@@ -659,6 +656,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "fallbackIpcidrDesc": MessageLookupByLibrary.simpleMessage(
       "Nameserver results matching these CIDR prefixes are replaced with fallback results",
     ),
+    "features": MessageLookupByLibrary.simpleMessage("Features"),
     "fidelityScheme": MessageLookupByLibrary.simpleMessage("Fidelity"),
     "file": MessageLookupByLibrary.simpleMessage("File"),
     "fileDesc": MessageLookupByLibrary.simpleMessage(
@@ -1207,6 +1205,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "proxyNameserverPolicyDesc": MessageLookupByLibrary.simpleMessage(
       "Specify the nameserver policy for proxy nodes",
     ),
+    "proxyProvider": MessageLookupByLibrary.simpleMessage("Proxy provider"),
     "proxyProviderDetectedAbnormal": MessageLookupByLibrary.simpleMessage(
       "The selected proxy providers are abnormal",
     ),
@@ -1346,6 +1345,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "routeRules": MessageLookupByLibrary.simpleMessage("Route rules"),
     "routeTarget": MessageLookupByLibrary.simpleMessage("Target"),
     "routes": MessageLookupByLibrary.simpleMessage("Routes"),
+    "routingMark": MessageLookupByLibrary.simpleMessage("Routing mark"),
     "ru": MessageLookupByLibrary.simpleMessage("Russian"),
     "rule": MessageLookupByLibrary.simpleMessage("Rule"),
     "ruleActionAndDesc": MessageLookupByLibrary.simpleMessage(
@@ -1626,6 +1626,9 @@ class MessageLookup extends MessageLookupByLibrary {
     "subscriptionInfo": MessageLookupByLibrary.simpleMessage(
       "Subscription info",
     ),
+    "sudoPasswordTitle": MessageLookupByLibrary.simpleMessage(
+      "Enter your password for sudo",
+    ),
     "suspendSupport": MessageLookupByLibrary.simpleMessage("Suspend support"),
     "suspendSupportDesc": MessageLookupByLibrary.simpleMessage(
       "Suspend the core while the device is idle to reduce battery usage",
@@ -1776,7 +1779,7 @@ class MessageLookup extends MessageLookupByLibrary {
     "urlDesc": MessageLookupByLibrary.simpleMessage(
       "Obtain a profile from a URL",
     ),
-    "urlTip": m33,
+    "urlTip": m34,
     "useGlobalTemplate": MessageLookupByLibrary.simpleMessage(
       "Use global configuration template",
     ),

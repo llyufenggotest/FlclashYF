@@ -1,6 +1,8 @@
 ## FlClashYF VERSION
 
-基于上游 FlClash 0.9.4 融合，保留 FlClashYF 全部自有协议与生命周期修复。
+基于上游 FlClash 0.9.5 融合，保留 FlClashYF 全部自有协议与生命周期修复。
+
+保留 Blackstone 身份字段、精确密码后缀、设备下划线字段与旧配置别名；升级上游按需连接、服务状态与 iOS Widget。五端构建及自动测试不等同于五端真机验收。
 
 **下载**
 

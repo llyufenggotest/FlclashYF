@@ -2645,26 +2645,6 @@ class AppLocalizations {
     );
   }
 
-  /// `Test all delays`
-  String get actionDelayTest {
-    return Intl.message(
-      'Test all delays',
-      name: 'actionDelayTest',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Update profiles`
-  String get actionUpdateProfiles {
-    return Intl.message(
-      'Update profiles',
-      name: 'actionUpdateProfiles',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `Copy environment variables`
   String get copyEnvVar {
     return Intl.message(
@@ -5375,16 +5355,6 @@ class AppLocalizations {
     );
   }
 
-  /// `Due to system limitations, the battery optimization status cannot be read correctly while running`
-  String get batteryOptimizationStatusTip {
-    return Intl.message(
-      'Due to system limitations, the battery optimization status cannot be read correctly while running',
-      name: 'batteryOptimizationStatusTip',
-      desc: '',
-      args: [],
-    );
-  }
-
   /// `Location permission`
   String get locationPermission {
     return Intl.message(
@@ -7475,61 +7445,7 @@ class AppLocalizations {
     );
   }
 
-  /// `View rules and matching statistics`
-  String get rulesDesc {
-    return Intl.message(
-      'View rules and matching statistics',
-      name: 'rulesDesc',
-      desc: '',
-      args: [],
-    );
-  }
-
-  /// `Enabled`
-  String get ruleEnabled {
-    return Intl.message('Enabled', name: 'ruleEnabled', desc: '', args: []);
-  }
-
-  /// `Disabled`
-  String get ruleDisabled {
-    return Intl.message('Disabled', name: 'ruleDisabled', desc: '', args: []);
-  }
-
-  /// `Hits`
-  String get ruleHits {
-    return Intl.message('Hits', name: 'ruleHits', desc: '', args: []);
-  }
-
-  /// `Misses`
-  String get ruleMisses {
-    return Intl.message('Misses', name: 'ruleMisses', desc: '', args: []);
-  }
-
-  /// `Last hit`
-  String get ruleLastHit {
-    return Intl.message('Last hit', name: 'ruleLastHit', desc: '', args: []);
-  }
-
-  /// `Last miss`
-  String get ruleLastMiss {
-    return Intl.message('Last miss', name: 'ruleLastMiss', desc: '', args: []);
-  }
-
-  /// `Rule type`
-  String get ruleType {
-    return Intl.message('Rule type', name: 'ruleType', desc: '', args: []);
-  }
-
-  /// `Could not change the rule. The configuration may have changed; refresh and try again.`
-  String get ruleUpdateFailed {
-    return Intl.message(
-      'Could not change the rule. The configuration may have changed; refresh and try again.',
-      name: 'ruleUpdateFailed',
-      desc: '',
-      args: [],
-    );
-  }
-
+  /// `File import`
   String get fileImport {
     return Intl.message('File import', name: 'fileImport', desc: '', args: []);
   }
@@ -7794,6 +7710,116 @@ class AppLocalizations {
     return Intl.message(
       'When enabled, complete YAML profiles also use nodes with the global template. Incomplete YAML and proxy links always use it. Overwrites still run afterwards. Remote updates keep this preference. Disabling does not restore an already converted file; download or import the original again.',
       name: 'useGlobalTemplateDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `View rules and matching statistics`
+  String get rulesDesc {
+    return Intl.message(
+      'View rules and matching statistics',
+      name: 'rulesDesc',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Enabled`
+  String get ruleEnabled {
+    return Intl.message('Enabled', name: 'ruleEnabled', desc: '', args: []);
+  }
+
+  /// `Disabled`
+  String get ruleDisabled {
+    return Intl.message('Disabled', name: 'ruleDisabled', desc: '', args: []);
+  }
+
+  /// `Hits`
+  String get ruleHits {
+    return Intl.message('Hits', name: 'ruleHits', desc: '', args: []);
+  }
+
+  /// `Misses`
+  String get ruleMisses {
+    return Intl.message('Misses', name: 'ruleMisses', desc: '', args: []);
+  }
+
+  /// `Last hit`
+  String get ruleLastHit {
+    return Intl.message('Last hit', name: 'ruleLastHit', desc: '', args: []);
+  }
+
+  /// `Last miss`
+  String get ruleLastMiss {
+    return Intl.message('Last miss', name: 'ruleLastMiss', desc: '', args: []);
+  }
+
+  /// `Rule type`
+  String get ruleType {
+    return Intl.message('Rule type', name: 'ruleType', desc: '', args: []);
+  }
+
+  /// `Could not change the rule. The configuration may have changed; refresh and try again.`
+  String get ruleUpdateFailed {
+    return Intl.message(
+      'Could not change the rule. The configuration may have changed; refresh and try again.',
+      name: 'ruleUpdateFailed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Enter your password for sudo`
+  String get sudoPasswordTitle {
+    return Intl.message(
+      'Enter your password for sudo',
+      name: 'sudoPasswordTitle',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Proxy provider`
+  String get proxyProvider {
+    return Intl.message(
+      'Proxy provider',
+      name: 'proxyProvider',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Routing mark`
+  String get routingMark {
+    return Intl.message(
+      'Routing mark',
+      name: 'routingMark',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Features`
+  String get features {
+    return Intl.message('Features', name: 'features', desc: '', args: []);
+  }
+
+  /// `Test all delays`
+  String get actionDelayTest {
+    return Intl.message(
+      'Test all delays',
+      name: 'actionDelayTest',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Update profiles`
+  String get actionUpdateProfiles {
+    return Intl.message(
+      'Update profiles',
+      name: 'actionUpdateProfiles',
       desc: '',
       args: [],
     );
