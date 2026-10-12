@@ -285,7 +285,7 @@ String? selectedProxyName(Ref ref, String groupName) {
 String proxyDesc(Ref ref, Proxy proxy) {
   final groupTypeNamesList = GroupType.values.map((e) => e.name).toList();
   if (!groupTypeNamesList.contains(proxy.type)) {
-    return proxy.type;
+    return proxyTypeLabel(proxy.type);
   } else {
     final groups = ref.watch(groupsProvider);
     final index = groups.indexWhere((element) => element.name == proxy.name);

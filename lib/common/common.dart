@@ -44,6 +44,7 @@ export 'print.dart';
 export 'protocol.dart';
 export 'provider_reader.dart';
 export 'proxy.dart';
+export 'proxy_type_label.dart';
 export 'render.dart';
 export 'request.dart';
 export 'reset.dart';

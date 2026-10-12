@@ -106,6 +106,41 @@ void main() {
     },
   );
 
+  for (final type in ['Blackstone', 'xhttp']) {
+    test('makeRealProfileTask preserves $type device context', () async {
+      final privateProxy = <String, dynamic>{
+        'name': 'synthetic',
+        'type': type,
+        'server': 'example.invalid',
+        'port': 443,
+        'password': 'fake-token',
+        'node-id': 7,
+        'device_id': 'fake-device-001',
+        'device_name': ' 中文 平板 "quoted" \\ path\n第二行 ',
+        'future_option': {'keep': true},
+      };
+      final raw = <String, dynamic>{
+        'proxies': [privateProxy],
+      };
+      final result = await makeRealProfileTask(
+        MakeRealProfileState(
+          profilesPath: '/profiles',
+          profileId: 7,
+          rawConfig: raw,
+          realPatchConfig: const PatchClashConfig(),
+          overrideDns: false,
+          appendSystemDns: false,
+          proxyGroups: const [],
+          rules: const [],
+          addedRules: const [],
+          defaultUA: 'FlClash-Test',
+        ),
+      );
+      expect(loadYaml(result.yaml)['proxies'][0], privateProxy);
+      expect(raw['proxies'], [privateProxy]);
+    });
+  }
+
   test('buildClashConfig indexes group types by their clash value', () {
     final clashConfig = buildClashConfig(<String, dynamic>{
       'proxies': [

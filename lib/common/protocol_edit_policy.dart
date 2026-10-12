@@ -13,9 +13,10 @@ ProtocolEditPolicy protocolEditPolicyForYaml(String source) {
       final type = proxy['type']?.toString().toLowerCase();
       final transport = proxy['network']?.toString().toLowerCase();
       final password = proxy['password']?.toString().toLowerCase() ?? '';
-      if (type == 'xhttp' ||
-          transport == 'xhttp' ||
-          password.contains('blackstone')) {
+      // These private proxy types now have a lossless editable schema.
+      // Keep the existing guard for standard XHTTP transport/wire markers.
+      if (type == 'blackstone' || type == 'xhttp') continue;
+      if (transport == 'xhttp' || password.contains('blackstone')) {
         return ProtocolEditPolicy.readOnly;
       }
     }

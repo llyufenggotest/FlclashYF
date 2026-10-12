@@ -261,6 +261,8 @@ const _proxyTypes = [
   'socks5',
   'http',
   'snell',
+  'Blackstone',
+  'xhttp',
   'ssh',
   'mieru',
   'direct',
@@ -349,7 +351,16 @@ const _ssCiphers = [
   'none',
 ];
 
+const _blackstone = {
+  'password': _str,
+  'node-id': _str,
+  'device_id': _str,
+  'device_name': _str,
+};
+
 const _proxyVariants = <String, Map<String, YamlSchema>>{
+  'Blackstone': _blackstone,
+  'xhttp': _blackstone,
   'ss': {
     'cipher': YamlSchema.scalar(_ssCiphers),
     'password': _str,

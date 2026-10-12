@@ -166,7 +166,7 @@ class ProxyCard extends ConsumerWidget {
                                 flex: 1,
                                 child: TooltipText(
                                   text: Text(
-                                    proxy.type,
+                                    proxyTypeLabel(proxy.type),
                                     maxLines: 1,
                                     style: context.textTheme.bodySmall
                                         ?.copyWith(
