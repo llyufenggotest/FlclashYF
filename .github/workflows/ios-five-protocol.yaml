@@ -95,6 +95,12 @@ jobs:
           python3 scripts/test_oix_ci_wiring.py
           python3 scripts/test_ios_lifecycle_cleanup.py
 
+      - name: Verify native test prerequisites
+        run: |
+          cargo --version
+          rustup --version
+          gcc --version
+
       - name: Verify Flutter application
         run: |
           flutter pub get
