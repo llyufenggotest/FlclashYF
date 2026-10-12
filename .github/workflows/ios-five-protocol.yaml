@@ -89,7 +89,8 @@ jobs:
           (cd core/mihomo && go test -tags with_low_memory ./adapter ./adapter/outbound ./component/mmdb ./config ./hub/executor ./rules/provider ./rules/common ./common/probelimit)
           (cd core/mihomo && go vet ./adapter ./adapter/outbound ./component/updater ./hub/executor ./hub/route ./rules/provider ./tunnel)
           (cd core && CGO_ENABLED=0 go test ./... && CGO_ENABLED=0 go test -tags with_low_memory ./... && CGO_ENABLED=0 go vet ./...)
-          (cd core/mihomo && CGO_ENABLED=1 go test -race -run 'TestBlackstone|TestXHTTP' ./adapter/outbound ./transport/xhttp)
+          (cd core/mihomo && CGO_ENABLED=1 go test -race -count=1 -run 'TestBlackstone|TestXHTTP' ./adapter ./adapter/outbound)
+          (cd core/mihomo && CGO_ENABLED=1 go test -race -count=1 ./transport/xhttp)
           python3 scripts/protocol_smoke.py
           python3 scripts/test_oix_ci_wiring.py
           python3 scripts/test_ios_lifecycle_cleanup.py
@@ -100,6 +101,7 @@ jobs:
           dart format --output=none --set-exit-if-changed lib test setup.dart
           flutter analyze --no-fatal-infos
           flutter test test/common/blackstone_profile_test.dart test/providers/on_demand_test.dart test/widgets/on_demand_test.dart test/plugins/service_test.dart test/providers/proxies_action_test.dart test/common/window_test.dart test/common/window_visibility_test.dart test/manager/window_header_test.dart test/manager/window_manager_test.dart
+          flutter test test/common/yf_update_boundary_test.dart test/common/yf_version_contract_test.dart test/common/app_update_test.dart test/common/protocol_edit_policy_test.dart test/common/task_test.dart test/core/desktop/lifecycle_test.dart test/plugins/code_forge/lifecycle_test.dart test/common/tray_lifecycle_test.dart test/common/tray_menu_test.dart test/common/tray_test.dart test/manager/tray_manager_test.dart
           flutter test test/common/cache_test.dart test/core/service_test.dart test/pages/editor_unavailable_test.dart
           flutter test test/common/native_log_export_test.dart test/providers/logs_clear_test.dart test/views/logs_clear_test.dart test/providers/setup_restoration_test.dart
           flutter test test/common/fastup_subscription_test.dart test/common/protocol_edit_policy_test.dart test/common/uri_subscription_test.dart test/common/profile_template_test.dart test/common/desktop_profile_drop_test.dart test/ios_profile_budget_test.dart test/ios_reclaim_battery_test.dart test/core/protocol_contract_test.dart test/providers/action_test.dart test/views/add_profile_view_test.dart test/views/clipboard_import_dialog_test.dart test/views/profile_template_test.dart test/views/tools_profile_template_test.dart
@@ -160,6 +162,9 @@ jobs:
             echo "storePassword=${{ secrets.STORE_PASSWORD }}"
             echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
           } >> android/local.properties
+      - name: Verify Android state machine
+        working-directory: android
+        run: ./gradlew :app:testDebugUnitTest --tests cc.chenx.flclash.ServiceStateMachineTest --no-daemon
       - name: Build APK
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
