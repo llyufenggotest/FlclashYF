@@ -168,9 +168,6 @@ jobs:
             echo "storePassword=${{ secrets.STORE_PASSWORD }}"
             echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
           } >> android/local.properties
-      - name: Verify Android state machine
-        working-directory: android
-        run: ./gradlew :app:testDebugUnitTest --tests cc.chenx.flclash.ServiceStateMachineTest --no-daemon
       - name: Build APK
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
@@ -179,6 +176,13 @@ jobs:
           dart setup.dart android --arch arm64 -v
           test -n "$(find dist -type f -name '*.apk' -print -quit)"
           python3 -c "import json,sys;m=json.load(open('assets/data/geo-manifest.json'));c=sorted({r['name']:r['codec'] for r in m['resources']}.items());print(c);sys.exit(0 if all(v=='xz' for k,v in c if k!='BundleMRS.7z') and len(c)==5 else 1)"
+      - name: Verify Android state machine
+        # Flutter's Android build materializes the ignored Gradle wrapper.
+        # Keep tests before upload so a test failure cannot deliver an APK.
+        working-directory: android
+        run: |
+          test -f gradlew
+          bash ./gradlew :app:testDebugUnitTest --tests cc.chenx.flclash.ServiceStateMachineTest --no-daemon
       - uses: actions/upload-artifact@v7
         with:
           name: FlclashYF-android-arm64-v8a
