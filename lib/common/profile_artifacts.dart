@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 /// Serializes profile-owned reads and writes, including background isolates.
@@ -11,19 +12,84 @@ class ProfileArtifacts {
       profilePath.replaceFirst(RegExp(r'\.yaml$'), '.template-source-v1.yaml');
   Directory get _journal => Directory('$profilePath.transaction');
   static final Map<String, Future<void>> _queues = {};
+  static const _lockTimeout = Duration(seconds: 30);
+  static const _retryDelay = Duration(milliseconds: 20);
 
+  /// Exclusive creation is O_CREAT|O_EXCL on POSIX (not process-owned fcntl).
+  /// All cooperating isolates/processes acquire it BEFORE opening the OS lock.
+  /// A killed isolate/process leaves the marker: acquisition then fails closed.
+  /// Never steal by age/PID. Administrative removal requires ALL profile users
+  /// stopped; no automatic recovery of an abandoned marker is promised.
   Future<T> run<T>(Future<T> Function(ProfileArtifacts files) operation) async {
     final previous = _queues[profilePath] ?? Future<void>.value();
     final done = Completer<void>();
     _queues[profilePath] = done.future;
-    await previous;
+    try {
+      await previous.timeout(_lockTimeout);
+      return await _runLocked(operation);
+    } finally {
+      // A timed-out waiter must not let a successor overtake the still-active
+      // predecessor. Completing its queue slot remains chained to predecessor.
+      unawaited(
+        previous.then((_) {
+          done.complete();
+          if (identical(_queues[profilePath], done.future)) {
+            _queues.remove(profilePath);
+          }
+        }),
+      );
+    }
+  }
+
+  Future<T> _runLocked<T>(
+    Future<T> Function(ProfileArtifacts files) operation,
+  ) async {
+    final marker = File('$profilePath.isolate-lock');
+    final clock = Stopwatch()..start();
+    final nonce = List.generate(
+      16,
+      (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ).join();
+    final owner = '$pid:$nonce';
+    var acquired = false;
+    var ownerWritten = false;
+    var handleClosed = true;
     RandomAccessFile? lock;
     var locked = false;
+    Future<void> retry() async {
+      if (clock.elapsed >= _lockTimeout) {
+        throw TimeoutException(
+          'Profile artifact lock unavailable: $profilePath',
+          _lockTimeout,
+        );
+      }
+      await Future<void>.delayed(_retryDelay);
+    }
+
     try {
       await File(profilePath).parent.create(recursive: true);
+      while (!acquired) {
+        try {
+          await marker.create(exclusive: true);
+          acquired = true;
+        } on PathExistsException {
+          await retry();
+        }
+      }
+      await marker.writeAsString(owner, flush: true);
+      ownerWritten = true;
       lock = await File('$profilePath.lock').open(mode: FileMode.append);
-      await lock.lock(FileLock.blockingExclusive);
-      locked = true;
+      handleClosed = false;
+      while (!locked) {
+        try {
+          // Keep the OS lock for cross-process/legacy cooperating callers, but
+          // never block a Dart IO worker indefinitely while acquiring it.
+          await lock.lock(FileLock.exclusive);
+          locked = true;
+        } on FileSystemException {
+          await retry();
+        }
+      }
       await _recover();
       return await operation(this);
     } finally {
@@ -33,13 +99,19 @@ class ProfileArtifacts {
             if (locked) await lock.unlock();
           } finally {
             await lock.close();
+            handleClosed = true;
           }
         }
       } finally {
-        done.complete();
-        if (identical(_queues[profilePath], done.future)) {
-          final removed = _queues.remove(profilePath);
-          if (removed != null) unawaited(removed);
+        if (acquired && handleClosed) {
+          // No contenders delete/rename markers. Delete only our own marker,
+          // after OS unlock/close, so a successor never opens that handle early.
+          // If owner write failed, exclusive creation still proves ownership.
+          // A changed marker is retained fail-closed; never delete another
+          // owner's marker, even if external interference broke the protocol.
+          if (!ownerWritten || await marker.readAsString() == owner) {
+            await marker.delete();
+          }
         }
       }
     }
