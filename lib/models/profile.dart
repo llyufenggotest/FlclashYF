@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/profile_artifacts.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -216,25 +217,49 @@ extension ProfileExtension on Profile {
     Uint8List bytes, {
     required PrepareProfileConfig prepare,
   }) async {
+    final artifacts = ProfileArtifacts(
+      await appPath.getProfilePath(id.toString()),
+    );
+    return artifacts.run((files) => _saveArtifacts(files, bytes, prepare));
+  }
+
+  Future<Profile> _saveArtifacts(
+    ProfileArtifacts files,
+    Uint8List bytes,
+    PrepareProfileConfig prepare,
+  ) async {
     final content = await prepare(
       utf8.decode(bytes),
       ageSecretKey,
       useGlobalTemplate,
     );
-    final path = await appPath.tempFilePath;
-    final tempFile = File(path);
-    await tempFile.safeWriteAsString(content);
-    final mFile = await file;
-    // Validate before replacing either profile-owned artifact. A refreshed
-    // subscription replaces the source; it is not merged with the old one.
-    final sourceFile = await templateSourceFile;
-    if (useGlobalTemplate) {
-      await sourceFile.safeWriteAsString(utf8.decode(bytes));
-    } else {
-      await sourceFile.safeDelete();
-    }
-    await tempFile.copy(mFile.path);
-    await tempFile.safeDelete();
+    await files.publish(
+      Uint8List.fromList(utf8.encode(content)),
+      useGlobalTemplate ? bytes : null,
+    );
     return copyWith(lastUpdateDate: DateTime.now());
+  }
+
+  Future<Profile> materializeTemplate({
+    required PrepareProfileConfig prepare,
+  }) async {
+    final artifacts = ProfileArtifacts(
+      await appPath.getProfilePath(id.toString()),
+    );
+    return artifacts.run((files) async {
+      final snapshot = await files.read();
+      return _saveArtifacts(
+        files,
+        snapshot.source ?? snapshot.profile ?? Uint8List(0),
+        prepare,
+      );
+    });
+  }
+
+  Future<void> deleteArtifacts() async {
+    final artifacts = ProfileArtifacts(
+      await appPath.getProfilePath(id.toString()),
+    );
+    await artifacts.run((files) => files.publish(null, null));
   }
 }

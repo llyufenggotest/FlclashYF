@@ -6,6 +6,7 @@ import 'package:archive/archive_io.dart';
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:fl_clash/common/common.dart';
+import 'package:fl_clash/common/profile_artifacts.dart';
 import 'package:fl_clash/database/database.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
@@ -261,7 +262,7 @@ Future<({String yaml, String md5})> _makeRealProfileTask(
         'nameserver-policy': nameserverPolicy,
         'proxy-server-nameserver-policy': proxyServerNameserverPolicy,
         ...rawDns,
-        'enable': dns.enable,
+        'enable': rawDns['enable'] ?? dns.enable,
       };
     }
   }
@@ -398,6 +399,10 @@ List<DeleteManagedPathParams> shakeOrphanFiles({
       }
       var id = basenameWithoutExtension(entity.path);
       const sourceSuffix = '.template-source-v1';
+      if (scope == ManagedPathScope.profiles &&
+          basename(entity.path).endsWith('.yaml.lock')) {
+        id = id.substring(0, id.length - '.yaml'.length);
+      }
       if (scope == ManagedPathScope.profiles && id.endsWith(sourceSuffix)) {
         id = id.substring(0, id.length - sourceSuffix.length);
       }
@@ -686,7 +691,35 @@ Future<String> writeBackupArchive({
   }
 
   if (await profilesDir.exists()) {
-    await encoder.addDirectory(profilesDir, filter: keepListed);
+    // Each archive entry pair is captured under the profile's cross-isolate
+    // lock; journal recovery precedes reads. Do not archive lock/journal files.
+    for (final name in fileNames.where((n) => n.endsWith('.yaml'))) {
+      if (name.contains('/') ||
+          name.contains('\\') ||
+          name.endsWith('.template-source-v1.yaml')) {
+        continue;
+      }
+      final artifacts = ProfileArtifacts(join(profilesDirPath, name));
+      await artifacts.run((files) async {
+        final snapshot = await files.read();
+        for (final entry in [
+          (name: name, bytes: snapshot.profile),
+          (
+            name: name.replaceFirst('.yaml', '.template-source-v1.yaml'),
+            bytes: snapshot.source,
+          ),
+        ]) {
+          if (entry.bytes == null) continue;
+          final staged = File('$tempConfigPath.${entry.name}');
+          try {
+            await staged.writeAsBytes(entry.bytes!);
+            await encoder.addFile(staged, 'profiles/${entry.name}');
+          } finally {
+            await staged.safeDelete();
+          }
+        }
+      });
+    }
   }
   if (await scriptsDir.exists()) {
     await encoder.addDirectory(scriptsDir, filter: keepListed);
@@ -742,6 +775,8 @@ Future<MigrationData> readBackupArchive({
   final input = InputFileStream(backupFilePath);
   final archive = zipDecoder.decodeStream(input);
   final dir = Directory(restoreDirPath);
+  // Reused extraction directories must not supply sidecars absent in this zip.
+  if (await dir.exists()) await dir.delete(recursive: true);
   await dir.create(recursive: true);
   for (final file in archive.files) {
     final outPath = _restoreEntryPath(restoreDirPath, file.name);
@@ -792,29 +827,24 @@ Future<MigrationData> readBackupArchive({
     ]);
     final profiles = results[0].cast<Profile>();
     final scripts = results[1].cast<Script>();
-    final profilesMigration = profiles.map(
-      (item) => (
-        from: _getProfilePath(restoreDirPath, item.id.toString()),
-        to: _getProfilePath(homeDirPath, item.id.toString()),
-      ),
-    );
     final scriptsMigration = scripts.map(
       (item) => (
         from: _getScriptPath(restoreDirPath, item.id.toString()),
         to: _getScriptPath(homeDirPath, item.id.toString()),
       ),
     );
-    final sourcesMigration = profiles.map(
-      (item) => (
-        from: _getProfilePath(restoreDirPath, '${item.id}.template-source-v1'),
-        to: _getProfilePath(homeDirPath, '${item.id}.template-source-v1'),
-      ),
-    );
-    await _copyWithMapList([
-      ...profilesMigration,
-      ...sourcesMigration,
-      ...scriptsMigration,
-    ]);
+    for (final profile in profiles) {
+      final from = ProfileArtifacts(
+        _getProfilePath(restoreDirPath, profile.id.toString()),
+      );
+      final snapshot = await from.run((files) => files.read());
+      final to = ProfileArtifacts(
+        _getProfilePath(homeDirPath, profile.id.toString()),
+      );
+      // Missing source in an older archive deliberately clears the target.
+      await to.run((files) => files.publish(snapshot.profile, snapshot.source));
+    }
+    await _copyWithMapList(scriptsMigration.toList());
     return migrationData.copyWith(
       profiles: profiles,
       scripts: scripts,

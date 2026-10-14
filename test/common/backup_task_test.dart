@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:archive/archive_io.dart';
 import 'package:drift/native.dart';
+import 'package:fl_clash/common/profile_artifacts.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/database/database.dart' as db;
 import 'package:fl_clash/enum/enum.dart';
@@ -510,6 +512,42 @@ void main() {
       expect(names, isNot(contains('9.yaml')));
     });
 
+    test(
+      'T1 backup waits for publication and captures one paired version',
+      () async {
+        await seedDatabase();
+        final artifact = ProfileArtifacts(
+          join(home.path, 'profiles', '1.yaml'),
+        );
+        final entered = Completer<void>();
+        final release = Completer<void>();
+        final update = artifact.run((files) async {
+          await files.publish(
+            Uint8List.fromList(utf8.encode('profile-A')),
+            Uint8List.fromList(utf8.encode('source-A')),
+          );
+          entered.complete();
+          await release.future;
+          await files.publish(
+            Uint8List.fromList(utf8.encode('profile-B')),
+            Uint8List.fromList(utf8.encode('source-B')),
+          );
+        });
+        await entered.future;
+        final pendingBackup = backup();
+        release.complete();
+        await update;
+        final archivePath = await pendingBackup;
+        final archive = ZipDecoder().decodeStream(InputFileStream(archivePath));
+        final pair = {
+          for (final f in archive.files.where((f) => f.name.endsWith('.yaml')))
+            basename(f.name): utf8.decode(f.content as List<int>),
+        };
+        expect(pair['1.yaml'], 'profile-B');
+        expect(pair['1.template-source-v1.yaml'], 'source-B');
+      },
+    );
+
     test('the temporary database and config copies are cleaned up', () async {
       await seedDatabase();
       final before = Directory(join(root.path, 'tmp'));
@@ -522,6 +560,50 @@ void main() {
       expect(leftovers, isEmpty);
     });
 
+    test(
+      'T2 old archive clears existing same-id source before materialize',
+      () async {
+        await seedDatabase();
+        writeFile(join(home.path, 'profiles', '1.yaml'), 'backup-B');
+        final archivePath = await backup();
+        final target = makeDir('restore_target');
+        final stale = writeFile(
+          join(target.path, 'profiles', '1.template-source-v1.yaml'),
+          'source-A',
+        );
+        writeFile(join(target.path, 'profiles', '1.yaml'), 'profile-A');
+        await readBackupArchive(
+          backupFilePath: archivePath,
+          restoreDirPath: restore.path,
+          homeDirPath: target.path,
+        );
+        expect(stale.existsSync(), false);
+        expect(
+          File(join(target.path, 'profiles', '1.yaml')).readAsStringSync(),
+          'backup-B',
+        );
+        const restored = Profile(
+          id: 1,
+          autoUpdateDuration: Duration.zero,
+          useGlobalTemplate: true,
+        );
+        final priorPaths = PathProviderPlatform.instance;
+        PathProviderPlatform.instance = _FakePathProvider(target.path);
+        try {
+          await restored.materializeTemplate(
+            prepare: (s, k, e) async => 'rebuilt-$s',
+          );
+          expect(
+            File(join(target.path, 'profiles', '1.yaml')).readAsStringSync(),
+            'rebuilt-backup-B',
+          );
+          expect(stale.readAsStringSync(), 'backup-B');
+        } finally {
+          PathProviderPlatform.instance = priorPaths;
+        }
+      },
+    );
+
     test('restoring returns the rows and copies the files home', () async {
       await seedDatabase();
       writeFile(join(home.path, 'profiles', '1.yaml'), 'proxies: []');
@@ -532,6 +614,10 @@ void main() {
       );
       final archivePath = await backup();
       final target = makeDir('restore_target');
+      writeFile(
+        join(target.path, 'profiles', '1.template-source-v1.yaml'),
+        'stale-A',
+      );
 
       final data = await readBackupArchive(
         backupFilePath: archivePath,
@@ -573,6 +659,10 @@ void main() {
         fileNames: const ['legacy.yaml'],
       );
       final target = makeDir('restore_target');
+      writeFile(
+        join(target.path, 'profiles', '1.template-source-v1.yaml'),
+        'stale-A',
+      );
 
       final data = await readBackupArchive(
         backupFilePath: archivePath,

@@ -112,17 +112,24 @@ void mergeSubscriptionDns(
     if (!sourceDns.containsKey(key)) continue;
     final original = sourceDns[key];
     if (original is List) {
-      final defaults = dns[key];
-      dns[key] = [
-        ...original,
-        if (defaults is List)
-          ...defaults.where((item) => !original.contains(item)),
-      ];
+      // Resolver lists are concurrent pools, not ordered failover. A declared
+      // source pool must not race the template's public defaults.
+      if (key == 'fake-ip-filter') {
+        final defaults = dns[key];
+        dns[key] = [
+          ...original,
+          if (defaults is List)
+            ...defaults.where((item) => !original.contains(item)),
+        ];
+      } else if (original.isNotEmpty) {
+        dns[key] = List<dynamic>.from(original);
+      }
     } else {
       dns[key] = original;
     }
   }
   for (final key in [
+    'enable',
     'use-hosts',
     'use-system-hosts',
     'respect-rules',
@@ -136,16 +143,9 @@ void mergeSubscriptionDns(
       if (dns['fallback-filter'] is Map)
         ...Map<String, dynamic>.from(dns['fallback-filter'] as Map),
     };
-    for (final key in ['domain', 'ipcidr']) {
-      final original = sourceFilter[key];
-      if (original is List) {
-        merged[key] = [
-          ...original,
-          if (merged[key] is List)
-            ...(merged[key] as List).where((item) => !original.contains(item)),
-        ];
-      }
-    }
+    // Filter flags and lists together define when fallback may be consulted.
+    // Source entries own the exact field; defaults fill undeclared fields.
+    merged.addAll(Map<String, dynamic>.from(sourceFilter));
     if (merged.isNotEmpty) dns['fallback-filter'] = merged;
   }
   // A private hosts/policy domain must not accidentally become a fake IP
@@ -154,7 +154,10 @@ void mergeSubscriptionDns(
   // template with imported private resolution data needs an explicit decision
   // rather than silently reversing its semantics.
   final filterMode = dns['fake-ip-filter-mode'];
-  if (filterMode != null &&
+  final activeFakeIp =
+      dns['enable'] != false && dns['enhanced-mode'] == 'fake-ip';
+  if (activeFakeIp &&
+      filterMode != null &&
       filterMode != 'blacklist' &&
       (source['hosts'] is Map ||
           sourceDns['fake-ip-filter'] != null ||
@@ -164,7 +167,7 @@ void mergeSubscriptionDns(
       'Private DNS/hosts need a blacklist fake-ip filter or an explicit template adaptation.',
     );
   }
-  if (filterMode == null || filterMode == 'blacklist') {
+  if (activeFakeIp && (filterMode == null || filterMode == 'blacklist')) {
     final exclusions = <dynamic>[...dns['fake-ip-filter'] as List? ?? const []];
     final domains = <Object?>[
       if (config['hosts'] is Map) ...(config['hosts'] as Map).keys,
@@ -302,10 +305,12 @@ void _closeDnsDependencies(
       }
       // Core uses the last fragment token without '=' as its proxy selector.
       String? proxy;
-      for (final token in uri.fragment.split('&')) {
-        if (token.isNotEmpty && !token.contains('=')) proxy = token;
+      for (final token in Uri.decodeComponent(uri.fragment).split('&')) {
+        if (!token.contains('=')) proxy = token;
       }
-      if (proxy != null && proxy != 'RULES') reference(proxy);
+      if (proxy != null && proxy.isNotEmpty && proxy != 'RULES') {
+        reference(proxy);
+      }
     }
   }
 
@@ -332,11 +337,15 @@ void _closeDnsDependencies(
     if (map is Map) {
       for (final key in map.keys.whereType<String>()) {
         if (!key.contains(':') && !key.contains(',')) {
-          privateDomains.add(
-            key.startsWith('+.') || key.startsWith('*.')
-                ? key.substring(2)
-                : key,
-          );
+          final declaredHosts = sourceDns['use-hosts'];
+          final effectiveHosts = declaredHosts ?? dns['use-hosts'] ?? true;
+          if (map != source['hosts'] || effectiveHosts == true) {
+            privateDomains.add(
+              key.startsWith('+.') || key.startsWith('*.')
+                  ? key.substring(2)
+                  : key,
+            );
+          }
         }
       }
     }
@@ -413,10 +422,10 @@ void validateProfileDnsDependencies(Map<String, dynamic> config) {
         check(uri.host);
       }
       String? proxy;
-      for (final token in uri.fragment.split('&')) {
-        if (token.isNotEmpty && !token.contains('=')) proxy = token;
+      for (final token in Uri.decodeComponent(uri.fragment).split('&')) {
+        if (!token.contains('=')) proxy = token;
       }
-      if (proxy != null && proxy != 'RULES') check(proxy);
+      if (proxy != null && proxy.isNotEmpty && proxy != 'RULES') check(proxy);
     }
   }
 

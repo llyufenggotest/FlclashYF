@@ -118,7 +118,7 @@ void main() {
         real['dns']['nameserver'],
         containsAll(source['dns']['nameserver'] as List),
       );
-      expect(real['dns']['nameserver'], contains('1.1.1.1'));
+      expect(real['dns']['nameserver'], source['dns']['nameserver']);
       expect(real['dns']['use-system-hosts'], false);
       expect(real['dns']['enhanced-mode'], 'fake-ip');
       expect(real['dns']['ipv6'], false);
@@ -277,7 +277,7 @@ void main() {
       final raw = decode(privateSource);
       raw['dns']['enable'] = false;
       final real = await finalProfile(raw);
-      expect(real['dns']['enable'], true);
+      expect(real['dns']['enable'], false);
       expect(
         real['dns']['nameserver-policy']['+.secret.test'],
         raw['dns']['nameserver-policy']['+.secret.test'],

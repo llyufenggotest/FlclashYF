@@ -4,13 +4,19 @@
 
 仅 `useGlobalTemplate=true` 的 YAML 走私有解析数据合并。关闭时完整 YAML 原文返回；URI/base64、Fastup 与关闭时 node-only 的既有模板流程不变。
 
-- 全局模板拥有通用设置：IPv6、DNS enable/enhanced-mode/fake-ip-range/listen、全局路由、监听器等不从订阅全文覆盖。
-- `hosts`、`nameserver-policy`、`proxy-server-nameserver-policy` 按键合并，订阅同键优先；字符串、列表、IPv4/IPv6、别名和中文逗号不拆分、不规范化。
-- 解析器列表（nameserver/default/proxy-server/direct/fallback）、fake-ip-filter：订阅条目在前，模板缺失项随后补齐；字符串 policy 值保持字符串，列表保持列表。
-- `use-hosts`、`use-system-hosts`、`respect-rules`、`direct-nameserver-follow-policy` 仅当订阅显式存在才继承，包括 false。它们决定私有解析数据的消费方式，不等于订阅接管全部 DNS 设置。
-- fallback-filter 仅合并 domain/ipcidr 解析约束；geoip/geoip-code 等仍由模板控制。私有 hosts/具体 policy 域名添加 blacklist fake-ip 排除；whitelist/rule 模式遇到私有解析数据时明确拒绝，要求用户调整模板，避免反转语义。
-- 不批量搬运 source rules。只保留与私有 hosts/具体 policy 域名精确对应的 DOMAIN/DOMAIN-SUFFIX 规则。DNS `rule-set:` 引用仅复制所需 rule-provider；resolver `#proxy` / overlay DNS 仅闭包保留其依赖的节点组。冲突、丢失引用、循环、无法安全恢复的 provider 组拒绝生成，不输出原始 URL、域名、token 或节点名。
-- 用户之后的显式 UI DNS 覆写仍覆盖可编辑 DNS 字段；未被模型覆盖的键保留。自动启用未启用 DNS 只是补默认值，不清空订阅私有 policy。最终 `makeRealProfileTask` 再校验 DNS 依赖，脚本删节点不能静默生成损坏配置。
+- 全局模板拥有通用设置：IPv6、DNS enhanced-mode/fake-ip-range/listen、全局路由、监听器等；源显式 DNS enable（包括 false）保留。
+- `hosts`、`nameserver-policy`、`proxy-server-nameserver-policy` 按精确键合并，源同键完整覆盖，不 union 同域 resolver，不规范化字面值。
+- 非空源 nameserver/default/proxy-server/direct/fallback pool 完整替换相应模板 pool；源未声明或空列表才补模板默认。nameserver 为并行主池，fallback 为过滤控制备用池，default 用于 DNS 主机 bootstrap，proxy-server 用于代理端点，direct 用于直连。不是列表排序优先，不全域添加 DIRECT/DNSproxy。blacklist fake-ip-filter 可去重合并。
+- 源显式 use-hosts/use-system-hosts/respect-rules/direct-nameserver-follow-policy（包括 false）保留；hosts 路由依赖只在有效 use-hosts=true 时闭包，缺失遵循模板/Core 默认。
+- fallback-filter 每个源显式字段覆盖、模板只补未声明字段，包括 geoip/geoip-code/domain/ipcidr。仅实际开启 fake-ip 时检查 whitelist/rule 反转；redir-host 不拒不生效 filter mode、不添加 blacklist 条目。
+- rule-set/group 引用精准闭包，冲突/循环/缺依赖 value-free 拒绝。resolver fragment 百分号解码后 split &，最后无等号 token（包括清空 selector 的尾空 token）与 Core 一致，proxy/socks/doh 选项不当 selector，原 URL 不改。普通 profile/显式覆写也接受合法 Group%20One。
+- 用户显式 DNS 覆写仍覆盖编辑字段。自动默认补齐保留原 enable=false 与私有 policy；最终任务检查依赖，脚本删节点不静默损坏。
+
+### 配对提交边界
+
+保存/删除/重模板读快照/备份/恢复统一 profile 路径队列及 OS 文件锁。最小 undo journal 保留既有两个 YAML 与 zip 兼容；旧 pair flush 完成后发布，失败回滚，未提交 journal 下次合作读取恢复。commit marker 先写临时文件再 rename；已完成 journal 整目录退休后清理避免递归删除中断误回滚。老 archive 缺 source 明确清目标旧 source，新 archive 成对恢复。
+
+这是 journal + commitpoint，**不是 atomic two-files**。未合作加锁的原生/外部直接文件读取仍可能看到发布窗口；不承诺目录 fsync/断电持久性；回滚失败保留 journal 并失败。
 
 ## 来源所有权
 
