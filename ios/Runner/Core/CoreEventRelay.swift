@@ -16,6 +16,11 @@ final class CoreEventRelay {
   private var generation = UUID()
   private var deliveryToken: UUID?
   private var retryBlocked = false
+  // Worker-owned retry metadata only: never capture the event String/Data.
+  private var retryWork: DispatchWorkItem?
+  private var retryToken: UUID?
+  private var retryAttempt = 0
+  private var stopped = false
   private var acknowledgedFile: (url: URL, identity: String, owner: UUID)?
 
   init(sharedStateStore: SharedStateStore,
@@ -25,6 +30,7 @@ final class CoreEventRelay {
   }
 
   deinit {
+    retryWork?.cancel()
     if isStarted {
       CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(),
         Unmanaged.passUnretained(self).toOpaque(),
@@ -36,6 +42,7 @@ final class CoreEventRelay {
   func start() {
     guard !isStarted else { return }
     isStarted = true
+    worker.async { [self] in stopped = false }
     // The ObjC bridge owns one independent producer slot BEFORE NSString
     // allocation; no per-event main async closures, no shared RPC callback wait.
     IOSCoreBridge.setEventListener { [weak self] event in
@@ -81,8 +88,50 @@ final class CoreEventRelay {
   /// reused pathname; reset never deletes unacknowledged files.
   func reset() {
     worker.async { [self] in
+      cancelRetry()
       generation = UUID(); retryBlocked = false; acknowledgedFile = nil
     }
+  }
+
+  /// Registration is main-owned, like start(). Keep actual Flutter occupancy.
+  func stop() {
+    if isStarted {
+      CFNotificationCenterRemoveObserver(CFNotificationCenterGetDarwinNotifyCenter(),
+        Unmanaged.passUnretained(self).toOpaque(),
+        CFNotificationName(sharedStateStore.eventNotificationName as CFString), nil)
+      isStarted = false
+    }
+    worker.async { [self] in
+      stopped = true
+      cancelRetry()
+      generation = UUID(); retryBlocked = false; acknowledgedFile = nil
+    }
+  }
+
+  private func cancelRetry() {
+    retryWork?.cancel()
+    retryWork = nil; retryToken = nil; retryAttempt = 0
+  }
+
+  private func blockForRetry() {
+    retryBlocked = true
+    guard !stopped, retryWork == nil else { return }
+    retryAttempt = min(retryAttempt + 1, 6)
+    let delay = min(0.25 * pow(2.0, Double(retryAttempt - 1)), 8.0)
+    let token = UUID(), owner = generation
+    retryToken = token
+    let item = DispatchWorkItem { [weak self] in
+      guard let self, !self.stopped, self.generation == owner,
+        self.retryToken == token else { return }
+      self.retryWork = nil; self.retryToken = nil
+      self.retryBlocked = false
+      self.pump()
+    }
+    retryWork = item
+    #if IOS_MEMORY_TESTING
+    if let scheduleTestRetry { scheduleTestRetry(delay, item); return }
+    #endif
+    worker.asyncAfter(deadline: .now() + delay, execute: item)
   }
 
   private func handleEventNotification() { scheduleDrain(allowRetry: false) }
@@ -100,7 +149,7 @@ final class CoreEventRelay {
       let retry = self.retryRequested
       self.retryRequested = false
       self.notificationLock.unlock()
-      if retry { self.retryBlocked = false }
+      if retry { self.cancelRetry(); self.retryBlocked = false }
       self.pump()
     }
   }
@@ -130,25 +179,38 @@ final class CoreEventRelay {
   }
 
   private func pump() {
-    guard deliveryToken == nil, !retryBlocked else { return }
+    guard !stopped, deliveryToken == nil, !retryBlocked else { return }
     if let ack = acknowledgedFile {
-      if ack.owner == generation && identity(ack.url) == ack.identity {
+      let currentIdentity = identity(ack.url)
+      if ack.owner == generation && currentIdentity == nil &&
+        FileManager.default.fileExists(atPath: ack.url.path) {
+        blockForRetry(); return
+      }
+      if ack.owner == generation && currentIdentity == ack.identity {
         do {
           #if IOS_MEMORY_TESTING
           try beforeDelete?()
           #endif
           try FileManager.default.removeItem(at: ack.url)
-        } catch { retryBlocked = true; return }
+        } catch { blockForRetry(); return }
       }
       acknowledgedFile = nil
+      cancelRetry()
     }
     guard let directory = sharedStateStore.eventQueueDirectory(),
       let file = oldestFile(in: directory) else { return }
-    guard let fileIdentity = identity(file),
-      let event = try? String(contentsOf: file, encoding: .utf8), !event.isEmpty else {
-      // Invalid/unreadable critical files are never silently deleted. Preserve
-      // order; explicit retry can resume after the storage fault is repaired.
-      retryBlocked = true
+    guard let fileIdentity = identity(file) else { blockForRetry(); return }
+    let event: String
+    do {
+      #if IOS_MEMORY_TESTING
+      try beforeRead?()
+      #endif
+      event = try String(contentsOf: file, encoding: .utf8)
+    } catch { blockForRetry(); return }
+    guard !event.isEmpty else {
+      // Preserve unreadable/invalid critical files and order. Retry metadata
+      // contains no payload; permanent faults back off rather than spin.
+      blockForRetry()
       return
     }
     let token = UUID(), owner = generation
@@ -168,7 +230,7 @@ final class CoreEventRelay {
           self.pump()
           return
         }
-        guard delivered else { self.deliveryToken = nil; self.retryBlocked = true; return }
+        guard delivered else { self.deliveryToken = nil; self.blockForRetry(); return }
         self.deliveryToken = nil
         self.acknowledgedFile = (file, fileIdentity, owner)
         self.pump()
@@ -183,6 +245,12 @@ final class CoreEventRelay {
 
   #if IOS_MEMORY_TESTING
   var beforeDelete: (() throws -> Void)?
+  var beforeRead: (() throws -> Void)?
+  var scheduleTestRetry: ((Double, DispatchWorkItem) -> Void)?
+  func testRetryPending() -> Bool { worker.sync { retryWork != nil } }
+  func testRetryAttempt() -> Int { worker.sync { retryAttempt } }
+  func testFireRetry() { worker.sync { retryWork?.perform() } }
+  func testPerformStale(_ item: DispatchWorkItem) { worker.sync { item.perform() } }
   var beforeLocalWrite: (() -> Void)?
   func flush() { worker.sync {} }
   func testInFlight() -> Int { worker.sync { deliveryToken == nil ? 0 : 1 } }

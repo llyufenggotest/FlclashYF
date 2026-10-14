@@ -27,6 +27,7 @@ def check_tree(ref=None):
         ('M02 independent event bridge admission before NSData', 'NECoreEventSink' in bridge and 'eventAdmission' in bridge),
         ('M03 streaming fixed ACK window', 'contentsOfDirectory' not in runner and 'inFlightEventFiles' not in runner and 'deliveryToken' in runner),
         ('M03 notifications coalesce before main hop', 'notificationPending' in runner),
+        ('ACK retry one payload-free generation-owned backoff', all(token in runner for token in ['private var retryWork: DispatchWorkItem?', 'retryWork == nil', 'self.generation == owner', 'self.retryToken == token', 'worker.asyncAfter', 'cancelRetry()', 'blockForRetry()']) and 'self.retryBlocked = true; return' not in runner),
         ('CI01 published immutable baseline', 'd4f707b7ed80d1a9eb2d0de07120bb83f4e228ce' in script),
         ('CI02 sibling replacement initialized', 'core/mihomo core/sing-shadowsocks2' in workflow),
         ('CI03 packaging requires Swift behavior', 'test_ios_swift_review.py --require-swift' in packaging and 'fetch-depth: 0' in packaging and 'needs: [verify, swift-review-native]' in packaging),
