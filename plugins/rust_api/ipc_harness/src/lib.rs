@@ -74,6 +74,8 @@ mod tests {
         let event = rx.recv_timeout(Duration::from_secs(5)).unwrap();
         assert_eq!(&event[..5], &[2, 1, 1, 4, 0]);
         assert_eq!(event.len(), 17);
+        let generic = rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(generic, [vec![4], b"read_io_failure".to_vec()].concat());
         ipc::server::stop_server().unwrap();
         drop(peer);
     }

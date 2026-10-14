@@ -89,10 +89,12 @@ class _RequestsViewState extends ConsumerState<RequestsView> {
     if (_requestListening) return;
     _requestListening = true;
     unawaited(
-      _core.startRequestNotify().then((requests) {
-        if (!mounted || !_requestListening) return;
-        ref.read(requestsProvider.notifier).addRequests(requests);
-      }),
+      consumeNotificationFailure(
+        () => _core.startRequestNotify().then((requests) {
+          if (!mounted || !_requestListening) return;
+          ref.read(requestsProvider.notifier).addRequests(requests);
+        }),
+      ),
     );
   }
 

@@ -120,10 +120,12 @@ class _DnsQueriesViewState extends ConsumerState<DnsQueriesView> {
     if (_listening) return;
     _listening = true;
     unawaited(
-      _core.startDnsNotify().then((queries) {
-        if (!mounted || !_listening) return;
-        ref.read(dnsQueriesProvider.notifier).addQueries(queries);
-      }),
+      consumeNotificationFailure(
+        () => _core.startDnsNotify().then((queries) {
+          if (!mounted || !_listening) return;
+          ref.read(dnsQueriesProvider.notifier).addQueries(queries);
+        }),
+      ),
     );
   }
 

@@ -137,18 +137,22 @@ class _LogsViewState extends ConsumerState<LogsView> {
     _logListening = true;
     final revision = ref.read(logsProvider).revision;
     unawaited(
-      _core.startLogNotify().then((logs) {
-        if (!mounted ||
-            !_logListening ||
-            ref.read(logsProvider).revision != revision) {
-          return;
-        }
-        ref
-            .read(logsProvider.notifier)
-            .addLogs(
-              logs.map((log) => log.copyWith(source: LogSource.core)).toList(),
-            );
-      }),
+      consumeNotificationFailure(
+        () => _core.startLogNotify().then((logs) {
+          if (!mounted ||
+              !_logListening ||
+              ref.read(logsProvider).revision != revision) {
+            return;
+          }
+          ref
+              .read(logsProvider.notifier)
+              .addLogs(
+                logs
+                    .map((log) => log.copyWith(source: LogSource.core))
+                    .toList(),
+              );
+        }),
+      ),
     );
   }
 

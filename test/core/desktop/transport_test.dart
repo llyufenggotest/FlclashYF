@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:fl_clash/core/desktop/rpc_client.dart';
+import 'package:fl_clash/core/method.dart';
 import 'package:fl_clash/core/desktop/transport.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/foundation.dart';
@@ -264,6 +266,81 @@ void main() {
         expect(logs.join(), contains('reason=invalid_diagnostic'));
         expect(logs.join(), isNot(contains('password')));
         expect(transport.state, DesktopTransportState.ready);
+      } finally {
+        debugPrint = previous;
+      }
+    });
+
+    test(
+      'diagnostic precedes generic failure without erasing logged first cause',
+      () async {
+        final logs = <String>[];
+        final previous = debugPrint;
+        debugPrint = (String? message, {int? wrapWidth}) {
+          if (message != null) logs.add(message);
+        };
+        final client = CoreRpcClient(transport);
+        final events = <DesktopTransportEvent>[];
+        final subscription = transport.events.listen(events.add);
+        try {
+          final open = transport.open();
+          rawEvents.add(_frame(0));
+          await open;
+          rawEvents.add(_frame(1));
+          final payload = Uint8List(16)..setAll(0, [1, 1, 4, 0]);
+          ByteData.sublistView(payload).setUint64(8, 42, Endian.little);
+          rawEvents.add(_frame(2, payload));
+          rawEvents.add(_frame(4, utf8.encode('read_io_failure')));
+          await pumpEventQueue();
+          expect(events.map((e) => e.runtimeType).toList(), [
+            TransportReady,
+            TransportConnected,
+            TransportDisconnected,
+            TransportFailed,
+          ]);
+          expect(logs.where((s) => s.startsWith('IPC Disconnected')), [
+            'IPC Disconnected source=reader reason=invalid_frame os_code=unknown last_frame_age_ms=42 generation=1',
+          ]);
+          // RPC failure is deliberately still structured; diagnostic is not its envelope.
+          await expectLater(
+            client.invoke<bool>(method: CoreMethod.getIsInit),
+            throwsA(
+              isA<CoreMethodException>().having(
+                (e) => e.code,
+                'code',
+                'transport_error',
+              ),
+            ),
+          );
+          expect(sentMessages, isEmpty);
+          expect(client.pendingCount, 0);
+        } finally {
+          debugPrint = previous;
+          await subscription.cancel();
+          await client.close();
+        }
+      },
+    );
+
+    test('old empty disconnect renders unknown diagnostic', () async {
+      final logs = <String>[];
+      final previous = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        if (message != null) logs.add(message);
+      };
+      try {
+        final open = transport.open();
+        rawEvents.add(_frame(0));
+        await open;
+        rawEvents.add(_frame(1));
+        rawEvents.add(_frame(2));
+        await pumpEventQueue();
+        expect(
+          logs,
+          contains(
+            'IPC Disconnected source=unknown reason=unknown os_code=unknown last_frame_age_ms=unknown generation=1',
+          ),
+        );
       } finally {
         debugPrint = previous;
       }

@@ -546,8 +546,8 @@ abstract class CoreHandlerInterface with CoreInterface {
   }
 
   @override
-  FutureOr<void> stopLogNotify() {
-    _invokeMethod<bool>(method: CoreMethod.stopLogNotify);
+  Future<void> stopLogNotify() async {
+    await _invokeMethod<bool>(method: CoreMethod.stopLogNotify);
   }
 
   @override
@@ -565,8 +565,8 @@ abstract class CoreHandlerInterface with CoreInterface {
   }
 
   @override
-  FutureOr<void> stopRequestNotify() {
-    _invokeMethod<bool>(method: CoreMethod.stopRequestNotify);
+  Future<void> stopRequestNotify() async {
+    await _invokeMethod<bool>(method: CoreMethod.stopRequestNotify);
   }
 
   @override
@@ -584,8 +584,8 @@ abstract class CoreHandlerInterface with CoreInterface {
   }
 
   @override
-  FutureOr<void> stopDnsNotify() {
-    _invokeMethod<bool>(method: CoreMethod.stopDnsNotify);
+  Future<void> stopDnsNotify() async {
+    await _invokeMethod<bool>(method: CoreMethod.stopDnsNotify);
   }
 
   @override

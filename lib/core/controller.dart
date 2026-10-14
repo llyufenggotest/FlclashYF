@@ -9,6 +9,21 @@ import 'package:fl_clash/models/models.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 
+/// Consume only the expected loss of an optional notification subscription.
+/// Other errors still reach the caller/zone; never log raw transport details.
+Future<void> consumeNotificationFailure(
+  FutureOr<void> Function() action,
+) async {
+  try {
+    await action();
+  } on CoreMethodException catch (error) {
+    if (error.code != 'transport_disconnected' &&
+        error.code != 'transport_error') {
+      rethrow;
+    }
+  }
+}
+
 class CoreController {
   static CoreController? _instance;
   late CoreHandlerInterface _interface;
@@ -284,7 +299,7 @@ class CoreController {
   }
 
   void stopLogNotify() {
-    _interface.stopLogNotify();
+    unawaited(consumeNotificationFailure(_interface.stopLogNotify));
   }
 
   Future<List<TrackerInfo>> startRequestNotify() async {
@@ -292,7 +307,7 @@ class CoreController {
   }
 
   void stopRequestNotify() {
-    _interface.stopRequestNotify();
+    unawaited(consumeNotificationFailure(_interface.stopRequestNotify));
   }
 
   Future<List<DnsQuery>> startDnsNotify() async {
@@ -300,7 +315,7 @@ class CoreController {
   }
 
   void stopDnsNotify() {
-    _interface.stopDnsNotify();
+    unawaited(consumeNotificationFailure(_interface.stopDnsNotify));
   }
 
   Future<DnsQuery> queryDns(String domain, String type) {
