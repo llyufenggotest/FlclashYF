@@ -1,7 +1,11 @@
 #import "IOSCoreBridge.h"
 
 #import "../../core/bride.h"
+#if IOS_MEMORY_TESTING
+#import "../../scripts/fixtures/ios_bridge_test_exports.h"
+#else
 #import "../../libclash/ios/arm64/libclash.h"
+#endif
 #import <os/log.h>
 #import <string.h>
 
@@ -35,11 +39,34 @@ static char *IOSCoreResolvePackage(void *tunInterface, int uid) {
   return strdup("");
 }
 
+@interface IOSCoreEventSink : NSObject
+@property(nonatomic, copy) IOSCoreResultHandler handler;
+@end
+@implementation IOSCoreEventSink
+@end
+static dispatch_semaphore_t IOSCoreEventAdmission(void) {
+  static dispatch_semaphore_t admission;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{ admission = dispatch_semaphore_create(1); });
+  return admission;
+}
+
 static void IOSCoreResult(void *invokeInterface, const char *data) {
   if (invokeInterface == NULL) {
     return;
   }
   @autoreleasepool {
+    id target = (__bridge id)invokeInterface;
+    if ([target isKindOfClass:IOSCoreEventSink.class]) {
+      // Separate event producer from main/RPC and budget before conversion.
+      dispatch_semaphore_t admission = IOSCoreEventAdmission();
+      dispatch_semaphore_wait(admission, DISPATCH_TIME_FOREVER);
+      @try {
+        NSString *event = data == NULL ? nil : [[NSString alloc] initWithUTF8String:data];
+        ((IOSCoreEventSink *)target).handler(event);
+      } @finally { dispatch_semaphore_signal(admission); }
+      return;
+    }
     IOSCoreResultHandler handler = (__bridge IOSCoreResultHandler)invokeInterface;
     NSString *result = data == NULL ? nil : [[NSString alloc] initWithUTF8String:data];
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -129,8 +156,9 @@ static void IOSCoreSystemLog(const char *level, const char *message) {
     setEventListener(NULL);
     return;
   }
-  IOSCoreResultHandler retainedListener = [listener copy];
-  setEventListener((void *)CFBridgingRetain(retainedListener));
+  IOSCoreEventSink *sink = [IOSCoreEventSink new];
+  sink.handler = listener;
+  setEventListener((void *)CFBridgingRetain(sink));
 }
 
 @end

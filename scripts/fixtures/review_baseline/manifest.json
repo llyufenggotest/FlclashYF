@@ -1,0 +1,9 @@
+{
+  "ref": "65e6323be3a4ea435a524ae5743479660010081c",
+  "sha256": {
+    "ios/NECore/NativeDiagnosticLog.swift": "ca4862ac2ac0580627df2daf301c5d313acb0f9985e1fe2495e805a5b4e2b7dc",
+    "ios/NECore/NECoreBridge.m": "50476bcf5d36d7df64dad0c37b8d84c382f6df68d25237e9f79ebaed21e9091f",
+    "ios/NECore/NECoreBridge.h": "a5662b90b083ce40a66b24340597a748be7f642d1ac7fd8b99989cb895b861db",
+    "ios/Runner/Core/CoreEventRelay.swift": "b091d30fb242d9c0c0e8b3297ed521957a746b90a05e5bdc555e48508d5d680c"
+  }
+}

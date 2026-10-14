@@ -50,6 +50,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
   // with an old setup still mutating the process-global core after stop.
   private var coreSetupOwner: PacketTunnelLifecycleCleanup?
   private var lifecycleGeneration = UUID()
+  private var coreReclaimRetiring = false
 
   private func stopMemoryPressureDiagnostics() {
     memoryPressureSource?.cancel()
@@ -80,7 +81,13 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         self.eventQueue.stop()
         self.eventQueueStarted = false
       }
-      self.resourceHeartbeat.stop()
+      self.coreReclaimRetiring = true
+      self.resourceHeartbeat.retire { [weak self] in
+        // Old uncancellable GC must exit before native shutdown; a deadline
+        // completing the OS request never retires this core owner early.
+        NECoreBridge.stopTun()
+        DispatchQueue.main.async { self?.coreReclaimRetiring = false }
+      }
       if self.commandServerStarted {
         self.commandServer.stop()
         self.commandServerStarted = false
@@ -98,7 +105,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
       }
       return
     }
-    guard activeCleanup == nil, coreSetupOwner == nil else {
+    guard activeCleanup == nil, coreSetupOwner == nil, !coreReclaimRetiring else {
       completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
       return
     }
@@ -181,7 +188,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         self.diag(
           "mem_before_quick_setup footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
         )
-        NativeDiagnosticLog.shared.flush()
+        // Diagnostic admission is asynchronous; startup never flushes disk.
         // Start sampling before the config load so a jetsam kill while the core
         // builds rule-provider matchers leaves a footprint trail instead of silence.
         self.resourceHeartbeat.start()
@@ -197,13 +204,21 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         ) { result in
           DispatchQueue.main.async {
             guard self.coreSetupOwner === cleanup else { return }
-            self.coreSetupOwner = nil
             guard self.activeCleanup === cleanup else {
-              // stop may have preceded quickSetup's listener creation. No newer
-              // attempt can enter while coreSetupOwner is held.
-              NECoreBridge.stopTun()
+              // Preserve setup occupancy until both old GC and late setup's
+              // listener shutdown finish. No main synchronous native work.
+              self.coreReclaimRetiring = true
+              self.resourceHeartbeat.retire { [weak self] in
+                NECoreBridge.stopTun()
+                DispatchQueue.main.async {
+                  guard let self, self.coreSetupOwner === cleanup else { return }
+                  self.coreSetupOwner = nil
+                  self.coreReclaimRetiring = false
+                }
+              }
               return
             }
+            self.coreSetupOwner = nil
             if let result,
               !result.isEmpty
             {
@@ -220,7 +235,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
             self.diag(
               "quick_setup ok footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
             )
-            NativeDiagnosticLog.shared.flush()
+            // Diagnostic admission is asynchronous; startup never flushes disk.
             let coreTunOptions = CoreTunOptions(
               stack: vpnOptions.stack,
               address: self.networkConfiguration.tunAddress(for: vpnOptions),
@@ -235,14 +250,14 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
             guard let coreTunOptionsData = try? JSONEncoder().encode(coreTunOptions)
             else {
               self.diag("startup_failure phase=tun_options_encode")
-              NativeDiagnosticLog.shared.flush()
+              // Diagnostic admission is asynchronous; startup never flushes disk.
               completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
               return
             }
             self.diag(
               "tun_start begin footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
             )
-            NativeDiagnosticLog.shared.flush()
+            // Diagnostic admission is asynchronous; startup never flushes disk.
             let started = NECoreBridge.startTun(
               withFileDescriptor: tunnelFileDescriptor,
               options: coreTunOptionsData
@@ -253,7 +268,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
             self.diag(
               "start_tun result=\(started) footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
             )
-            NativeDiagnosticLog.shared.flush()
+            // Diagnostic admission is asynchronous; startup never flushes disk.
             if started {
               self.sharedStateStore.saveRunTime(vpnOptions: snapshot.data)
               self.commandServer.start()
@@ -272,9 +287,18 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     with reason: NEProviderStopReason,
     completionHandler: @escaping () -> Void
   ) {
+    // Register before main dispatch and before any I/O or native operation.
+    let completion = NativeStopCompletion(completion: completionHandler)
+    stopTunnelOnMain(with: reason, completionHandler: { completion.finish() })
+  }
+
+  private func stopTunnelOnMain(
+    with reason: NEProviderStopReason,
+    completionHandler: @escaping () -> Void
+  ) {
     guard Thread.isMainThread else {
       DispatchQueue.main.async {
-        self.stopTunnel(with: reason, completionHandler: completionHandler)
+        self.stopTunnelOnMain(with: reason, completionHandler: completionHandler)
       }
       return
     }
@@ -287,7 +311,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     logger.info("stopTunnel reason=\(reason.rawValue, privacy: .public)")
     sharedStateStore.clearRunTime()
     reloadWidgets()
-    NECoreBridge.stopTun()
+    // Native shutdown belongs to the async heartbeat retirement above.
     startupCompletion?(PacketTunnelProviderError.couldNotStartCoreTun)
     guard reason == .userInitiated else {
       completionHandler()

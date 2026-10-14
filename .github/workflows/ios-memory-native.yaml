@@ -2,11 +2,25 @@ name: iOS memory native behavior
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - ios/NECore/**
+      - ios/Runner/**
+      - scripts/test_ios*.py
+      - scripts/fixtures/**
+      - core/mihomo
+      - core/sing-shadowsocks2
+      - .github/workflows/ios-memory-native.yaml
   push:
     paths:
-      - ios/NECore/NativeResourceHeartbeat.swift
-      - ios/NECore/NativeDiagnosticLog.swift
-      - ios/NECore/NECoreEventQueue.swift
+      - ios/NECore/**
+      - ios/Runner/Core/CoreEventRelay.swift
+      - ios/Runner/IOSCoreBridge.*
+      - ios/Runner/ServiceChannel.swift
+      - scripts/test_ios_swift_review*.py
+      - scripts/fixtures/ios_swift_review*.swift
+      - scripts/fixtures/ios_bridge_test_exports.*
+      - scripts/fixtures/review_baseline/**
       - scripts/test_ios_memory_round2.py
       - scripts/fixtures/ios_memory_round2*.swift
       - core/mihomo
@@ -23,15 +37,19 @@ jobs:
           fetch-depth: 0
       - name: Compile immutable baseline and establish actual event RED
         run: python3 scripts/test_ios_memory_round2.py --baseline-native --require-swift
-      - name: Compile actual code and establish RPC occupancy blocker RED
-        run: python3 scripts/test_ios_memory_round2.py --rpc-blocker --require-swift
+      - name: Compile immutable review M01/M02/M03 baseline RED
+        run: python3 scripts/test_ios_swift_review.py --baseline-native --require-swift
+      - name: Compile and run exact Swift and ObjC review contracts
+        run: python3 scripts/test_ios_swift_review.py --require-swift
       - name: Compile and run production Swift memory contracts
         run: |
           python3 scripts/test_ios_memory_round2.py --require-swift
           python3 scripts/test_ios_heartbeat.py
           python3 scripts/test_ios_lifecycle_behavior.py
-      - name: Fetch only core for real metadata race and lifecycle gates
-        run: git submodule update --init core/mihomo
+      - name: Initialize both replacement submodules for Go gates
+        run: |
+          git submodule update --init --recursive core/mihomo core/sing-shadowsocks2
+          test -f core/sing-shadowsocks2/go.mod
       - uses: actions/setup-go@v6
         with:
           go-version-file: core/mihomo/go.mod
@@ -41,5 +59,6 @@ jobs:
         env:
           CGO_ENABLED: "1"
         run: |
+          go list -m all
           go test -race ./component/resource -count=1
           go test -tags ios_low_memory ./component/resource ./rules/provider ./tunnel -count=1

@@ -1,6 +1,6 @@
 """Round 2 real Swift tests; missing macOS/Swift is NOT a behavioral pass.
 Run on macOS: python3 scripts/test_ios_memory_round2.py --require-swift
-Source RED (immutable parent): --source-ref 7edcfb747a4a33d58bdbfa607c63b89c8f611821 --source-only
+Source RED (immutable parent): --source-ref d4f707b7ed80d1a9eb2d0de07120bb83f4e228ce --source-only
 Source gates are integration evidence, never Swift behavior/TDD GREEN.
 """
 import argparse
@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-BASE = "7edcfb747a4a33d58bdbfa607c63b89c8f611821"
+BASE = "d4f707b7ed80d1a9eb2d0de07120bb83f4e228ce"
 SOURCES = ["NativeResourceHeartbeat.swift", "NativeDiagnosticLog.swift", "NECoreEventQueue.swift"]
 
 def source_gate(ref=None):
@@ -29,7 +29,7 @@ def source_gate(ref=None):
         ("heartbeat stop drains admitted worker", "worker.sync" in heartbeat),
         ("diagnostic admission bounded before dispatch", "pendingJobs" in diagnostics and "pendingBytes" in diagnostics),
         ("diagnostic rotation avoids whole-file read", "Data(contentsOf: url)" not in diagnostics),
-        ("events avoid retained async payload closures", "self.queue.async {" not in events),
+        ("events single worker with independent producer pressure", "occupied" in events and "admission.wait()" in events),
         ("events preserve critical overflow", "isDiscardable" in events and "coreActive = false" not in events),
     ]
     for name, ok in checks:

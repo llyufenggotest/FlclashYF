@@ -222,6 +222,15 @@ final class NativeResourceHeartbeat {
     return uptimeSeconds - lastReclaimUptime >= cooldown
   }
 
+  /// The provider keeps its core admission closed until this old GC exits.
+  /// No main/log-I/O wait and no timeout permitting a new owner.
+  func retire(completion: @escaping () -> Void) {
+    worker.async { [self] in
+      stopOnWorker()
+      completion()
+    }
+  }
+
   func stop() {
     // A timer handler's last strong reference can deinit self on this worker.
     // Do not dispatch_sync to ourselves in that case.

@@ -234,10 +234,29 @@ jobs:
           path: dist/*.zip
           if-no-files-found: error
 
+  swift-review-native:
+    name: Required real Swift and ObjC review behavior
+    if: github.event_name == 'push' || inputs.platforms == 'all' || inputs.platforms == 'ios'
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Immutable native RED and exact production GREEN
+        run: |
+          python3 scripts/test_ios_swift_review_source.py
+          python3 scripts/test_ios_swift_review.py --baseline-native --require-swift
+          python3 scripts/test_ios_memory_round2.py --baseline-native --require-swift
+          python3 scripts/test_ios_swift_review.py --require-swift
+          python3 scripts/test_ios_memory_round2.py --require-swift
+          python3 scripts/test_ios_heartbeat.py
+          python3 scripts/test_ios_lifecycle_behavior.py
+
   ios:
     name: iOS arm64 IPA
     if: github.event_name == 'push' || inputs.platforms == 'all' || inputs.platforms == 'ios'
-    needs: verify
+    needs: [verify, swift-review-native]
     runs-on: macos-15
     timeout-minutes: 90
     steps:

@@ -1,7 +1,7 @@
 import Foundation
 
-/// Bounded App Group diagnostics. Lifecycle markers use synchronous backpressure;
-/// noisy core logs have a byte/job budget BEFORE dispatch admission.
+/// Bounded asynchronous diagnostics. Critical has a reserved admission lane;
+/// neither lifecycle nor heartbeat ever waits for log I/O. Overload is counted.
 @objc(NECoreNativeDiagnosticLog)
 final class NativeDiagnosticLog: NSObject {
   static let shared = NativeDiagnosticLog()
@@ -10,6 +10,12 @@ final class NativeDiagnosticLog: NSObject {
   private var pendingJobs = 0
   private var pendingBytes = 0
   private var droppedLogs = 0
+  private var pendingCriticalJobs = 0
+  private var pendingCriticalBytes = 0
+  private var droppedCritical = 0
+  private var reportedDrops = 0
+  static let maxCriticalJobs = 16
+  static let maxCriticalBytes = 128 * 1024
   static let maxPendingJobs = 64
   static let maxPendingBytes = 256 * 1024
   static let maxLineBytes = 8 * 1024
@@ -34,32 +40,38 @@ final class NativeDiagnosticLog: NSObject {
     let bounded = String(decoding: message.utf8.prefix(4096), as: UTF8.self)
     let line = "\(ISO8601DateFormatter().string(from: Date())) [attempt=\(SwitchDiagnostics.processID)] [NECore] \(bounded)\n"
     let data = Data(line.utf8.prefix(Self.maxLineBytes - 1)) + Data([0x0A])
-    if !discardable {
-      // Only fixed native lifecycle/heartbeat producers enter this path. Do not
-      // lose a startup/stop marker to a flood of ordinary logs. No async payload
-      // closure is retained for these producers; the caller bears backpressure.
-      queue.sync { write(data) }
-      return
-    }
     admissionLock.lock()
-    guard pendingJobs < Self.maxPendingJobs,
-      pendingBytes <= Self.maxPendingBytes - data.count
-    else {
-      droppedLogs = min(droppedLogs + 1, Int.max - 1)
-      admissionLock.unlock()
-      return
+    let admitted: Bool
+    if discardable {
+      admitted = pendingJobs < Self.maxPendingJobs && pendingBytes <= Self.maxPendingBytes - data.count
+      if admitted { pendingJobs += 1; pendingBytes += data.count }
+      else { droppedLogs = min(droppedLogs, Int.max - 1) + 1 }
+    } else {
+      admitted = pendingCriticalJobs < Self.maxCriticalJobs && pendingCriticalBytes <= Self.maxCriticalBytes - data.count
+      if admitted { pendingCriticalJobs += 1; pendingCriticalBytes += data.count }
+      else { droppedCritical = min(droppedCritical, Int.max - 1) + 1 }
     }
-    pendingJobs += 1
-    pendingBytes += data.count
     admissionLock.unlock()
+    guard admitted else { return }
     queue.async { [self] in
       defer {
         admissionLock.lock()
-        pendingJobs -= 1
-        pendingBytes -= data.count
+        if discardable { pendingJobs -= 1; pendingBytes -= data.count }
+        else { pendingCriticalJobs -= 1; pendingCriticalBytes -= data.count }
         admissionLock.unlock()
       }
       write(data)
+      // Persist a cumulative overload report on the writer itself. No extra
+      // retained async closure, no infinite promise of lossless diagnostic logs.
+      admissionLock.lock()
+      let lossy = droppedLogs, critical = droppedCritical
+      let total = min(lossy, Int.max - critical) + critical
+      let changed = total != reportedDrops
+      reportedDrops = total
+      admissionLock.unlock()
+      if changed {
+        write(Data("diagnostic_overload dropped_lossy=\(lossy) dropped_critical=\(critical)\n".utf8))
+      }
     }
   }
 
@@ -142,6 +154,10 @@ final class NativeDiagnosticLog: NSObject {
   #if IOS_MEMORY_TESTING
   func setTestURL(_ url: URL, beforeWrite: (() -> Void)? = nil) {
     queue.sync { testURL = url; self.beforeWrite = beforeWrite }
+  }
+  func testCriticalPending() -> (jobs: Int, bytes: Int, dropped: Int) {
+    admissionLock.lock(); defer { admissionLock.unlock() }
+    return (pendingCriticalJobs, pendingCriticalBytes, droppedCritical)
   }
   func testPending() -> (jobs: Int, bytes: Int, dropped: Int) {
     admissionLock.lock(); defer { admissionLock.unlock() }

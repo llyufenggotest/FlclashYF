@@ -114,8 +114,10 @@ final class ServiceChannel {
     let coreEventRelay = CoreEventRelay(
       sharedStateStore: sharedStateStore,
       sendEvent: { event, completion in
-        channel.invokeMethod("event", arguments: event) { callbackResult in
-          completion(callbackResult == nil)
+        DispatchQueue.main.async {
+          channel.invokeMethod("event", arguments: event) { callbackResult in
+            completion(callbackResult == nil)
+          }
         }
       }
     )
@@ -160,6 +162,7 @@ final class ServiceChannel {
       tunnelController.stop()
       result(true)
     case "init":
+      coreEventRelay.reset()
       tunnelController.publishConnectionState()
       coreEventRelay.drainEventQueue()
       Task {

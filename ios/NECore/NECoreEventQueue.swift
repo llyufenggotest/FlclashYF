@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 import os
 
 final class NECoreEventQueue {
@@ -11,60 +12,86 @@ final class NECoreEventQueue {
   )
 
   private let queue = DispatchQueue(label: "com.follow.clash.event-queue")
+  private let admission = NSCondition()
+  private var occupied = false
   private var running = false
   private var generation = UUID()
+  #if IOS_MEMORY_TESTING
+  var beforeWrite: (() -> Void)?
+  func flush() { queue.sync {} }
+  #endif
 
   init(sharedStateStore: PacketTunnelSharedStateStore) {
     self.sharedStateStore = sharedStateStore
   }
 
   func start() {
-    queue.sync { [weak self] in
-      guard let self, !self.running else { return }
-      self.running = true
-      let generation = UUID()
-      self.generation = generation
-      NECoreBridge.setEventListener { [weak self] event in
-        guard let self, let event, !event.isEmpty else { return }
-        // NECoreResult calls this listener synchronously on its single serial
-        // callback queue. Backpressure leaves at most one native event in this
-        // path, instead of retaining arbitrarily many Dispatch payload closures.
-        self.queue.sync {
-          guard self.running, self.generation == generation else { return }
-          self.enqueue(event)
-        }
-      }
+    admission.lock()
+    guard !running else { admission.unlock(); return }
+    running = true
+    let generation = UUID()
+    self.generation = generation
+    admission.unlock()
+    NECoreBridge.setEventListener { [weak self] event in
+      guard let self, let event, !event.isEmpty else { return }
+      self.admit(event, generation: generation)
     }
+  }
+
+  private func admit(_ event: Data, generation: UUID) {
+    // The ObjC event-only producer lane waits here, never RPC/main. One
+    // payload owns the worker, including its executing disk write. No cap or
+    // truncation of critical payloads; pressure propagates to this producer.
+    admission.lock()
+    while occupied && running && self.generation == generation { admission.wait() }
+    guard running, self.generation == generation else { admission.unlock(); return }
+    occupied = true
+    admission.unlock()
+    queue.async { [self] in
+      // A transient storage error never silently retires a critical payload.
+      // Keep exactly this one producer-owned payload and retry off main/RPC.
+      while !enqueue(event) { Thread.sleep(forTimeInterval: 1) }
+      admission.lock()
+      occupied = false
+      admission.broadcast()
+      admission.unlock()
+    }
+    admission.lock()
+    while occupied { admission.wait() }
+    admission.unlock()
   }
 
   func stop() {
-    queue.sync { [weak self] in
-      guard let self else { return }
-      self.running = false
-      self.generation = UUID()
-      NECoreBridge.setEventListener(nil)
-    }
+    admission.lock()
+    running = false
+    generation = UUID()
+    admission.broadcast()
+    admission.unlock()
+    // Already-admitted event finishes durably; old callbacks cannot admit a
+    // new payload. Listener replacement does not wait for its producer lane.
+    NECoreBridge.setEventListener(nil)
   }
 
   func markCoreResponsive() {
-    queue.sync { [weak self] in
-      guard let self else { return }
-      guard self.running else { return }
-      // Retained for the provider API; backlog must not disable critical events.
-    }
+    // Compatibility no-op. No main->event I/O barrier.
   }
 
-  private func enqueue(_ event: Data) {
+  private var lastTimestamp: UInt64 = 0
+  private func enqueue(_ event: Data) -> Bool {
+    #if IOS_MEMORY_TESTING
+    beforeWrite?()
+    #endif
     guard let directory = eventQueueDirectory() else {
       logger.error("enqueue failed: missing app group dir")
-      return
+      return false
     }
     do {
       try FileManager.default.createDirectory(
         at: directory,
         withIntermediateDirectories: true
       )
-      let timestamp = UInt64(Date().timeIntervalSince1970 * 1_000_000)
+      let timestamp = max(UInt64(Date().timeIntervalSince1970 * 1_000_000), lastTimestamp + 1)
+      lastTimestamp = timestamp
       let fileName = "\(timestamp)-\(UUID().uuidString)"
       let suffix = Self.isDiscardable(event) ? ".lossy.json" : ".json"
       let fileURL = directory.appendingPathComponent("\(fileName)\(suffix)")
@@ -76,12 +103,14 @@ final class NECoreEventQueue {
         try? FileManager.default.removeItem(at: temporaryURL)
         throw error
       }
-      prune(in: directory)
+      if suffix == ".lossy.json" { prune(in: directory) }
       notifyEventAvailable()
+      return true
     } catch {
       logger.error(
         "enqueue failed: \(error.localizedDescription, privacy: .public)"
       )
+      return false
     }
   }
 

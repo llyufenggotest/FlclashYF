@@ -20,7 +20,7 @@ class IOSLifecycleCleanupTests(unittest.TestCase):
         self.assertNotIn("self.commandServerStarted = true\n          self.activeCleanup = nil", provider)
         self.assertNotIn("cleanup.cleanup()\n          self.activeCleanup = nil", provider)
         for resource in ("stopMemoryPressureDiagnostics", "eventQueue.stop()",
-                         "resourceHeartbeat.stop()", "commandServer.stop()"):
+                         "resourceHeartbeat.retire", "commandServer.stop()"):
             self.assertIn(resource, provider)
 
     def test_provider_callbacks_are_serialized(self):
@@ -36,7 +36,10 @@ class IOSLifecycleCleanupTests(unittest.TestCase):
         source = self.read("NECoreEventQueue.swift")
         self.assertIn("private let queue = DispatchQueue", source)
         self.assertIn("self.generation == generation", source)
-        self.assertIn("guard self.running else", source)
+        self.assertIn("guard running, self.generation == generation", source)
+        self.assertIn("while occupied", source)
+        control = source[source.index('func stop()'):source.index('private var lastTimestamp')]
+        self.assertNotIn("queue.sync", control)
 
     def test_no_server_deadline_shorter_than_configuration_client(self):
         source = self.read("PacketTunnelCommandServer.swift")

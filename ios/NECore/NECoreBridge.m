@@ -1,7 +1,11 @@
 #import "NECoreBridge.h"
 
 #import "../../core/bride.h"
+#if IOS_MEMORY_TESTING
+#import "../../scripts/fixtures/ios_bridge_test_exports.h"
+#else
 #import "../../libclash/ios/arm64/libclash.h"
+#endif
 #import <os/log.h>
 #import <string.h>
 
@@ -50,11 +54,39 @@ static char *NECoreResolvePackage(void *tunInterface, int uid) {
   return strdup("");
 }
 
+@interface NECoreEventSink : NSObject
+@property(nonatomic, copy) NECoreResultHandler handler;
+@end
+@implementation NECoreEventSink
+@end
+
+// Process-wide event-only admission. Wait BEFORE NSData allocation; waiting
+// callers retain their borrowed C string, not a new Objective-C payload. The
+// Go event producer is serialized; RPC occupancy is separately owned/unfixed.
+static dispatch_semaphore_t NECoreEventAdmission(void) {
+  static dispatch_semaphore_t eventAdmission;
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{ eventAdmission = dispatch_semaphore_create(1); });
+  return eventAdmission;
+}
+
 static void NECoreResult(void *invokeInterface, const char *data) {
   if (invokeInterface == NULL) {
     return;
   }
   @autoreleasepool {
+    id target = (__bridge id)invokeInterface;
+    if ([target isKindOfClass:NECoreEventSink.class]) {
+      dispatch_semaphore_t eventAdmission = NECoreEventAdmission();
+      dispatch_semaphore_wait(eventAdmission, DISPATCH_TIME_FOREVER);
+      @try {
+        NSData *event = data == NULL ? nil : [[NSData alloc] initWithBytes:data length:strlen(data)];
+        ((NECoreEventSink *)target).handler(event);
+      } @finally {
+        dispatch_semaphore_signal(eventAdmission);
+      }
+      return;
+    }
     NECoreResultHandler handler = (__bridge NECoreResultHandler)invokeInterface;
     NSData *result = data == NULL
         ? nil
@@ -172,8 +204,9 @@ static void NECoreSystemLog(const char *level, const char *message) {
     setEventListener(NULL);
     return;
   }
-  NECoreResultHandler retainedListener = [listener copy];
-  setEventListener((void *)CFBridgingRetain(retainedListener));
+  NECoreEventSink *sink = [NECoreEventSink new];
+  sink.handler = listener;
+  setEventListener((void *)CFBridgingRetain(sink));
 }
 
 + (void)quickSetupWithInitParams:(NSString *)initParams
