@@ -91,6 +91,8 @@ jobs:
           (cd core && CGO_ENABLED=0 go test ./... && CGO_ENABLED=0 go test -tags with_low_memory ./... && CGO_ENABLED=0 go vet ./...)
           (cd core/mihomo && CGO_ENABLED=1 go test -race -count=1 -run 'TestBlackstone|TestXHTTP' ./adapter ./adapter/outbound)
           (cd core/mihomo && CGO_ENABLED=1 go test -race -count=1 ./transport/xhttp)
+          (cd core/mihomo && CGO_ENABLED=1 go test -race -count=1 ./dns ./component/resolver)
+          (cd core/mihomo && CGO_ENABLED=1 go test -race -tags with_low_memory -count=1 ./dns ./component/resolver)
           python3 scripts/protocol_smoke.py
           python3 scripts/test_oix_ci_wiring.py
           python3 scripts/test_ios_lifecycle_cleanup.py
