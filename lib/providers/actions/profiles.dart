@@ -61,8 +61,11 @@ class ProfilesAction extends _$ProfilesAction {
 
   Future<Profile> materializeGlobalTemplate(Profile profile) async {
     final file = await profile.file;
+    final source = await profile.templateSourceFile;
+    // Existing profiles have no source snapshot. Rebuild once from their
+    // current document; new imports/updates always retain the actual source.
     return profile.saveFile(
-      await file.readAsBytes(),
+      await (await source.exists() ? source : file).readAsBytes(),
       prepare: prepareProfileConfig,
     );
   }
@@ -312,6 +315,10 @@ class ProfilesAction extends _$ProfilesAction {
     if (isExists) {
       await profileFile.safeDelete(recursive: true);
     }
+    final sourcePath = await appPath.getProfilePath(
+      '$profileId.template-source-v1',
+    );
+    await File(sourcePath).safeDelete();
     final error = await _core.deleteManagedPath(
       DeleteManagedPathParams(
         scope: ManagedPathScope.providers,

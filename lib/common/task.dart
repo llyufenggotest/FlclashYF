@@ -253,6 +253,17 @@ Future<({String yaml, String md5})> _makeRealProfileTask(
       'nameserver-policy': nameserverPolicy,
       'proxy-server-nameserver-policy': proxyServerNameserverPolicy,
     };
+    if (!overrideDns) {
+      // Automatically enabling DNS is not an explicit user decision to erase
+      // subscription resolvers or policies. Defaults fill missing fields only.
+      rawConfig['dns'] = {
+        ...dns.toJson(),
+        'nameserver-policy': nameserverPolicy,
+        'proxy-server-nameserver-policy': proxyServerNameserverPolicy,
+        ...rawDns,
+        'enable': dns.enable,
+      };
+    }
   }
   if (overrideNtp) {
     final rawNtp = rawConfig['ntp'] is Map
@@ -325,6 +336,7 @@ Future<({String yaml, String md5})> _makeRealProfileTask(
   if (system.isIOS) {
     finalConfig = sanitizeProfileForIOS(finalConfig);
   }
+  validateProfileDnsDependencies(finalConfig);
   final yaml = await _encodeYaml(finalConfig);
   return (yaml: yaml, md5: yaml.toMd5());
 }
@@ -384,7 +396,11 @@ List<DeleteManagedPathParams> shakeOrphanFiles({
       if (!selected) {
         continue;
       }
-      final id = basenameWithoutExtension(entity.path);
+      var id = basenameWithoutExtension(entity.path);
+      const sourceSuffix = '.template-source-v1';
+      if (scope == ManagedPathScope.profiles && id.endsWith(sourceSuffix)) {
+        id = id.substring(0, id.length - sourceSuffix.length);
+      }
       if (!baseNames.contains(int.tryParse(id))) {
         targets.add(
           DeleteManagedPathParams(
@@ -655,7 +671,15 @@ Future<String> writeBackupArchive({
   await encoder.addFile(tempDBFile, backupDatabaseName);
   await encoder.addFile(tempConfigFile, configJsonName);
   ZipFileOperation keepListed(FileSystemEntity entity, double _) {
-    if (!fileNames.contains(basename(entity.path))) {
+    final name = basename(entity.path);
+    const sourceSuffix = '.template-source-v1.yaml';
+    final sourceForListedProfile =
+        dirname(entity.path) == profilesDir.path &&
+        name.endsWith(sourceSuffix) &&
+        fileNames.contains(
+          '${name.substring(0, name.length - sourceSuffix.length)}.yaml',
+        );
+    if (!fileNames.contains(name) && !sourceForListedProfile) {
       return ZipFileOperation.skip;
     }
     return ZipFileOperation.include;
@@ -780,7 +804,17 @@ Future<MigrationData> readBackupArchive({
         to: _getScriptPath(homeDirPath, item.id.toString()),
       ),
     );
-    await _copyWithMapList([...profilesMigration, ...scriptsMigration]);
+    final sourcesMigration = profiles.map(
+      (item) => (
+        from: _getProfilePath(restoreDirPath, '${item.id}.template-source-v1'),
+        to: _getProfilePath(homeDirPath, '${item.id}.template-source-v1'),
+      ),
+    );
+    await _copyWithMapList([
+      ...profilesMigration,
+      ...sourcesMigration,
+      ...scriptsMigration,
+    ]);
     return migrationData.copyWith(
       profiles: profiles,
       scripts: scripts,

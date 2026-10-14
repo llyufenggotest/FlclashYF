@@ -153,7 +153,7 @@ void main() {
       await container.read(profilesStreamProvider.future);
       final action = container.read(profilesActionProvider.notifier);
       const yaml =
-          'proxies: [{name: node, type: ss, server: example.com, port: 443, cipher: aes-128-gcm, password: synthetic}]\nproxy-groups: []\nrules: ["MATCH,DIRECT"]\n';
+          'proxies: [{name: node, type: ss, server: example.com, port: 443, cipher: aes-128-gcm, password: synthetic}]\nproxy-groups: []\nrules: ["MATCH,DIRECT"]\nhosts: {private.test: "192.0.2.1，2001:db8::1"}\ndns:\n  enable: true\n  use-system-hosts: false\n  nameserver: [192.0.2.53]\n  nameserver-policy: {"+.private.test": "https://dns.example.test/query?token=synthetic"}\n';
       final source = File('${root.path}/picked.yaml');
       await source.writeAsString(yaml);
       final originalPicker = FilePickerPlatform.instance;
@@ -161,8 +161,9 @@ void main() {
       final overrides = HttpOverrides.current;
       HttpOverrides.global = null;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      var remoteYaml = yaml;
       server.listen((request) async {
-        request.response.write(yaml);
+        request.response.write(remoteYaml);
         await request.response.close();
       });
       addTearDown(() async {
@@ -186,6 +187,22 @@ void main() {
           saved['rules'],
           flag ? contains('GEOSITE,CN,🎯 全球直连') : ['MATCH,DIRECT'],
         );
+        if (label != 'URI' && label != 'Base64') {
+          expect(saved['hosts']['private.test'], '192.0.2.1，2001:db8::1');
+          expect(
+            saved['dns']['nameserver-policy']['+.private.test'],
+            'https://dns.example.test/query?token=synthetic',
+          );
+          expect(saved['dns']['use-system-hosts'], false);
+          if (flag) {
+            expect(
+              (await (await profile.templateSourceFile).readAsString()).trim(),
+              yaml.trim(),
+            );
+          } else {
+            expect(await (await profile.templateSourceFile).exists(), false);
+          }
+        }
         expect(rows.singleWhere((p) => p.id == existing.id), existing);
         return profile;
       }
@@ -202,7 +219,18 @@ void main() {
         label: 'URL',
         useGlobalTemplate: true,
       );
-      await imported('URL', true);
+      final urlProfile = await imported('URL', true);
+      remoteYaml = yaml.replaceAll('private.test', 'updated.test');
+      await urlProfile.update(prepare: action.prepareProfileConfig);
+      final updated =
+          loadYaml(await (await urlProfile.file).readAsString()) as YamlMap;
+      expect(updated['hosts'].containsKey('private.test'), false);
+      expect(updated['hosts'].containsKey('updated.test'), true);
+      expect(
+        updated['dns']['nameserver-policy'].containsKey('+.private.test'),
+        false,
+      );
+      remoteYaml = yaml;
       await action.addProfileFromClipboardContent(url, 'Clipboard URL', true);
       await imported('Clipboard URL', true);
       final images = ImagePickerPlatform.instance;

@@ -191,6 +191,13 @@ extension ProfileExtension on Profile {
     return _getFile();
   }
 
+  /// Versioned, profile-owned source snapshot for repeatable template rebuilds.
+  /// Never shared with the global template or another profile.
+  Future<File> get templateSourceFile async {
+    final path = await appPath.getProfilePath('$id.template-source-v1');
+    return File(path);
+  }
+
   Future<Profile> update({required PrepareProfileConfig prepare}) async {
     final response = await request.getFileResponseForUrl(url);
     final disposition = response.headers.value('content-disposition');
@@ -218,6 +225,14 @@ extension ProfileExtension on Profile {
     final tempFile = File(path);
     await tempFile.safeWriteAsString(content);
     final mFile = await file;
+    // Validate before replacing either profile-owned artifact. A refreshed
+    // subscription replaces the source; it is not merged with the old one.
+    final sourceFile = await templateSourceFile;
+    if (useGlobalTemplate) {
+      await sourceFile.safeWriteAsString(utf8.decode(bytes));
+    } else {
+      await sourceFile.safeDelete();
+    }
     await tempFile.copy(mFile.path);
     await tempFile.safeDelete();
     return copyWith(lastUpdateDate: DateTime.now());

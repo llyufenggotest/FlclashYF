@@ -61,6 +61,21 @@ void main() {
     ..writeAsStringSync(content);
 
   group('shakeOrphanFiles', () {
+    test('keeps live versioned template sources and removes dead ones', () {
+      final profiles = makeDir('profiles');
+      writeFile(join(profiles.path, '1.template-source-v1.yaml'), 'keep');
+      writeFile(join(profiles.path, '2.template-source-v1.yaml'), 'drop');
+      final orphans = shakeOrphanFiles(
+        profileIds: [1],
+        scriptIds: const [],
+        profilesDirPath: profiles.path,
+        providersDirPath: join(root.path, 'missing'),
+        scriptsDirPath: join(root.path, 'missing'),
+      );
+      expect(orphans.map((item) => item.relativePath), [
+        '2.template-source-v1.yaml',
+      ]);
+    });
     test('reports only the files whose name is not a live id', () {
       final profiles = makeDir('profiles');
       final scripts = makeDir('scripts');
@@ -472,6 +487,14 @@ void main() {
       writeFile(join(home.path, 'profiles', '9.yaml'), 'not listed');
       writeFile(join(home.path, 'scripts', '2.js'), 'body');
 
+      writeFile(
+        join(home.path, 'profiles', '1.template-source-v1.yaml'),
+        'source keep',
+      );
+      writeFile(
+        join(home.path, 'profiles', '9.template-source-v1.yaml'),
+        'source not listed',
+      );
       final archivePath = await backup();
 
       final names = ZipDecoder()
@@ -481,6 +504,8 @@ void main() {
           .toSet();
       expect(names, containsAll([backupDatabaseName, configJsonName]));
       expect(names, contains('1.yaml'));
+      expect(names, contains('1.template-source-v1.yaml'));
+      expect(names, isNot(contains('9.template-source-v1.yaml')));
       expect(names, contains('2.js'));
       expect(names, isNot(contains('9.yaml')));
     });
@@ -501,6 +526,10 @@ void main() {
       await seedDatabase();
       writeFile(join(home.path, 'profiles', '1.yaml'), 'proxies: []');
       writeFile(join(home.path, 'scripts', '2.js'), 'body');
+      writeFile(
+        join(home.path, 'profiles', '1.template-source-v1.yaml'),
+        'original source',
+      );
       final archivePath = await backup();
       final target = makeDir('restore_target');
 
@@ -510,6 +539,12 @@ void main() {
         homeDirPath: target.path,
       );
 
+      expect(
+        File(
+          join(target.path, 'profiles', '1.template-source-v1.yaml'),
+        ).readAsStringSync(),
+        'original source',
+      );
       expect(data.profiles.single.label, 'Backed up');
       expect(data.scripts.single.label, 'Script');
       expect(data.rules.single.content, 'example.com');
