@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:desktop_drop/desktop_drop.dart';
@@ -33,6 +34,18 @@ class _Imports extends ProfilesAction {
   }
 }
 
+class _DialogObserver extends NavigatorObserver {
+  final shown = Completer<void>();
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    if (route is DialogRoute<void> && !shown.isCompleted) {
+      shown.complete();
+    }
+  }
+}
+
 void main() {
   testWidgets(
     'desktop drop prompts with an independent default-off template switch',
@@ -53,11 +66,13 @@ void main() {
       container
           .read(viewSizeProvider.notifier)
           .update((_) => const Size(1200, 1000));
+      final dialogObserver = _DialogObserver();
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
           child: MaterialApp(
             navigatorKey: globalState.navigatorKey,
+            navigatorObservers: [dialogObserver],
             localizationsDelegates: const [
               AppLocalizations.delegate,
               ...GlobalMaterialLocalizations.delegates,
@@ -78,8 +93,18 @@ void main() {
             globalPosition: Offset.zero,
           ),
         );
-        await Future<void>.delayed(const Duration(milliseconds: 30));
       });
+      // Navigator observers are flushed on a frame, while the file read needs
+      // real async turns. Advance both until the actual route-push signal.
+      final deadline = Stopwatch()..start();
+      while (!dialogObserver.shown.isCompleted &&
+          deadline.elapsed < const Duration(seconds: 10)) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 1)),
+        );
+        await tester.pump();
+      }
+      expect(dialogObserver.shown.isCompleted, isTrue);
       await tester.pumpAndSettle();
       expect(find.byType(ClipboardImportDialog), findsOneWidget);
       expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
