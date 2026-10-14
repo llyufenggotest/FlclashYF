@@ -101,6 +101,106 @@ void main() {
     await transport.close();
   });
 
+  test('calls after disconnect fail without waiting for a new Core', () async {
+    final transport = FakeDesktopCoreTransport.connected();
+    final client = CoreRpcClient(transport);
+    addTearDown(transport.close);
+    addTearDown(client.close);
+    transport.disconnect(1);
+    await pumpEventQueue();
+
+    for (final method in [
+      CoreMethod.stopLogNotify,
+      CoreMethod.getTraffic,
+      CoreMethod.getTotalTraffic,
+    ]) {
+      await expectLater(
+        client.invoke<bool>(
+          method: method,
+          timeout: const Duration(milliseconds: 100),
+        ),
+        throwsA(
+          isA<CoreMethodException>().having(
+            (error) => error.code,
+            'code',
+            'transport_disconnected',
+          ),
+        ),
+      );
+    }
+    expect(transport.sentMessages, isEmpty);
+    expect(client.pendingCount, 0);
+  });
+
+  test('a new connection accepts calls after a disconnect', () async {
+    final transport = FakeDesktopCoreTransport.connected();
+    final client = CoreRpcClient(transport);
+    addTearDown(transport.close);
+    addTearDown(client.close);
+    transport.disconnect(1);
+    await pumpEventQueue();
+    transport.connect(pid: 4321, generation: 2);
+    await pumpEventQueue();
+
+    final invocation = client.invoke<bool>(method: CoreMethod.getIsInit);
+    final request = await _sentRequest(transport);
+    transport.addJson({'id': request['id'], 'result': true});
+    expect(await invocation, isTrue);
+  });
+
+  test('ready does not clear a lost connection failure', () async {
+    final transport = FakeDesktopCoreTransport.connected();
+    final client = CoreRpcClient(transport);
+    addTearDown(transport.close);
+    addTearDown(client.close);
+    transport.disconnect(1);
+    await pumpEventQueue();
+    transport.ready();
+    await pumpEventQueue();
+
+    await expectLater(
+      client.invoke<bool>(method: CoreMethod.getIsInit),
+      throwsA(
+        isA<CoreMethodException>().having(
+          (error) => error.code,
+          'code',
+          'transport_disconnected',
+        ),
+      ),
+    );
+    client.beginShutdown();
+    expect(await client.invoke<bool>(method: CoreMethod.getIsInit), isNull);
+    expect(transport.sentMessages, isEmpty);
+  });
+
+  test(
+    'calls after transport failure retain the failure until connected',
+    () async {
+      final transport = FakeDesktopCoreTransport.connected();
+      final client = CoreRpcClient(transport);
+      addTearDown(transport.close);
+      addTearDown(client.close);
+      transport.fail(StateError('synthetic pipe failure'));
+      await pumpEventQueue();
+      await expectLater(
+        client.invoke<bool>(method: CoreMethod.getTraffic),
+        throwsA(
+          isA<CoreMethodException>().having(
+            (error) => error.code,
+            'code',
+            'transport_error',
+          ),
+        ),
+      );
+      transport.connect(pid: 4321, generation: 2);
+      await pumpEventQueue();
+      final invocation = client.invoke<bool>(method: CoreMethod.getIsInit);
+      final request = await _sentRequest(transport);
+      transport.addJson({'id': request['id'], 'result': true});
+      expect(await invocation, isTrue);
+    },
+  );
+
   test('maps a Core error envelope to CoreMethodException', () async {
     final transport = FakeDesktopCoreTransport.connected();
     final client = CoreRpcClient(transport);

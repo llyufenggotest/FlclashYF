@@ -52,6 +52,7 @@ final class CoreRpcClient implements CoreRpcChannel {
   Future<void>? _closeOperation;
   Future<void> _frameWork = Future<void>.value();
   int _frameGeneration = 0;
+  CoreMethodException? _connectionFailure;
 
   /// Time since Core last answered any request. A method timeout is a liveness
   /// guard for a stalled link (a restart mid-flight, a stream that stopped
@@ -81,6 +82,10 @@ final class CoreRpcClient implements CoreRpcChannel {
   }) async {
     if (_shutdownRequested) {
       return null;
+    }
+    final connectionFailure = _connectionFailure;
+    if (connectionFailure != null) {
+      throw connectionFailure;
     }
     final id = '${++_methodCallId}';
     final completer = Completer<Object?>();
@@ -272,7 +277,9 @@ final class CoreRpcClient implements CoreRpcChannel {
             details: error.toString(),
           ),
         );
-      case TransportReady() || TransportConnected():
+      case TransportConnected():
+        _connectionFailure = null;
+      case TransportReady():
         break;
     }
   }
@@ -283,6 +290,7 @@ final class CoreRpcClient implements CoreRpcChannel {
   }
 
   void _failPending(CoreMethodException error) {
+    _connectionFailure = error;
     final completers = _pending.values.toList(growable: false);
     _pending.clear();
     for (final completer in completers) {
