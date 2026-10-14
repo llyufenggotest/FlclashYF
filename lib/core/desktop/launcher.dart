@@ -53,8 +53,25 @@ final class DirectCoreLease implements CoreProcessLease {
   final Process _process;
   Future<CoreProcessStopResult>? _stopOperation;
 
+  bool _stopRequested = false;
+
   DirectCoreLease({required this.sessionId, required Process process})
-    : _process = process;
+    : _process = process {
+    unawaited(
+      _process.exitCode.then(
+        (code) {
+          commonPrint.log(
+            'Core process exit owner=direct pid=$pid exit_code=$code stop_requested=$_stopRequested',
+          );
+        },
+        onError: (Object _, StackTrace _) {
+          commonPrint.log(
+            'Core process exit owner=direct pid=$pid exit_code=unknown stop_requested=$_stopRequested',
+          );
+        },
+      ),
+    );
+  }
 
   @override
   CoreProcessOwner get owner => CoreProcessOwner.direct;
@@ -79,6 +96,7 @@ final class DirectCoreLease implements CoreProcessLease {
   }
 
   Future<CoreProcessStopResult> _stop(Duration timeout) async {
+    _stopRequested = true;
     final stopped = _process.kill();
     try {
       await _process.exitCode.timeout(timeout);

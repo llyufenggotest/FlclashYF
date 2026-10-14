@@ -3,6 +3,8 @@ use super::frame::{
     TYPE_READY,
 };
 use super::platform;
+use super::diagnostic::DisconnectDiagnostic;
+use std::time::Instant;
 use super::queue::{enqueue_message, MessageSender, MAX_PENDING_MESSAGES, SEND_QUEUE_TIMEOUT};
 use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::for_generated::SseCodec;
@@ -200,6 +202,10 @@ fn io_loop(name: String, sink: StreamSink<Vec<u8>, SseCodec>) {
 
         let (mut receiver, mut sender) = stream.split();
         let connection_running = Arc::new(AtomicBool::new(true));
+        // First terminal observer wins; a reader stopping after writer failure
+        // must not replace the original OS code with a local cancellation.
+        let disconnect = Arc::new(Mutex::new(None::<DisconnectDiagnostic>));
+        let writer_disconnect = Arc::clone(&disconnect);
         let writer_running = Arc::clone(&connection_running);
         let writer = thread::spawn(move || {
             let mut error = None;
@@ -209,20 +215,30 @@ fn io_loop(name: String, sink: StreamSink<Vec<u8>, SseCodec>) {
                     Ok(data) => {
                         pending_bytes.fetch_sub(data.len(), Ordering::SeqCst);
                         if let Err(e) = frame::write_frame(&mut sender, &data, &is_running) {
-                            if is_running() && !frame::is_expected_disconnect_error(&e) {
-                                error = Some(format!("write error: {e}"));
+                            if is_running() {
+                                writer_disconnect.lock().unwrap_or_else(|p| p.into_inner())
+                                    .get_or_insert(DisconnectDiagnostic::io(2, &e));
+                                if !frame::is_expected_disconnect_error(&e) {
+                                    error = Some("write_io_failure".to_owned());
+                                }
                             }
                             break;
                         }
                     }
                     Err(mpsc::RecvTimeoutError::Timeout) => continue,
-                    Err(mpsc::RecvTimeoutError::Disconnected) => break,
+                    Err(mpsc::RecvTimeoutError::Disconnected) => {
+                        writer_disconnect.lock().unwrap_or_else(|p| p.into_inner())
+                            .get_or_insert(DisconnectDiagnostic::local(2, 10));
+                        break;
+                    }
                 }
             }
             writer_running.store(false, Ordering::SeqCst);
             error
         });
 
+        let mut last_frame = Instant::now();
+        let mut reader_failed = false;
         let mut frame_reader = FrameReader::default();
         while connection_running.load(Ordering::SeqCst) && server_active() {
             #[cfg(windows)]
@@ -234,16 +250,20 @@ fn io_loop(name: String, sink: StreamSink<Vec<u8>, SseCodec>) {
 
             match poll_result {
                 Ok(Some(data)) => {
+                    last_frame = Instant::now();
                     if sink.add(frame::make_frame(TYPE_DATA, &data)).is_err() {
+                        disconnect.lock().unwrap_or_else(|p| p.into_inner())
+                            .get_or_insert(DisconnectDiagnostic::local(3, 9));
                         break;
                     }
                 }
                 Ok(None) => thread::sleep(IO_POLL_INTERVAL),
                 Err(e) => {
-                    if !frame::is_expected_disconnect_error(&e) && server_active() {
-                        ipc_debug!("[IPC] read error: {e}, raw={:?}", e.raw_os_error());
-                        report_error(&sink, format!("read error: {e}"));
-                    }
+                    disconnect.lock().unwrap_or_else(|p| p.into_inner())
+                        .get_or_insert(DisconnectDiagnostic::io(1, &e));
+                    reader_failed = !frame::is_expected_disconnect_error(&e);
+                    // The diagnostic is emitted before a generic error so Dart
+                    // preserves the first disconnect, even for unusual OS errors.
                     break;
                 }
             }
@@ -253,13 +273,27 @@ fn io_loop(name: String, sink: StreamSink<Vec<u8>, SseCodec>) {
         if let Ok(mut state) = STATE.lock() {
             state.sender = None;
         }
-        if let Ok(Some(message)) = writer.join() {
-            if server_active() {
+        let writer_error = match writer.join() {
+            Ok(error) => error,
+            Err(_) => {
+                disconnect.lock().unwrap_or_else(|p| p.into_inner())
+                    .get_or_insert(DisconnectDiagnostic::local(2, 11));
+                Some("writer_panicked".to_owned())
+            }
+        };
+        let diagnostic = disconnect.lock().unwrap_or_else(|p| p.into_inner())
+            .unwrap_or(DisconnectDiagnostic::local(4, 12));
+        let age = last_frame.elapsed().as_millis().min(u64::MAX as u128) as u64;
+        if server_active() {
+            if sink.add(frame::make_frame(TYPE_DISCONNECTED, &diagnostic.encode(age))).is_err() {
+                break;
+            }
+            if reader_failed {
+                report_error(&sink, "read_io_failure".to_owned());
+            }
+            if let Some(message) = writer_error {
                 report_error(&sink, message);
             }
-        }
-        if server_active() && sink.add(frame::make_frame(TYPE_DISCONNECTED, &[])).is_err() {
-            break;
         }
     }
 

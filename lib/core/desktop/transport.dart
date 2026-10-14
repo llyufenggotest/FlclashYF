@@ -285,7 +285,7 @@ final class IPCCoreTransport implements DesktopCoreTransport {
         _state = DesktopTransportState.connected;
         _eventController.add(_connection!);
       case _typeDisconnected:
-        _disconnect();
+        _disconnect(payload);
       case _typeData:
         if (!_frameController.isClosed) {
           _frameController.add(payload);
@@ -312,15 +312,48 @@ final class IPCCoreTransport implements DesktopCoreTransport {
     return processId == 0 ? null : processId;
   }
 
-  void _disconnect() {
+  void _disconnect([Uint8List? diagnostic]) {
     final connection = _connection;
     if (connection == null) {
       return;
     }
-    commonPrint.log('IPC Disconnected');
+    commonPrint.log(
+      'IPC Disconnected${_disconnectMetadata(diagnostic)} generation=${connection.generation}',
+    );
     _connection = null;
     _state = DesktopTransportState.ready;
     _eventController.add(TransportDisconnected(connection.generation));
+  }
+
+  String _disconnectMetadata(Uint8List? payload) {
+    if (payload == null || payload.isEmpty) {
+      return ' source=unknown reason=unknown os_code=unknown last_frame_age_ms=unknown';
+    }
+    if (payload.length != 16 || payload[0] != 1 || payload[3] > 1) {
+      return ' source=unknown reason=invalid_diagnostic os_code=unknown last_frame_age_ms=unknown';
+    }
+    const sources = {1: 'reader', 2: 'writer', 3: 'sink', 4: 'lifecycle'};
+    const reasons = {
+      1: 'eof',
+      2: 'connection_reset',
+      3: 'broken_pipe',
+      4: 'invalid_frame',
+      5: 'write_zero',
+      6: 'timeout',
+      7: 'interrupted',
+      8: 'other_io',
+      9: 'sink_closed',
+      10: 'queue_closed',
+      11: 'writer_panicked',
+      12: 'local_stop',
+    };
+    final bytes = ByteData.sublistView(payload);
+    final source = sources[payload[1]] ?? 'unknown';
+    final reason = reasons[payload[2]] ?? 'unknown';
+    final osCode = payload[3] == 1
+        ? '${bytes.getInt32(4, Endian.little)}'
+        : 'unknown';
+    return ' source=$source reason=$reason os_code=$osCode last_frame_age_ms=${bytes.getUint64(8, Endian.little)}';
   }
 
   void _handleStreamError(Object error, StackTrace stackTrace) {

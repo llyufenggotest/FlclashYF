@@ -1,0 +1,12 @@
+[package]
+name = "flclash-ipc-harness"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+interprocess = "=2.4.4"
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_System_Pipes", "Win32_System_Threading"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

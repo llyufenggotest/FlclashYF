@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:fl_clash/core/desktop/transport.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/foundation.dart';
 
 import 'fakes.dart';
 
@@ -213,6 +213,61 @@ void main() {
         expect(connected.pid, 4321);
       },
     );
+
+    test(
+      'disconnect metadata uses fixed vocabulary and numeric fields',
+      () async {
+        final logs = <String>[];
+        final previous = debugPrint;
+        debugPrint = (String? message, {int? wrapWidth}) {
+          if (message != null) logs.add(message);
+        };
+        try {
+          final open = transport.open();
+          rawEvents.add(_frame(0));
+          await open;
+          rawEvents.add(_frame(1, _processIdPayload(42)));
+          final payload = Uint8List(16);
+          payload.setAll(0, [1, 1, 3, 1]);
+          final bytes = ByteData.sublistView(payload);
+          bytes.setInt32(4, 109, Endian.little);
+          bytes.setUint64(8, 240123, Endian.little);
+          rawEvents.add(_frame(2, payload));
+          await pumpEventQueue();
+          expect(
+            logs,
+            contains(
+              'IPC Disconnected source=reader reason=broken_pipe os_code=109 last_frame_age_ms=240123 generation=1',
+            ),
+          );
+        } finally {
+          debugPrint = previous;
+        }
+      },
+    );
+
+    test('malformed diagnostic cannot echo credential-bearing bytes', () async {
+      final logs = <String>[];
+      final previous = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        if (message != null) logs.add(message);
+      };
+      try {
+        final open = transport.open();
+        rawEvents.add(_frame(0));
+        await open;
+        rawEvents.add(_frame(1));
+        rawEvents.add(
+          _frame(2, utf8.encode('secret://user:password@private/path')),
+        );
+        await pumpEventQueue();
+        expect(logs.join(), contains('reason=invalid_diagnostic'));
+        expect(logs.join(), isNot(contains('password')));
+        expect(transport.state, DesktopTransportState.ready);
+      } finally {
+        debugPrint = previous;
+      }
+    });
 
     test('close is idempotent', () async {
       final open = transport.open();

@@ -4,8 +4,69 @@ import 'dart:io';
 import 'package:fl_clash/core/desktop/launcher.dart';
 import 'package:fl_clash/core/desktop/model.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/foundation.dart';
 
 void main() {
+  test(
+    'direct child autonomous exit is observable without stopping it',
+    () async {
+      final logs = <String>[];
+      final previous = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        if (message != null) logs.add(message);
+      };
+      try {
+        final exited = Completer<int>();
+        final process = _FakeProcess(pid: 42, exitCode: exited.future);
+        final launcher = DirectCoreLauncher(
+          startProcess: (_, _) async => process,
+          corePath: 'FlClashCore',
+        );
+        await launcher.start(
+          sessionId: '0123456789abcdef0123456789abcdef',
+          address: 'SECRET_ADDRESS',
+        );
+        exited.complete(17);
+        await pumpEventQueue();
+        expect(process.killed, isFalse);
+        expect(
+          logs,
+          contains(
+            'Core process exit owner=direct pid=42 exit_code=17 stop_requested=false',
+          ),
+        );
+        expect(logs.join(), isNot(contains('SECRET_ADDRESS')));
+      } finally {
+        debugPrint = previous;
+      }
+    },
+  );
+  test('real Windows owned child exits without a kill request', () async {
+    if (!Platform.isWindows) return;
+    final logs = <String>[];
+    final previous = debugPrint;
+    debugPrint = (String? message, {int? wrapWidth}) {
+      if (message != null) logs.add(message);
+    };
+    try {
+      final child = await Process.start('cmd.exe', ['/c', 'exit', '17']);
+      final lease = DirectCoreLease(
+        sessionId: '0123456789abcdef0123456789abcdef',
+        process: child,
+      );
+      expect(await child.exitCode, 17);
+      await pumpEventQueue();
+      expect(
+        logs,
+        contains(
+          'Core process exit owner=direct pid=${lease.pid} exit_code=17 stop_requested=false',
+        ),
+      );
+    } finally {
+      debugPrint = previous;
+    }
+  });
+
   test('createCoreSessionId returns lowercase 128-bit hex', () {
     expect(createCoreSessionId(), matches(RegExp(r'^[0-9a-f]{32}$')));
   });
