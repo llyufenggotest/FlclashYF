@@ -1,0 +1,45 @@
+name: iOS memory native behavior
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ios/NECore/NativeResourceHeartbeat.swift
+      - ios/NECore/NativeDiagnosticLog.swift
+      - ios/NECore/NECoreEventQueue.swift
+      - scripts/test_ios_memory_round2.py
+      - scripts/fixtures/ios_memory_round2*.swift
+      - core/mihomo
+      - .github/workflows/ios-memory-native.yaml
+permissions:
+  contents: read
+jobs:
+  native-memory:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Compile immutable baseline and establish actual event RED
+        run: python3 scripts/test_ios_memory_round2.py --baseline-native --require-swift
+      - name: Compile actual code and establish RPC occupancy blocker RED
+        run: python3 scripts/test_ios_memory_round2.py --rpc-blocker --require-swift
+      - name: Compile and run production Swift memory contracts
+        run: |
+          python3 scripts/test_ios_memory_round2.py --require-swift
+          python3 scripts/test_ios_heartbeat.py
+          python3 scripts/test_ios_lifecycle_behavior.py
+      - name: Fetch only core for real metadata race and lifecycle gates
+        run: git submodule update --init core/mihomo
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: core/mihomo/go.mod
+          cache-dependency-path: core/mihomo/go.sum
+      - name: Execute actual Fetcher race detector
+        working-directory: core/mihomo
+        env:
+          CGO_ENABLED: "1"
+        run: |
+          go test -race ./component/resource -count=1
+          go test -tags ios_low_memory ./component/resource ./rules/provider ./tunnel -count=1

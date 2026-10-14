@@ -43,8 +43,10 @@ def main():
     parser.add_argument("--source-ref")
     parser.add_argument("--source-only", action="store_true")
     parser.add_argument("--require-swift", action="store_true")
+    parser.add_argument("--baseline-native", action="store_true")
+    parser.add_argument("--rpc-blocker", action="store_true")
     args = parser.parse_args()
-    if not source_gate(args.source_ref):
+    if not (args.baseline_native or args.rpc_blocker) and not source_gate(args.source_ref):
         raise SystemExit(1)
     if args.source_only:
         return
@@ -57,8 +59,26 @@ def main():
     with tempfile.TemporaryDirectory(prefix="ios-memory-round2-") as temp:
         directory = pathlib.Path(temp)
         main_file = directory / "main.swift"
-        main_file.write_text((ROOT / "scripts/fixtures/ios_memory_round2_main.swift").read_text(), encoding="utf-8")
         binary = directory / "behavior"
+        if args.baseline_native or args.rpc_blocker:
+            main_file.write_text((ROOT / "scripts/fixtures/ios_memory_round2_baseline.swift").read_text(), encoding="utf-8")
+            probe_sources = []
+            for name in ["NECoreEventQueue.swift", "PacketTunnelCommandServer.swift"]:
+                target = directory / name
+                if args.baseline_native:
+                    target.write_bytes(subprocess.check_output(["git", "show", f"{BASE}:ios/NECore/{name}"], cwd=ROOT))
+                else:
+                    target.write_bytes((ROOT / "ios/NECore" / name).read_bytes())
+                probe_sources.append(str(target))
+            subprocess.run([swift, "-swift-version", "5", *probe_sources, str(main_file), "-o", str(binary)], check=True, timeout=90)
+            result = subprocess.run([str(binary), "rpc" if args.rpc_blocker else "event"], capture_output=True, text=True, timeout=15)
+            print(result.stdout, end="")
+            expected = "EXPECTED_BLOCKER_RED" if args.rpc_blocker else "EXPECTED_BASELINE_RED"
+            if result.returncode != 1 or expected not in result.stdout:
+                raise SystemExit(f"Native RED not established: exit={result.returncode} {result.stderr}")
+            print("Confirmed real native expected RED (not a production acceptance pass)")
+            return
+        main_file.write_text((ROOT / "scripts/fixtures/ios_memory_round2_main.swift").read_text(), encoding="utf-8")
         command = [swift, "-swift-version", "5", "-D", "IOS_MEMORY_TESTING", *[str(ROOT / "ios/NECore" / n) for n in SOURCES], str(main_file), "-o", str(binary)]
         print("COMPILE:", " ".join(command), flush=True)
         subprocess.run(command, check=True, timeout=90)

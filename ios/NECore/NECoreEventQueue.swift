@@ -11,8 +11,6 @@ final class NECoreEventQueue {
   )
 
   private let queue = DispatchQueue(label: "com.follow.clash.event-queue")
-  private var eventsSincePrune = 0
-  private var coreActive = false
   private var running = false
   private var generation = UUID()
 
@@ -24,13 +22,14 @@ final class NECoreEventQueue {
     queue.sync { [weak self] in
       guard let self, !self.running else { return }
       self.running = true
-      self.coreActive = true
-      self.eventsSincePrune = 0
       let generation = UUID()
       self.generation = generation
       NECoreBridge.setEventListener { [weak self] event in
         guard let self, let event, !event.isEmpty else { return }
-        self.queue.async {
+        // NECoreResult calls this listener synchronously on its single serial
+        // callback queue. Backpressure leaves at most one native event in this
+        // path, instead of retaining arbitrarily many Dispatch payload closures.
+        self.queue.sync {
           guard self.running, self.generation == generation else { return }
           self.enqueue(event)
         }
@@ -42,25 +41,20 @@ final class NECoreEventQueue {
     queue.sync { [weak self] in
       guard let self else { return }
       self.running = false
-      self.coreActive = false
       self.generation = UUID()
       NECoreBridge.setEventListener(nil)
     }
   }
 
   func markCoreResponsive() {
-    queue.async { [weak self] in
+    queue.sync { [weak self] in
       guard let self else { return }
       guard self.running else { return }
-      self.coreActive = true
+      // Retained for the provider API; backlog must not disable critical events.
     }
   }
 
   private func enqueue(_ event: Data) {
-    guard coreActive else {
-      logger.warning("enqueue skipped: core is not active")
-      return
-    }
     guard let directory = eventQueueDirectory() else {
       logger.error("enqueue failed: missing app group dir")
       return
@@ -72,7 +66,8 @@ final class NECoreEventQueue {
       )
       let timestamp = UInt64(Date().timeIntervalSince1970 * 1_000_000)
       let fileName = "\(timestamp)-\(UUID().uuidString)"
-      let fileURL = directory.appendingPathComponent("\(fileName).json")
+      let suffix = Self.isDiscardable(event) ? ".lossy.json" : ".json"
+      let fileURL = directory.appendingPathComponent("\(fileName)\(suffix)")
       let temporaryURL = directory.appendingPathComponent(".\(fileName).tmp")
       do {
         try event.write(to: temporaryURL)
@@ -81,11 +76,7 @@ final class NECoreEventQueue {
         try? FileManager.default.removeItem(at: temporaryURL)
         throw error
       }
-      eventsSincePrune += 1
-      if eventsSincePrune >= maxEventQueueFiles {
-        eventsSincePrune = 0
-        prune(in: directory)
-      }
+      prune(in: directory)
       notifyEventAvailable()
     } catch {
       logger.error(
@@ -94,35 +85,35 @@ final class NECoreEventQueue {
     }
   }
 
-  private func prune(in directory: URL) {
-    var files = eventFiles(in: directory)
-    var overflowCount = files.count - maxEventQueueFiles
-    if overflowCount > 0 {
-      coreActive = false
-      logger.warning(
-        "prune overflow=\(overflowCount, privacy: .public), set core inactive"
-      )
-    }
-
-    while overflowCount > 0 && !files.isEmpty {
-      removeOldestEventFile(&files)
-      overflowCount -= 1
+  /// Mirror only the core's existing bulk eviction contract. Mixed batches,
+  /// loaded/geoUpdate state, delay acknowledgements and unknown future events
+  /// are critical: never delete an entire batch containing any of those.
+  static func isDiscardable(_ event: Data) -> Bool {
+    guard let object = try? JSONSerialization.jsonObject(with: event) as? [String: Any],
+      object["method"] as? String == "message",
+      let messages = object["arguments"] as? [[String: Any]], !messages.isEmpty
+    else { return false }
+    return messages.allSatisfy {
+      guard let type = $0["type"] as? String else { return false }
+      return ["log", "request", "dns"].contains(type)
     }
   }
 
-  private func eventFiles(in directory: URL) -> [URL] {
-    guard let fileURLs = try? FileManager.default.contentsOfDirectory(
-      at: directory,
-      includingPropertiesForKeys: [.isRegularFileKey]
-    ) else {
-      return []
-    }
-    return fileURLs.filter { fileURL in
-      fileURL.pathExtension == "json" &&
-        (try? fileURL.resourceValues(forKeys: [.isRegularFileKey]))?
-          .isRegularFile == true
-    }.sorted { lhs, rhs in
-      lhs.lastPathComponent < rhs.lastPathComponent
+  private func prune(in directory: URL) {
+    // Stream the directory; keep at most eleven URL objects even when the
+    // intentionally lossless critical backlog is large. Only lossy files prune.
+    guard let enumerator = FileManager.default.enumerator(
+      at: directory, includingPropertiesForKeys: [.isRegularFileKey],
+      options: [.skipsSubdirectoryDescendants, .skipsHiddenFiles]
+    ) else { return }
+    var newest: [URL] = []
+    for case let url as URL in enumerator {
+      guard url.lastPathComponent.hasSuffix(".lossy.json"),
+        (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true
+      else { continue }
+      newest.append(url)
+      newest.sort { $0.lastPathComponent < $1.lastPathComponent }
+      if newest.count > maxEventQueueFiles { removeOldestEventFile(&newest) }
     }
   }
 

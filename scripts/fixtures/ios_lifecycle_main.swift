@@ -100,9 +100,10 @@ Thread.sleep(forTimeInterval: 0.1); check(eventCount() == 1, "stop was not termi
 events.start(); oldListener(Data("old generation".utf8))
 Thread.sleep(forTimeInterval: 0.1); check(eventCount() == 1, "old event crossed restart")
 let listener = NECoreBridge.listener()!
-DispatchQueue.concurrentPerform(iterations: 100) { _ in listener(Data("event".utf8)) }
+let lossyEvent = Data(#"{"method":"message","arguments":[{"type":"log","data":"event"}]}"#.utf8)
+DispatchQueue.concurrentPerform(iterations: 100) { _ in listener(lossyEvent) }
 Thread.sleep(forTimeInterval: 0.5)
-check(eventCount() <= 10, "event queue cap lost under concurrency")
+check(eventCount() <= 11, "lossy event queue cap lost under concurrency")
 let count = eventCount(); events.markCoreResponsive(); listener(Data("responsive".utf8))
 wait { eventCount() > count }; events.stop()
 

@@ -10,6 +10,13 @@ on:
     paths:
       - ios/NECore/NativeResourceHeartbeat.swift
       - scripts/test_ios_heartbeat.py
+      - ios/NECore/NativeDiagnosticLog.swift
+      - ios/NECore/NECoreEventQueue.swift
+      - ios/NECore/PacketTunnelCommandServer.swift
+      - scripts/test_ios_memory_round2.py
+      - scripts/fixtures/ios_memory_round2_main.swift
+      - scripts/test_ios_lifecycle_behavior.py
+      - scripts/fixtures/ios_lifecycle_main.swift
       - ios/Shared/SwitchDiagnostics.swift
       - scripts/test_ios_switch_diagnostics.py
       - ios/Runner/Core/CoreMessageRouter.swift
@@ -35,8 +42,15 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Execute production Swift heartbeat regression
         run: |
+          python3 scripts/test_ios_memory_round2.py --baseline-native --require-swift
+          python3 scripts/test_ios_memory_round2.py --rpc-blocker --require-swift
+          python3 scripts/test_ios_memory_round2.py --require-swift
+          python3 scripts/test_ios_lifecycle_cleanup.py
+          python3 scripts/test_ios_lifecycle_behavior.py
           python3 scripts/test_ios_heartbeat.py
           python3 scripts/test_ios_switch_diagnostics.py
           python3 scripts/test_ios_provider_retry.py

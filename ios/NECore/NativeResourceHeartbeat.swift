@@ -4,6 +4,12 @@ import Foundation
 /// Process-local liveness and resource samples independent of Flutter/RPC.
 final class NativeResourceHeartbeat {
   private var timer: DispatchSourceTimer?
+  // All timer state and reclaim execution belong to one worker. stop() drains
+  // work already admitted; cancellation alone cannot revoke an executing GC.
+  private let worker = DispatchQueue(label: "com.follow.clash.necore-heartbeat")
+  private let workerKey = DispatchSpecificKey<Bool>()
+  private var generation = UUID()
+  private var running = false
   private let startedAt = ProcessInfo.processInfo.systemUptime
   private var warnReported = false
   private var lastReclaimUptime: TimeInterval = 0
@@ -127,70 +133,83 @@ final class NativeResourceHeartbeat {
 
   /// Injected so the heartbeat stays unit-testable and never hard-depends on
   /// the ObjC bridge being linked into a test target.
+  typealias Usage = (residentMB: Int, footprintMB: Int, virtualMB: Int)
   private let reclaim: () -> Void
+  private let sample: () -> Usage
 
-  init(reclaim: @escaping () -> Void = { NECoreBridge.releaseMemory() }) {
+  init(
+    reclaim: @escaping () -> Void = { NECoreBridge.releaseMemory() },
+    sample: (() -> Usage)? = nil
+  ) {
     self.reclaim = reclaim
+    self.sample = sample ?? { Self.resourceUsage() }
+    worker.setSpecific(key: workerKey, value: true)
   }
 
   func start() {
-    stop()
-    warnReported = false
-    lastReclaimUptime = 0
-    reclaimPolicy = Self.baseReclaimPolicy
-    lastLoggedUptime = -.greatestFiniteMagnitude
-    lastLoggedFootprintMB = Int.min
-    let timer = DispatchSource.makeTimerSource(
-      queue: DispatchQueue(label: "com.follow.clash.necore-heartbeat")
-    )
-    timer.schedule(deadline: .now(), repeating: .seconds(1), leeway: .milliseconds(200))
-    timer.setEventHandler { [weak self] in
-      guard let self else { return }
-      let usage = Self.resourceUsage()
-      let uptimeSeconds = ProcessInfo.processInfo.systemUptime - self.startedAt
-      let uptime = Int(uptimeSeconds * 1000)
-      if Self.shouldLogHeartbeat(
-        uptimeSeconds: uptimeSeconds,
-        footprintMB: usage.footprintMB,
-        lastLoggedUptime: self.lastLoggedUptime,
-        lastLoggedFootprintMB: self.lastLoggedFootprintMB
-      ) {
-        self.lastLoggedUptime = uptimeSeconds
-        self.lastLoggedFootprintMB = usage.footprintMB
-        NativeDiagnosticLog.shared.append(
-          "heartbeat uptime_ms=\(uptime) resident_mb=\(usage.residentMB) footprint_mb=\(usage.footprintMB) virtual_mb=\(usage.virtualMB)"
-        )
-      }
-      if usage.footprintMB >= Self.footprintWarningMB, !self.warnReported {
-        self.warnReported = true
-        NativeDiagnosticLog.shared.append(
-          "memory_pressure_warning footprint_mb=\(usage.footprintMB) threshold_mb=\(Self.footprintWarningMB)"
-        )
-      }
-      guard usage.footprintMB >= self.reclaimPolicy.thresholdMB else { return }
-      guard Self.shouldReclaim(
-        uptimeSeconds: uptimeSeconds,
-        lastReclaimUptime: self.lastReclaimUptime,
-        cooldown: self.reclaimPolicy.cooldown
-      ) else { return }
-      self.lastReclaimUptime = uptimeSeconds
+    worker.sync {
+      stopOnWorker()
+      running = true
+      warnReported = false
+      lastReclaimUptime = 0
+      reclaimPolicy = Self.baseReclaimPolicy
+      lastLoggedUptime = -.greatestFiniteMagnitude
+      lastLoggedFootprintMB = Int.min
+      let owner = generation
+      let timer = DispatchSource.makeTimerSource(queue: worker)
+      timer.schedule(deadline: .now(), repeating: .seconds(1), leeway: .milliseconds(200))
+      timer.setEventHandler { [weak self] in self?.tick(owner: owner) }
+      self.timer = timer
+      timer.resume()
+    }
+  }
+
+  private func tick(owner: UUID) {
+    guard running, generation == owner else { return }
+    let usage = sample()
+    let uptimeSeconds = ProcessInfo.processInfo.systemUptime - startedAt
+    let uptime = Int(uptimeSeconds * 1000)
+    if Self.shouldLogHeartbeat(
+      uptimeSeconds: uptimeSeconds,
+      footprintMB: usage.footprintMB,
+      lastLoggedUptime: lastLoggedUptime,
+      lastLoggedFootprintMB: lastLoggedFootprintMB
+    ) {
+      lastLoggedUptime = uptimeSeconds
+      lastLoggedFootprintMB = usage.footprintMB
       NativeDiagnosticLog.shared.append(
-        "memory_pressure_reclaim footprint_mb=\(usage.footprintMB) threshold_mb=\(self.reclaimPolicy.thresholdMB)"
-      )
-      self.reclaim()
-      let after = Self.resourceUsage()
-      let yieldMB = usage.footprintMB - after.footprintMB
-      self.reclaimPolicy = Self.nextReclaimPolicy(
-        current: self.reclaimPolicy,
-        yieldMB: yieldMB
-      )
-      NativeDiagnosticLog.shared.append(
-        "memory_pressure_reclaimed footprint_mb=\(after.footprintMB) yield_mb=\(yieldMB) streak=\(self.reclaimPolicy.ineffectiveStreak) next_threshold_mb=\(self.reclaimPolicy.thresholdMB) next_cooldown_s=\(Int(self.reclaimPolicy.cooldown))"
+        "heartbeat uptime_ms=\(uptime) resident_mb=\(usage.residentMB) footprint_mb=\(usage.footprintMB) virtual_mb=\(usage.virtualMB)"
       )
     }
-    self.timer = timer
-    timer.resume()
+    if usage.footprintMB >= Self.footprintWarningMB, !warnReported {
+      warnReported = true
+      NativeDiagnosticLog.shared.append(
+        "memory_pressure_warning footprint_mb=\(usage.footprintMB) threshold_mb=\(Self.footprintWarningMB)"
+      )
+    }
+    guard usage.footprintMB >= reclaimPolicy.thresholdMB else { return }
+    guard Self.shouldReclaim(
+      uptimeSeconds: uptimeSeconds,
+      lastReclaimUptime: lastReclaimUptime,
+      cooldown: reclaimPolicy.cooldown
+    ) else { return }
+    lastReclaimUptime = uptimeSeconds
+    NativeDiagnosticLog.shared.append(
+      "memory_pressure_reclaim footprint_mb=\(usage.footprintMB) threshold_mb=\(reclaimPolicy.thresholdMB)"
+    )
+    reclaim()
+    let after = sample()
+    let yieldMB = usage.footprintMB - after.footprintMB
+    reclaimPolicy = Self.nextReclaimPolicy(current: reclaimPolicy, yieldMB: yieldMB)
+    NativeDiagnosticLog.shared.append(
+      "memory_pressure_reclaimed footprint_mb=\(after.footprintMB) yield_mb=\(yieldMB) streak=\(reclaimPolicy.ineffectiveStreak) next_threshold_mb=\(reclaimPolicy.thresholdMB) next_cooldown_s=\(Int(reclaimPolicy.cooldown))"
+    )
   }
+
+  #if IOS_MEMORY_TESTING
+  func testOwner() -> UUID { worker.sync { generation } }
+  func testTick(owner: UUID) { worker.sync { tick(owner: owner) } }
+  #endif
 
   /// First crossing always reclaims; later crossings wait out the cooldown,
   /// which the escalation rule can widen when reclaiming stops paying off.
@@ -204,6 +223,15 @@ final class NativeResourceHeartbeat {
   }
 
   func stop() {
+    // A timer handler's last strong reference can deinit self on this worker.
+    // Do not dispatch_sync to ourselves in that case.
+    if DispatchQueue.getSpecific(key: workerKey) == true { stopOnWorker() }
+    else { worker.sync { stopOnWorker() } }
+  }
+
+  private func stopOnWorker() {
+    running = false
+    generation = UUID()
     timer?.setEventHandler {}
     timer?.cancel()
     timer = nil
