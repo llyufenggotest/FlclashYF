@@ -135,6 +135,10 @@ func handleShutdown() bool {
 	listener.StopListener()
 	updater.StopGeoUpdater()
 	executor.Shutdown()
+	// Shutdown retires rule snapshots, but process-global proxy maps survive it.
+	// Retire their health checks/fetchers before GC; cache invalidation alone
+	// cannot collect live providers or their proxy slices.
+	tunnel.UpdateProxies(nil, nil)
 	currentConfig = nil
 	isInit.Store(false)
 	configMu.Unlock()
@@ -150,6 +154,10 @@ func handleReleaseConfig() bool {
 	listener.StopListener()
 	updater.StopGeoUpdater()
 	executor.Shutdown()
+	// Shutdown retires rule snapshots, but process-global proxy maps survive it.
+	// Retire their health checks/fetchers before GC; cache invalidation alone
+	// cannot collect live providers or their proxy slices.
+	tunnel.UpdateProxies(nil, nil)
 	currentConfig = nil
 	configMu.Unlock()
 	handleForceGC()
