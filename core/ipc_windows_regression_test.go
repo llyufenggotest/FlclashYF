@@ -7,11 +7,24 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/Microsoft/go-winio"
 )
+
+type readinessIPCConn struct {
+	ipcConn
+	ready chan struct{}
+	once  sync.Once
+}
+
+func (c *readinessIPCConn) Read(p []byte) (int, error) {
+	// serve installs its connection before entering the production read loop.
+	c.once.Do(func() { close(c.ready) })
+	return c.ipcConn.Read(p)
+}
 
 func TestWindowsNamedPipeRPCDuringLogBurst(t *testing.T) {
 	name := fmt.Sprintf(`\\.\pipe\flclashyf-rpc-regression-%d-%d`, os.Getpid(), time.Now().UnixNano())
@@ -40,7 +53,9 @@ func TestWindowsNamedPipeRPCDuringLogBurst(t *testing.T) {
 	}
 	// No init/config/TUN: only the production IPC dispatcher is exercised.
 	finished := make(chan struct{})
-	go func() { defer close(finished); serve(core) }()
+	ready := make(chan struct{})
+	readyCore := &readinessIPCConn{ipcConn: core, ready: ready}
+	go func() { defer close(finished); serve(readyCore) }()
 	defer func() {
 		_ = host.Close()
 		select {
@@ -49,6 +64,11 @@ func TestWindowsNamedPipeRPCDuringLogBurst(t *testing.T) {
 			t.Error("serve did not exit after peer close")
 		}
 	}()
+	select {
+	case <-ready:
+	case <-time.After(10 * time.Second):
+		t.Fatal("serve did not publish the IPC connection")
+	}
 	logNotifyMu.Lock()
 	previousNotify := logNotifyEnabled
 	logNotifyMu.Unlock()
