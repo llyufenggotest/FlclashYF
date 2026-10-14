@@ -82,9 +82,9 @@ void main() {
       final heartbeat = source('ios/NECore/NativeResourceHeartbeat.swift');
       expect(
         heartbeat,
-        contains('usage.footprintMB >= self.reclaimPolicy.thresholdMB'),
+        contains('usage.footprintMB >= reclaimPolicy.thresholdMB'),
       );
-      expect(heartbeat, contains('cooldown: self.reclaimPolicy.cooldown'));
+      expect(heartbeat, contains('cooldown: reclaimPolicy.cooldown'));
     });
 
     test('the reclaim outcome is observable in the durable log', () {
