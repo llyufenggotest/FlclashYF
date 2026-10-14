@@ -3,7 +3,7 @@
 set -euo pipefail
 [[ "$(uname -s)" == Darwin ]] || { printf '%s\n' 'Real macOS required'; exit 1; }
 repo="$(git rev-parse --show-toplevel)"
-baseline=348121614d7b0000db07202ec99443df24c3e2c9
+baseline=c59868f4
 scratch="$(mktemp -d "${TMPDIR%/}/profile-artifacts-gate.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
 mkdir -p "$scratch/lib/common" "$scratch/test/common"
