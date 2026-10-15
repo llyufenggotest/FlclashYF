@@ -76,6 +76,10 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
   private func makeLifecycleCleanup() -> PacketTunnelLifecycleCleanup {
     PacketTunnelLifecycleCleanup(actions: [{ [weak self] in
       guard let self else { return }
+      if RPCSession.readPublished(from: self.sharedStateStore.appGroupDirectory())?.attempt == self.lifecycleGeneration {
+        RPCSession(version: RPCWire.version, attempt: self.lifecycleGeneration, ready: false, retired: true)
+          .publish(to: self.sharedStateStore.appGroupDirectory())
+      }
       self.stopMemoryPressureDiagnostics()
       if self.eventQueueStarted {
         self.eventQueue.stop()
@@ -115,6 +119,10 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     let cleanup = makeLifecycleCleanup()
     activeCleanup = cleanup
     lifecycleGeneration = UUID()
+    // Withdraw a previous process's ready record before any asynchronous setup.
+    // The server publishes this same attempt as ready only after TUN success.
+    RPCSession(version: RPCWire.version, attempt: lifecycleGeneration, ready: false)
+      .publish(to: sharedStateStore.appGroupDirectory())
     pendingStartupCompletion = completionHandler
     let completionHandler: (Error?) -> Void = { error in
       guard self.activeCleanup === cleanup else { return }
@@ -271,7 +279,10 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
             // Diagnostic admission is asynchronous; startup never flushes disk.
             if started {
               self.sharedStateStore.saveRunTime(vpnOptions: snapshot.data)
-              self.commandServer.start()
+              guard self.commandServer.start(attempt: self.lifecycleGeneration) else {
+                completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
+                return
+              }
               self.commandServerStarted = true
             }
             completionHandler(
@@ -412,11 +423,8 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         self.logger.debug(
           "handleAppMessage response bytes=\(response.count, privacy: .public)"
         )
-        if (method == "setupConfig" || method == "updateConfig"),
-          self.methodResponseHasEmptyStringResult(response)
-        {
-          self.sharedStateStore.markConfigurationRequestApplied(requestID)
-        }
+        // Raw native messages carry no mailbox owner. Their real response is
+        // sufficient; never manufacture a disk receipt usable by a different RPC.
         reply(response)
       }
     }

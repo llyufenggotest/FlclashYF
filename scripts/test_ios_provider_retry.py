@@ -58,7 +58,7 @@ class ProviderRetryWiring(unittest.TestCase):
     def test_reads_leave_one_message_slot_for_configuration(self):
         controller = self.source("ios/Runner/Tunnel/TunnelController.swift")
         self.assertIn(
-            "acquireProviderMessageSlot(reserveForConfiguration: retryRead)",
+            "acquireProviderMessageSlot(reserveForConfiguration: retryRead, owner: providerOwner, deadline: deadline)",
             controller,
         )
         self.assertIn("maxInFlightProviderMessages - 1", controller)
@@ -80,7 +80,8 @@ class ProviderRetryWiring(unittest.TestCase):
         self.assertIn("clearConfigurationRequestApplied", runner_store)
         self.assertIn("markConfigurationRequestApplied", packet_store)
         self.assertIn("clearConfigurationRequestApplied", packet_store)
-        self.assertIn("markConfigurationRequestApplied", provider)
+        self.assertNotIn("markConfigurationRequestApplied", provider)
+        self.assertIn("receipt.owner == owner", runner_store)
         self.assertIn("methodResponseHasEmptyStringResult", provider)
 
 
@@ -93,7 +94,7 @@ class CommandBridgeWiring(unittest.TestCase):
         # The dead sendProviderMessage transport must be gone from the attempt.
         self.assertNotIn("session.sendProviderMessage(", controller)
         self.assertIn("private let providerBridge: ProviderMessageBridge", controller)
-        self.assertIn("try await providerBridge.send(data, timeout: timeout)", controller)
+        self.assertIn("try await providerBridge.send(data, timeout: timeout, owner: owner,", controller)
         self.assertIn("actor ProviderMessageBridge", controller)
         self.assertIn("core-rpc", controller)
 
@@ -103,7 +104,7 @@ class CommandBridgeWiring(unittest.TestCase):
         self.assertIn("rpc_received", server)
         self.assertIn("rpc_reply", server)
         self.assertIn("NECoreBridge.invokeMethod", provider)
-        self.assertIn("commandServer.start()", provider)
+        self.assertIn("commandServer.start(attempt: self.lifecycleGeneration)", provider)
         self.assertIn("commandServer.stop()", provider)
 
     def test_command_notification_names_match_across_processes(self):

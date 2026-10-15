@@ -26,7 +26,7 @@ class SwiftLifecycleBehavior(unittest.TestCase):
             sources = [NECORE / "PacketTunnelLifecycleCleanup.swift"]
             if platform.system() == "Darwin":
                 main.write_text((ROOT / "scripts/fixtures/ios_lifecycle_main.swift").read_text(), encoding="utf-8")
-                sources += [NECORE / "NECoreEventQueue.swift", NECORE / "PacketTunnelCommandServer.swift"]
+                sources += [NECORE / "RPCSession.swift", NECORE / "NECoreEventQueue.swift", NECORE / "PacketTunnelCommandServer.swift"]
             else:
                 main.write_text('''import Foundation
 let lock = NSLock()

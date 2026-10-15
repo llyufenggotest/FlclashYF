@@ -67,9 +67,9 @@ class SwitchWiring(unittest.TestCase):
     def test_file_rpc_configuration_acknowledgment(self):
         source = (ROOT / 'ios/NECore/PacketTunnelCommandServer.swift').read_text()
         self.assertIn('sharedStateStore.clearConfigurationRequestApplied()', source)
-        self.assertIn('self.sharedStateStore.markConfigurationRequestApplied(requestID)', source)
+        self.assertIn('self.sharedStateStore.markConfigurationRequestApplied(requestID, owner: request.owner)', source)
         self.assertLess(source.index('clearConfigurationRequestApplied()'), source.index('invoke(data)'))
-        self.assertLess(source.index('markConfigurationRequestApplied(requestID)'), source.index('self.writeResponse(id: id'))
+        self.assertLess(source.index('markConfigurationRequestApplied(requestID, owner: request.owner)'), source.index('self.writeResponse(id: id'))
         self.assertIn('result.isEmpty', source)
         self.assertIn('object["error"] is NSNull', source)
 

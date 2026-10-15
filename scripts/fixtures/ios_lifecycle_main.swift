@@ -15,7 +15,7 @@ final class PacketTunnelSharedStateStore {
   init(_ root: URL) { self.root = root }
   func appGroupDirectory() -> URL? { root }
   func clearConfigurationRequestApplied() {}
-  func markConfigurationRequestApplied(_ id: String) {
+  func markConfigurationRequestApplied(_ id: String, owner: RPCOwner) {
     lock.lock(); defer { lock.unlock() }; applied.append(id)
   }
   var appliedCount: Int {
@@ -65,8 +65,12 @@ let server = PacketTunnelCommandServer(sharedStateStore: store, invoke: { _, com
 let req = root.appendingPathComponent("core-rpc/req")
 let resp = root.appendingPathComponent("core-rpc/resp/reused.resp")
 try FileManager.default.createDirectory(at: req, withIntermediateDirectories: true)
-func request() throws { try Data("request".utf8).write(to: req.appendingPathComponent("reused.req")) }
-try request(); server.start(); wait { calls.count == 1 }
+func request() throws {
+  let session = RPCSession.read(from: root)!
+  let request = RPCRequest(version: RPCWire.version, owner: RPCOwner(attempt: session.attempt, generation: 0, nonce: UUID()), deadline: Date().addingTimeInterval(120), data: Data("request".utf8))
+  try JSONEncoder().encode(request).write(to: req.appendingPathComponent("reused.req"))
+}
+server.start(); try request(); wait { calls.count == 1 }
 server.stop(); server.start(); try request(); wait { calls.count == 2 }
 // A callback from before stop must not complete the reused filename or mark config.
 calls.reply(0, Data(#"{"result":"","error":null}"#.utf8))
@@ -86,7 +90,8 @@ try request(); wait { calls.count == 3 }
 Thread.sleep(forTimeInterval: 31)
 check(!FileManager.default.fileExists(atPath: resp.path), "server manufactured an early timeout")
 calls.reply(2, nil); wait { FileManager.default.fileExists(atPath: resp.path) }
-let nilResult = try JSONSerialization.jsonObject(with: Data(contentsOf: resp)) as! [String: Any]
+let nilReply = try JSONDecoder().decode(RPCReply.self, from: Data(contentsOf: resp))
+let nilResult = try JSONSerialization.jsonObject(with: nilReply.data) as! [String: Any]
 check((nilResult["error"] as? [String: Any])?["code"] as? String == "empty_response", "nil RPC contract changed")
 server.stop()
 
