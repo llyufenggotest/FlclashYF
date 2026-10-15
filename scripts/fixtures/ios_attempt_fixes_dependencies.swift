@@ -26,7 +26,7 @@ enum NEVPNStatus: Int { case invalid, disconnected, connecting, connected, reass
 enum NEProviderStopReason: Int { case none, userInitiated }
 class NEVPNConnection: NSObject {
   var status = NEVPNStatus.connected
-  weak var manager: NETunnelProviderManager?
+  unowned var manager: NETunnelProviderManager!
   func startVPNTunnel() throws { status = .connecting }
   func stopVPNTunnel() { status = .disconnected }
 }
