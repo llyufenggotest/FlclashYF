@@ -34,6 +34,8 @@ def main():
             # Compile unchanged method bodies. Imports and the bundle-ID
             # dependency are substituted; Apple/framework dependencies are doubles.
             text = text.replace('import UIKit\n', '').replace('import NetworkExtension\n', '')
+            if 'import CoreFoundation' not in text:
+                text = 'import CoreFoundation\n' + text
             text = text.replace('Bundle.main.bundleIdentifier!', '"test.attempt"')
             target = directory / Path(path).name
             target.write_text(text)

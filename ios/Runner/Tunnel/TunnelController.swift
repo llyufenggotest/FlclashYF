@@ -310,7 +310,9 @@ final class TunnelController {
     connection = manager?.connection
     statusBefore = connection.map { String($0.status.rawValue) } ?? "unavailable"
     guard let manager,
-      manager.connection.status.tunnelState == .running
+      manager.connection.status.tunnelState == .running ||
+        (manager.connection.status == .connecting &&
+          RPCSession.readPublished(from: sharedStateStore.appGroupDirectory())?.attempt == owner.attempt)
     else {
       record("provider_request_failure", errorType: "network_extension_unavailable")
       throw ProviderMessageError(

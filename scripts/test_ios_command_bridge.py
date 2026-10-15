@@ -4,8 +4,9 @@
 
 The Swift implementation lives in `ios/Runner/Tunnel/TunnelController.swift`
 (`ProviderMessageBridge`, app side) and `ios/NECore/PacketTunnelCommandServer.swift`
-(extension side). This test re-implements the exact file protocol in Python to
-prove the design: atomic staging, consume-once requests, response round-trip,
+(extension side). This legacy transport-design model does not test the versioned
+attempt envelope; production Swift behavior is a separate attempt-recovery gate.
+It covers atomic staging, consume-once requests, response round-trip,
 timeout on an absent server, and orphan pruning. It is a design check, not a
 substitute for the on-device/CI Swift build.
 """

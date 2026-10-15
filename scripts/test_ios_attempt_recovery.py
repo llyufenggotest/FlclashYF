@@ -65,6 +65,17 @@ class RecoveryContracts(unittest.TestCase):
         self.assertIn('validateProviderOwner', controller[acquire:send])
         self.assertIn('catch is CancellationError', controller)
 
+    def test_startup_identity_is_stable_and_owner_only_receipts(self):
+        provider = source('ios/NECore/PacketTunnelProvider.swift')
+        controller = source('ios/Runner/Tunnel/TunnelController.swift')
+        store = source('ios/Runner/Storage/SharedStateStore.swift')
+        self.assertIn('attempt: lifecycleGeneration, ready: false', provider)
+        self.assertIn('start(attempt: self.lifecycleGeneration)', provider)
+        self.assertIn('readPublished', controller)
+        self.assertIn('while RPCSession.read', controller)
+        self.assertIn('receipt.owner == owner', store)
+        self.assertNotIn('markConfigurationRequestApplied', provider)
+
     def test_router_does_not_forward_pre_restart_app_phase_to_new_ne(self):
         router = source('ios/Runner/Core/CoreMessageRouter.swift')
         self.assertIn('captureProviderOwner()', router)

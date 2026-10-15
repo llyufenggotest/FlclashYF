@@ -1,8 +1,9 @@
 import Foundation
 
 // Versioned, process-independent mailbox contract. Unknown/legacy bytes are
-// deliberately not executed. NE alone mints the attempt, after cold setup; the
-// same identity is published before the server accepts requests / OS completion.
+// deliberately not executed. NE alone mints the attempt before cold setup;
+// startup publishes not-ready, server flips the same attempt to ready before
+// accepting requests / OS completion. Stop/failure is terminal (retired).
 enum RPCWire {
   static let version = 1
 }
