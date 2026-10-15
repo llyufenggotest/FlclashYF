@@ -255,6 +255,7 @@ jobs:
         run: bash test/common/profile_artifacts_macos_gate.sh
       - name: Immutable native RED and exact production GREEN
         run: |
+          bash scripts/run_ios_attempt_recovery_gate.sh
           python3 scripts/test_ios_swift_review_source.py
           python3 scripts/test_ios_swift_review.py --baseline-native --require-swift
           python3 scripts/test_ios_memory_round2.py --baseline-native --require-swift
