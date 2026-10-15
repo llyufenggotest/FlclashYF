@@ -118,12 +118,15 @@ final class TunnelCoordinator {
     onConnectionStateChanged(state)
   }
 
+  func ownsStatusConnection(_ connection: NEVPNConnection) -> Bool {
+    guard managerStore.isManagedConnection(connection) else { return false }
+    if let wait = tunnelWait { return wait.manager.connection === connection }
+    return managerStore.isCachedConnection(connection)
+  }
+
   func handleTunnelStatusNotification(_ notification: Notification) {
     guard let connection = notification.object as? NEVPNConnection,
-      managerStore.isManagedConnection(connection)
-    else {
-      return
-    }
+      ownsStatusConnection(connection) else { return }
 
     if let wait = tunnelWait,
       wait.manager.connection === connection

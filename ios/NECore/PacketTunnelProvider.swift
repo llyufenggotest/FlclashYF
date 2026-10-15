@@ -50,6 +50,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
   // with an old setup still mutating the process-global core after stop.
   private var coreSetupOwner: PacketTunnelLifecycleCleanup?
   private var lifecycleGeneration = UUID()
+  private var activeAttempt: UUID?
   private var coreReclaimRetiring = false
 
   private func stopMemoryPressureDiagnostics() {
@@ -73,11 +74,12 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     source.resume()
   }
 
-  private func makeLifecycleCleanup() -> PacketTunnelLifecycleCleanup {
+  private func makeLifecycleCleanup(ownedAttempt: UUID) -> PacketTunnelLifecycleCleanup {
     PacketTunnelLifecycleCleanup(actions: [{ [weak self] in
-      guard let self else { return }
-      if RPCSession.readPublished(from: self.sharedStateStore.appGroupDirectory())?.attempt == self.lifecycleGeneration {
-        RPCSession(version: RPCWire.version, attempt: self.lifecycleGeneration, ready: false, retired: true)
+      guard let self, self.activeAttempt == ownedAttempt else { return }
+      self.activeAttempt = nil
+      if RPCSession.readPublished(from: self.sharedStateStore.appGroupDirectory())?.attempt == ownedAttempt {
+        RPCSession(version: RPCWire.version, attempt: ownedAttempt, ready: false, retired: true)
           .publish(to: self.sharedStateStore.appGroupDirectory())
       }
       self.stopMemoryPressureDiagnostics()
@@ -99,6 +101,11 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     }])
   }
 
+  #if IOS_ATTEMPT_TESTING
+  // Expose only the captured production cleanup action to native race probes.
+  func testCapturedCleanup() -> PacketTunnelLifecycleCleanup? { activeCleanup }
+  #endif
+
   override func startTunnel(
     options: [String: NSObject]?,
     completionHandler: @escaping (Error?) -> Void
@@ -116,13 +123,11 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     NECoreSideloadCompatibilityLoader.loadIfPresent()
     SwitchDiagnostics.record("tunnel_start", fields: ["attempt_id": SwitchDiagnostics.processID])
     startMemoryPressureDiagnostics()
-    let cleanup = makeLifecycleCleanup()
-    activeCleanup = cleanup
     lifecycleGeneration = UUID()
-    // Withdraw a previous process's ready record before any asynchronous setup.
-    // The server publishes this same attempt as ready only after TUN success.
-    RPCSession(version: RPCWire.version, attempt: lifecycleGeneration, ready: false)
-      .publish(to: sharedStateStore.appGroupDirectory())
+    let ownedAttempt = lifecycleGeneration
+    activeAttempt = ownedAttempt
+    let cleanup = makeLifecycleCleanup(ownedAttempt: ownedAttempt)
+    activeCleanup = cleanup
     pendingStartupCompletion = completionHandler
     let completionHandler: (Error?) -> Void = { error in
       guard self.activeCleanup === cleanup else { return }
@@ -134,6 +139,18 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
       }
       SwitchDiagnostics.record("tunnel_start_complete", fields: ["success": String(error == nil)])
       originalCompletion(error)
+    }
+    // Publication is admission, not a best-effort diagnostic. Fail before any
+    // asynchronous setup if an old ready record could not be withdrawn.
+    guard RPCSession(version: RPCWire.version, attempt: lifecycleGeneration, ready: false)
+      .publish(to: sharedStateStore.appGroupDirectory()) else {
+      // If atomic replacement failed (e.g. ENOSPC), unlink the prior ready
+      // record as well. No new asynchronous attempt can exist at this point.
+      if let root = sharedStateStore.appGroupDirectory() {
+        try? FileManager.default.removeItem(at: root.appendingPathComponent("core-rpc/session.json"))
+      }
+      completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
+      return
     }
     logger.info("startTunnel begin")
     diag("startup begin")

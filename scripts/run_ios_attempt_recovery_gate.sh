@@ -4,6 +4,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 command -v swiftc
 python3 scripts/test_ios_attempt_recovery.py
+python3 scripts/test_ios_attempt_fixes.py
+python3 scripts/test_ios_attempt_fixes_swift.py --baseline --require-swift
+python3 scripts/test_ios_attempt_fixes_swift.py --require-swift
 python3 scripts/test_ios_attempt_recovery_swift.py --baseline --require-swift
 python3 scripts/test_ios_attempt_recovery_swift.py --require-swift
 python3 scripts/test_ios_provider_retry.py

@@ -3,6 +3,7 @@ import NetworkExtension
 import os
 
 private struct ManagerLoadRequest {
+  let id: UUID
   let createIfNeeded: Bool
   let continuation: CheckedContinuation<NETunnelProviderManager?, Error>
 }
@@ -61,10 +62,24 @@ final class TunnelManagerStore {
   }
 
   func loadManager(
-    createIfNeeded: Bool = true
+    createIfNeeded: Bool = true, deadline: Date? = nil
   ) async throws -> NETunnelProviderManager? {
-    try await withCheckedThrowingContinuation { continuation in
+    let requestID = UUID()
+    let deadlineTask: Task<Void, Never>? = deadline.map { deadline in
+      Task { @MainActor [weak self] in
+        do {
+          try await Task.sleep(nanoseconds: UInt64(max(0, deadline.timeIntervalSinceNow) * 1_000_000_000))
+          self?.cancelManagerLoadRequest(requestID, error: ManagerLoadError.timedOut)
+        } catch { /* completed or cancelled waiter */ }
+      }
+    }
+    defer { deadlineTask?.cancel() }
+    return try await withTaskCancellationHandler(operation: {
+      try Task.checkCancellation()
+      if let deadline, Date() >= deadline { throw ManagerLoadError.timedOut }
+      return try await withCheckedThrowingContinuation { continuation in
       let request = ManagerLoadRequest(
+        id: requestID,
         createIfNeeded: createIfNeeded,
         continuation: continuation
       )
@@ -100,6 +115,21 @@ final class TunnelManagerStore {
         }
       }
     }
+    }, onCancel: {
+      Task { @MainActor [weak self] in
+        self?.cancelManagerLoadRequest(requestID, error: CancellationError())
+      }
+    })
+  }
+
+  private func cancelManagerLoadRequest(_ requestID: UUID, error: Error) {
+    guard case .loading(let id, let generation, let reloadCount, var requests) = cacheState,
+      let index = requests.firstIndex(where: { $0.id == requestID }) else { return }
+    let request = requests.remove(at: index)
+    // Keep the uncancellable system load occupied, even with zero waiters.
+    // Its callback may still populate the cache, but cannot resume this waiter.
+    cacheState = .loading(id: id, generation: generation, reloadCount: reloadCount, requests: requests)
+    request.continuation.resume(throwing: error)
   }
 
   func refreshLoadedManager() async throws {

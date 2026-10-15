@@ -32,30 +32,39 @@ let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().
 final class SharedStateStore {
   let appGroupIdentifier = "test.attempt"
   func appGroupDirectory() -> URL? { root }
-  func clearConfigurationRequestApplied() { receipts.removeAll() }
+  func clearConfigurationRequestApplied() { clearReceipts() }
   func isConfigurationRequestApplied(_ id: String) -> Bool { false }
   func isConfigurationRequestApplied(_ id: String, owner: RPCOwner) -> Bool {
     receipts.contains { $0.owner == owner && $0.requestID == id }
   }
   func runTime() -> Int { 1 }
 }
-var receipts: [RPCAppliedReceipt] = []
+let receiptLock = NSLock()
+private var receiptStorage: [RPCAppliedReceipt] = []
+var receipts: [RPCAppliedReceipt] {
+  get { receiptLock.lock(); defer { receiptLock.unlock() }; return receiptStorage }
+  set { receiptLock.lock(); defer { receiptLock.unlock() }; receiptStorage = newValue }
+}
+func clearReceipts() { receiptLock.lock(); defer { receiptLock.unlock() }; receiptStorage.removeAll() }
+func appendReceipt(_ receipt: RPCAppliedReceipt) { receiptLock.lock(); defer { receiptLock.unlock() }; receiptStorage.append(receipt) }
 final class PacketTunnelSharedStateStore {
   func appGroupDirectory() -> URL? { root }
-  func clearConfigurationRequestApplied() { receipts.removeAll() }
-  func markConfigurationRequestApplied(_ id: String) { receipts.append(RPCAppliedReceipt(version: 0, owner: RPCOwner(attempt: UUID(), generation: 0, nonce: UUID()), requestID: id)) }
-  func markConfigurationRequestApplied(_ id: String, owner: RPCOwner) { receipts.append(RPCAppliedReceipt(version: RPCWire.version, owner: owner, requestID: id)) }
+  func clearConfigurationRequestApplied() { clearReceipts() }
+  func markConfigurationRequestApplied(_ id: String) { appendReceipt(RPCAppliedReceipt(version: 0, owner: RPCOwner(attempt: UUID(), generation: 0, nonce: UUID()), requestID: id)) }
+  func markConfigurationRequestApplied(_ id: String, owner: RPCOwner) { appendReceipt(RPCAppliedReceipt(version: RPCWire.version, owner: owner, requestID: id)) }
 }
 @MainActor final class TunnelManagerStore {
   let manager = NETunnelProviderManager()
   init(sharedStateStore: SharedStateStore, networkExtensionIdentifier: String, localizedDescription: String) {}
-  func loadManager(createIfNeeded: Bool) async throws -> NETunnelProviderManager? { manager }
+  func loadManager(createIfNeeded: Bool, deadline: Date? = nil) async throws -> NETunnelProviderManager? { manager }
+  func isManagedConnection(_ c: NEVPNConnection) -> Bool { c === manager.connection }
   func refreshLoadedManager() async throws {}
 }
 @MainActor final class TunnelCoordinator {
   init(managerStore: TunnelManagerStore, onTunnelStateChanged: @escaping (TunnelTarget) -> Void,
        onConnectionStateChanged: @escaping (String) -> Void, onExternalStart: @escaping () -> Void,
        onExternalStop: @escaping () -> Void) {}
+  func ownsStatusConnection(_ c: NEVPNConnection) -> Bool { true }
   func handleTunnelStatusNotification(_ n: Notification) {}
   func requestStatusRefresh(notifyExternal: Bool) {}
   func submitTunnelRequest(target: TunnelTarget) {}
@@ -104,7 +113,7 @@ Task { @MainActor in
   let coldBridge = ProviderMessageBridge(appGroupIdentifier: "test.attempt", commandNotificationName: "test.attempt.command")
   var coldDone = false
   Task {
-    do { _ = try await coldBridge.send(setup, timeout: 120, owner: RPCOwner(attempt: cold, generation: 0, nonce: UUID()), epoch: coldEpoch, clientEpoch: 0); coldDone = true }
+    do { _ = try await coldBridge.send(setup, deadline: Date().addingTimeInterval(120), owner: RPCOwner(attempt: cold, generation: 0, nonce: UUID()), epoch: coldEpoch, clientEpoch: 0); coldDone = true }
     catch { check(false, "same cold attempt rejected") }
   }
   try? await Task.sleep(nanoseconds: 100_000_000)
@@ -112,7 +121,7 @@ Task { @MainActor in
   check(server.start(attempt: cold), "cold ready publish failed")
   await wait { count() == 1 }; respond(0, success); await wait { coldDone }
   server.stop()
-  callLock.lock(); callbacks.removeAll(); callLock.unlock(); receipts.removeAll()
+  callLock.lock(); callbacks.removeAll(); callLock.unlock(); clearReceipts()
   let old = UUID(), current = UUID()
   func write(_ id: String, _ attempt: UUID, data: Data = mutation, version: Int = RPCWire.version, deadline: Date = Date().addingTimeInterval(120)) throws {
     let request = RPCRequest(version: version, owner: RPCOwner(attempt: attempt, generation: 1, nonce: UUID()), deadline: deadline, data: data)
@@ -188,7 +197,7 @@ Task { @MainActor in
   let session = RPCSession.read(from: root)!
   var cancelled = false
   let task = Task {
-    do { _ = try await bridge.send(setup, timeout: 120, owner: RPCOwner(attempt: session.attempt, generation: 0, nonce: UUID()), epoch: epoch, clientEpoch: 0) }
+    do { _ = try await bridge.send(setup, deadline: Date().addingTimeInterval(120), owner: RPCOwner(attempt: session.attempt, generation: 0, nonce: UUID()), epoch: epoch, clientEpoch: 0) }
     catch is CancellationError { cancelled = true }
     catch { check(false, "cancellation wrong error") }
   }

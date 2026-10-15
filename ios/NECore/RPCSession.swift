@@ -32,8 +32,18 @@ struct RPCSession: Codable, Equatable {
     return session
   }
 
+  #if IOS_ATTEMPT_TESTING
+  static var testFailNextPublication = false
+  #endif
+
   @discardableResult
   func publish(to root: URL?) -> Bool {
+    #if IOS_ATTEMPT_TESTING
+    if Self.testFailNextPublication {
+      Self.testFailNextPublication = false
+      return false
+    }
+    #endif
     guard let root else { return false }
     let directory = root.appendingPathComponent("core-rpc", isDirectory: true)
     do {

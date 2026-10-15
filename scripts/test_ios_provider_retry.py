@@ -58,9 +58,10 @@ class ProviderRetryWiring(unittest.TestCase):
     def test_reads_leave_one_message_slot_for_configuration(self):
         controller = self.source("ios/Runner/Tunnel/TunnelController.swift")
         self.assertIn(
-            "acquireProviderMessageSlot(reserveForConfiguration: retryRead, owner: providerOwner, deadline: deadline)",
+            "acquireProviderMessageSlot(reserveForConfiguration: retryRead, owner: providerOwner, deadline: deadline,",
             controller,
         )
+        self.assertIn("configurationGeneration: retryRead ? generation : nil", controller)
         self.assertIn("maxInFlightProviderMessages - 1", controller)
 
     def test_successful_live_setup_releases_app_core_runtime(self):
@@ -94,7 +95,7 @@ class CommandBridgeWiring(unittest.TestCase):
         # The dead sendProviderMessage transport must be gone from the attempt.
         self.assertNotIn("session.sendProviderMessage(", controller)
         self.assertIn("private let providerBridge: ProviderMessageBridge", controller)
-        self.assertIn("try await providerBridge.send(data, timeout: timeout, owner: owner,", controller)
+        self.assertIn("try await providerBridge.send(data, deadline: deadline, owner: owner,", controller)
         self.assertIn("actor ProviderMessageBridge", controller)
         self.assertIn("core-rpc", controller)
 
