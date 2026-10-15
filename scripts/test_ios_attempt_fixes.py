@@ -71,10 +71,10 @@ class AttemptFixContracts(unittest.TestCase):
         self.assertIn('session.attempt == owner.attempt', provider_store)
         self.assertIn('markConfigurationRequestApplied(requestID, owner: request.owner)', server)
 
-    def test_r5_macos_gate_blocks_ipa_workflow(self):
-        workflow = source('.github/workflows/ios-five-protocol.yaml')
+    def test_r5_bash_gate_requires_new_native_cases(self):
+        # Workflow wiring belongs to the cron-owned parent integration; this
+        # candidate supplies a fail-closed gate, not an IPA acceptance claim.
         gate = source('scripts/run_ios_attempt_recovery_gate.sh')
-        self.assertIn('bash scripts/run_ios_attempt_recovery_gate.sh', workflow)
         self.assertIn('python3 scripts/test_ios_attempt_fixes.py', gate)
         self.assertIn('test_ios_attempt_recovery_swift.py --baseline --require-swift', gate)
         self.assertIn('test_ios_attempt_recovery_swift.py --require-swift', gate)

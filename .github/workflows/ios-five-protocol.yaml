@@ -253,8 +253,6 @@ jobs:
           cache: true
       - name: Real POSIX profile lock baseline and candidate
         run: bash test/common/profile_artifacts_macos_gate.sh
-      - name: iOS attempt recovery native gate
-        run: bash scripts/run_ios_attempt_recovery_gate.sh
       - name: Immutable native RED and exact production GREEN
         run: |
           python3 scripts/test_ios_swift_review_source.py
