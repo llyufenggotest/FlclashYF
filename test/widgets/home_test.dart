@@ -28,11 +28,23 @@ void main() {
         addTearDown(tester.view.resetPhysicalSize);
         await tester.pumpWidget(_buildHome(Size(initialWidth, 800)));
         await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const ValueKey('capsule-icon-tools')));
+        final initialContext = tester.element(find.text('page-dashboard'));
+        final container = ProviderScope.containerOf(initialContext);
+        final toolsButton = find.byKey(const ValueKey('capsule-icon-tools'));
+        if (toolsButton.evaluate().isNotEmpty) {
+          await tester.tap(toolsButton);
+        } else {
+          final navigationState = container.read(navigationStateProvider);
+          final toolsIndex = navigationState.navigationItems.indexWhere(
+            (item) => item.label == PageLabel.tools,
+          );
+          tester
+              .widget<NavigationRail>(find.byType(NavigationRail))
+              .onDestinationSelected!(toolsIndex);
+        }
         await tester.pumpAndSettle();
 
         final context = tester.element(find.text('page-tools'));
-        final container = ProviderScope.containerOf(context);
         final navigator = Navigator.of(context);
         var completed = false;
         unawaited(
@@ -71,7 +83,7 @@ void main() {
           );
           expect(completed, isFalse);
           if (width == 400) {
-            expect(find.byType(NavigationBar).hitTestable(), findsNothing);
+            expect(find.byType(CapsuleNavigation).hitTestable(), findsNothing);
             expect(tester.getBottomRight(find.byType(Scaffold)).dy, 800);
           } else {
             expect(find.byType(NavigationRail).hitTestable(), findsOneWidget);
@@ -84,7 +96,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('unsaved draft'), findsOneWidget);
         expect(tester.state(find.byType(TextField)), same(fieldState));
-        expect(find.byType(NavigationBar).hitTestable(), findsNothing);
+        expect(find.byType(CapsuleNavigation).hitTestable(), findsNothing);
         final transitions = find.ancestor(
           of: find.byType(TextField),
           matching: find.byType(FadeTransition),
@@ -103,7 +115,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('page-tools'), findsOneWidget);
         expect(completed, isTrue);
-        expect(find.byType(NavigationBar).hitTestable(), findsOneWidget);
+        expect(find.byType(CapsuleNavigation).hitTestable(), findsOneWidget);
 
         unawaited(
           navigator.push<void>(
@@ -113,11 +125,11 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.byType(NavigationBar).hitTestable(), findsNothing);
+        expect(find.byType(CapsuleNavigation).hitTestable(), findsNothing);
         expect(tester.getBottomRight(find.byType(Scaffold)).dy, 800);
         await navigator.maybePop();
         await tester.pumpAndSettle();
-        expect(find.byType(NavigationBar).hitTestable(), findsOneWidget);
+        expect(find.byType(CapsuleNavigation).hitTestable(), findsOneWidget);
       } finally {
         semantics.dispose();
       }
@@ -268,7 +280,7 @@ void main() {
 
     final pageView = find.byType(PageView);
     expect(tester.widget<PageView>(pageView).scrollDirection, Axis.horizontal);
-    final bar = find.byType(NavigationBar);
+    final bar = find.byType(CapsuleNavigation);
     final barElement = tester.element(bar);
     final barRect = tester.getRect(bar);
     final pageWidth = tester.getSize(pageView).width;
