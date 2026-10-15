@@ -70,7 +70,9 @@ def main():
                 else:
                     target.write_bytes((ROOT / "ios/NECore" / name).read_bytes())
                 probe_sources.append(str(target))
-            subprocess.run([swift, "-swift-version", "5", *probe_sources, str(main_file), "-o", str(binary)], check=True, timeout=90)
+            if args.rpc_blocker:
+                probe_sources.append(str(ROOT / "ios/NECore/RPCSession.swift"))
+            subprocess.run([swift, "-swift-version", "5", *(["-D", "ATTEMPT_RPC_CURRENT"] if args.rpc_blocker else []), *probe_sources, str(main_file), "-o", str(binary)], check=True, timeout=90)
             result = subprocess.run([str(binary), "rpc" if args.rpc_blocker else "event"], capture_output=True, text=True, timeout=15)
             print(result.stdout, end="")
             expected = "EXPECTED_BLOCKER_RED" if args.rpc_blocker else "EXPECTED_BASELINE_RED"

@@ -78,8 +78,14 @@ final class PacketTunnelSharedStateStore {
     userDefaults?.removeObject(forKey: activeVpnOptionsKey)
   }
 
-  func markConfigurationRequestApplied(_ requestID: String) {
-    userDefaults?.set(requestID, forKey: appliedConfigurationRequestKey)
+  func markConfigurationRequestApplied(_ requestID: String, owner: RPCOwner) {
+    guard let session = RPCSession.read(from: appGroupDirectory()),
+      session.attempt == owner.attempt,
+      let data = try? JSONEncoder().encode(RPCAppliedReceipt(
+        version: RPCWire.version, owner: owner, requestID: requestID
+      ))
+    else { return }
+    userDefaults?.set(data, forKey: appliedConfigurationRequestKey)
     userDefaults?.synchronize()
   }
 

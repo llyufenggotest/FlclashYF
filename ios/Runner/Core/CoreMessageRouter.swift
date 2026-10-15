@@ -97,6 +97,8 @@ final class CoreMessageRouter {
 
   func invoke(_ data: Data) async -> String {
     let method = methodCallName(data)
+    let invocationOwner = tunnelController.captureProviderOwner()
+    let invocationUsesExtension = currentRoute == .networkExtension
     let action = notificationCoordinator.action(for: data)
     await notificationCoordinator.prepare(for: action)
     defer {
@@ -107,6 +109,9 @@ final class CoreMessageRouter {
     let networkExtensionActive = selectedRoute == .networkExtension
 
     do {
+      if invocationUsesExtension {
+        try tunnelController.validateProviderOwner(invocationOwner)
+      }
       if case .stop(let kind) = action {
         return try await sendNotificationStop(
           data,
@@ -285,6 +290,9 @@ final class CoreMessageRouter {
     method: ConfigurationCoreMethod,
     networkExtensionActive: Bool
   ) async throws -> String {
+    // Capture before App Core await: a resumed old setup must not be delivered
+    // into a newly started NE just because currentRoute is extension again.
+    let configurationOwner = tunnelController.captureProviderOwner()
     if networkExtensionActive && method == .updateConfig {
       let networkExtensionData = try replacingArgument(
         in: data,
@@ -332,6 +340,7 @@ final class CoreMessageRouter {
       return appResponse
     }
 
+    try tunnelController.validateProviderOwner(configurationOwner)
     let networkExtensionData = method == .updateConfig
       ? try replacingArgument(
         in: data,

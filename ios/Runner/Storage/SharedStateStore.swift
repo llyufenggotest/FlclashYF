@@ -117,9 +117,13 @@ final class SharedStateStore {
       .integer(forKey: runTimeKey) ?? 0
   }
 
-  func isConfigurationRequestApplied(_ requestID: String) -> Bool {
-    UserDefaults(suiteName: appGroupIdentifier)?
-      .string(forKey: appliedConfigurationRequestKey) == requestID
+  func isConfigurationRequestApplied(_ requestID: String, owner: RPCOwner) -> Bool {
+    guard let session = RPCSession.read(from: appGroupDirectory()),
+      session.attempt == owner.attempt,
+      let data = UserDefaults(suiteName: appGroupIdentifier)?.data(forKey: appliedConfigurationRequestKey),
+      let receipt = try? JSONDecoder().decode(RPCAppliedReceipt.self, from: data)
+    else { return false }
+    return receipt.version == RPCWire.version && receipt.owner == owner && receipt.requestID == requestID
   }
 
   func clearConfigurationRequestApplied() {

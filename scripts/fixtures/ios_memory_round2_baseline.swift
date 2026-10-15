@@ -12,6 +12,9 @@ final class PacketTunnelSharedStateStore {
   func appGroupDirectory() -> URL? { root }
   func clearConfigurationRequestApplied() {}
   func markConfigurationRequestApplied(_ id: String) {}
+  #if ATTEMPT_RPC_CURRENT
+  func markConfigurationRequestApplied(_ id: String, owner: RPCOwner) {}
+  #endif
 }
 enum SwitchDiagnostics {
   static func requestID(_ data: Data) -> String { "test" }
@@ -48,8 +51,17 @@ if CommandLine.arguments[1] == "event" {
   })
   let requests = root.appendingPathComponent("core-rpc/req")
   try FileManager.default.createDirectory(at: requests, withIntermediateDirectories: true)
+  #if ATTEMPT_RPC_CURRENT
+  server.start()
+  let attempt = RPCSession.read(from: root)!.attempt
+  for index in 0..<16 {
+    let request = RPCRequest(version: RPCWire.version, owner: RPCOwner(attempt: attempt, generation: 0, nonce: UUID()), deadline: Date().addingTimeInterval(120), data: Data("request".utf8))
+    try JSONEncoder().encode(request).write(to: requests.appendingPathComponent("\(index).req"))
+  }
+  #else
   for index in 0..<16 { try Data("request".utf8).write(to: requests.appendingPathComponent("\(index).req")) }
   server.start()
+  #endif
   let deadline = Date().addingTimeInterval(5)
   while Date() < deadline {
     lock.lock(); let current = calls; lock.unlock()

@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 import NetworkExtension
 import UIKit
 
@@ -17,9 +18,11 @@ final class TunnelController {
   private let configurationTimeout: TimeInterval = 120
   private let maxInFlightProviderMessages = 8
   private var inFlightProviderMessages = 0
-  private var providerMessageWaiters: [CheckedContinuation<Void, Never>] = []
+
   private var configurationGeneration: UInt64 = 0
   private var configurationInFlight = false
+  private let providerEpoch = RPCClientEpoch()
+  private var observedProviderAttempt: UUID?
   private var managerRefreshTask: Task<Void, Error>?
   private let providerBridge: ProviderMessageBridge
 
@@ -78,6 +81,10 @@ final class TunnelController {
           SwitchDiagnostics.record("tunnel_status", fields: [
             "status": (notification.object as? NEVPNConnection).map { String($0.status.rawValue) } ?? "unknown",
           ])
+          if let connection = notification.object as? NEVPNConnection,
+            connection.status == .disconnecting || connection.status.isTerminal {
+            self?.invalidateProviderRequests()
+          }
           self?.coordinator.handleTunnelStatusNotification(notification)
         }
       }
@@ -126,10 +133,12 @@ final class TunnelController {
 
   func stop() {
     SwitchDiagnostics.record("tunnel_stop_requested")
+    invalidateProviderRequests()
     coordinator.submitTunnelRequest(target: .stopped)
   }
 
   func toggle() {
+    invalidateProviderRequests()
     coordinator.toggleTunnelRequest()
   }
 
@@ -137,8 +146,36 @@ final class TunnelController {
     try await coordinator.reloadOnDemandRules()
   }
 
+  func invalidateProviderRequests() {
+    providerEpoch.invalidate()
+    configurationGeneration &+= 1
+    configurationInFlight = false
+  }
+
+  private func synchronizeProviderSession() {
+    let attempt = RPCSession.readPublished(from: sharedStateStore.appGroupDirectory())?.attempt
+    if attempt != observedProviderAttempt {
+      invalidateProviderRequests()
+      observedProviderAttempt = attempt
+    }
+  }
+
+  func captureProviderOwner() -> ProviderOwner {
+    synchronizeProviderSession()
+    return ProviderOwner(clientEpoch: providerEpoch.current(), attempt: observedProviderAttempt)
+  }
+
+  func validateProviderOwner(_ owner: ProviderOwner) throws {
+    synchronizeProviderSession()
+    guard providerEpoch.isCurrent(owner.clientEpoch), owner.attempt == observedProviderAttempt else {
+      throw ProviderMessageError(code: "stale_profile", message: "tunnel attempt changed")
+    }
+    try Task.checkCancellation()
+  }
+
   @discardableResult
   func beginConfigurationApply() -> UInt64 {
+    synchronizeProviderSession()
     configurationGeneration &+= 1
     configurationInFlight = true
     return configurationGeneration
@@ -153,6 +190,7 @@ final class TunnelController {
   }
 
   func sendProviderMessage(_ data: Data) async throws -> String {
+    let providerOwner = captureProviderOwner()
     let method = SwitchDiagnostics.method(data)
     let retryRead = ProviderReadRetry.isReadOnlyMethod(method)
     if retryRead && configurationInFlight {
@@ -162,21 +200,31 @@ final class TunnelController {
       )
     }
 
-    await acquireProviderMessageSlot(reserveForConfiguration: retryRead)
+    let deadline = Date().addingTimeInterval(retryRead ? providerReadTimeout * Double(ProviderReadRetry.maxAttempts) + 10 : configurationTimeout)
+    try await acquireProviderMessageSlot(reserveForConfiguration: retryRead, owner: providerOwner, deadline: deadline)
     defer { releaseProviderMessageSlot() }
+    try validateProviderOwner(providerOwner)
+    guard deadline > Date() else {
+      throw ProviderMessageError(code: "network_extension_timeout", message: "admission deadline expired")
+    }
     let generation = configurationGeneration
     let attempts = retryRead ? ProviderReadRetry.maxAttempts : 1
     if isConfigurationMethod(method) {
       sharedStateStore.clearConfigurationRequestApplied()
     }
+    let rpcOwner = RPCOwner(attempt: providerOwner.attempt ?? UUID(),
+      generation: providerOwner.clientEpoch, nonce: UUID())
     var lastError: ProviderMessageError?
 
     for attempt in 1...attempts {
       do {
+        try validateProviderOwner(providerOwner)
         let response = try await sendProviderMessageAttempt(
           data,
-          timeout: retryRead ? providerReadTimeout : configurationTimeout
+          timeout: min(retryRead ? providerReadTimeout : configurationTimeout, deadline.timeIntervalSinceNow),
+          owner: rpcOwner, clientEpoch: providerOwner.clientEpoch
         )
+        try validateProviderOwner(providerOwner)
         if retryRead &&
           (configurationInFlight || generation != configurationGeneration)
         {
@@ -186,11 +234,14 @@ final class TunnelController {
           )
         }
         return response
+      } catch is CancellationError {
+        throw CancellationError()
       } catch let error as ProviderMessageError {
+        try validateProviderOwner(providerOwner)
         if !retryRead {
           if isConfigurationMethod(method),
             await waitForAppliedConfiguration(
-              SwitchDiagnostics.requestID(data)
+              SwitchDiagnostics.requestID(data), owner: rpcOwner, providerOwner: providerOwner
             )
           {
             return configurationSuccessResponse(data)
@@ -206,7 +257,7 @@ final class TunnelController {
         if error.code == "empty_response_retryable" {
           await refreshManagerAfterNilResponse()
         }
-        try? await Task.sleep(
+        try await Task.sleep(
           nanoseconds: ProviderReadRetry.backoff(after: attempt)
         )
       }
@@ -225,7 +276,7 @@ final class TunnelController {
 
   private func sendProviderMessageAttempt(
     _ data: Data,
-    timeout: TimeInterval
+    timeout: TimeInterval, owner: RPCOwner, clientEpoch: UInt64
   ) async throws -> String {
     let started = ProcessInfo.processInfo.systemUptime
     let requestID = SwitchDiagnostics.requestID(data)
@@ -270,7 +321,8 @@ final class TunnelController {
 
     record("provider_request_send")
     do {
-      let response = try await providerBridge.send(data, timeout: timeout)
+      let response = try await providerBridge.send(data, timeout: timeout, owner: owner,
+        epoch: providerEpoch, clientEpoch: clientEpoch)
       record("provider_request_reply", responseBytes: response.utf8.count)
       return response
     } catch let error as ProviderMessageError {
@@ -284,16 +336,21 @@ final class TunnelController {
   }
 
   private func acquireProviderMessageSlot(
-    reserveForConfiguration: Bool
-  ) async {
+    reserveForConfiguration: Bool, owner: ProviderOwner, deadline: Date
+  ) async throws {
     let limit = reserveForConfiguration
       ? maxInFlightProviderMessages - 1
       : maxInFlightProviderMessages
     while inFlightProviderMessages >= limit {
-      await withCheckedContinuation { continuation in
-        providerMessageWaiters.append(continuation)
+      try validateProviderOwner(owner)
+      guard Date() < deadline else {
+        throw ProviderMessageError(code: "network_extension_timeout", message: "admission deadline expired")
       }
+      // No continuation may be stranded behind a dead callback. Also observe
+      // session replacement/cancellation while every slot is occupied.
+      try await Task.sleep(nanoseconds: 40_000_000)
     }
+    try validateProviderOwner(owner)
     inFlightProviderMessages += 1
   }
 
@@ -318,19 +375,20 @@ final class TunnelController {
 
   private func releaseProviderMessageSlot() {
     inFlightProviderMessages = max(0, inFlightProviderMessages - 1)
-    guard !providerMessageWaiters.isEmpty else { return }
-    providerMessageWaiters.removeFirst().resume()
   }
 
-  private func waitForAppliedConfiguration(_ requestID: String?) async -> Bool {
+  private func waitForAppliedConfiguration(_ requestID: String?, owner: RPCOwner,
+    providerOwner: ProviderOwner) async -> Bool {
     guard let requestID else { return false }
     for _ in 0..<5 {
-      if sharedStateStore.isConfigurationRequestApplied(requestID) {
+      guard (try? validateProviderOwner(providerOwner)) != nil else { return false }
+      if sharedStateStore.isConfigurationRequestApplied(requestID, owner: owner) {
         return true
       }
       try? await Task.sleep(nanoseconds: 100_000_000)
     }
-    return sharedStateStore.isConfigurationRequestApplied(requestID)
+    guard (try? validateProviderOwner(providerOwner)) != nil else { return false }
+    return sharedStateStore.isConfigurationRequestApplied(requestID, owner: owner)
   }
 
   private func isConfigurationMethod(_ method: String) -> Bool {
@@ -406,10 +464,34 @@ actor ProviderMessageBridge {
     self.commandNotificationName = commandNotificationName
   }
 
-  func send(_ data: Data, timeout: TimeInterval) async throws -> String {
+  func send(_ data: Data, timeout: TimeInterval, owner: RPCOwner,
+    epoch: RPCClientEpoch, clientEpoch: UInt64) async throws -> String {
     let id = UUID().uuidString
+    guard timeout > 0 else {
+      throw ProviderMessageError(code: "network_extension_timeout", message: "admission deadline expired")
+    }
+    let request = RPCRequest(version: RPCWire.version, owner: owner,
+      deadline: Date().addingTimeInterval(timeout), data: data)
+    func validate() throws {
+      try Task.checkCancellation()
+      guard epoch.isCurrent(clientEpoch),
+        let session = RPCSession.readPublished(from: rpcDirectory()?.deletingLastPathComponent()),
+        session.attempt == request.owner.attempt
+      else { throw ProviderMessageError(code: "stale_profile", message: "tunnel attempt changed") }
+    }
+    try validate()
+    // Legitimate work admitted during this same cold-start attempt waits for
+    // ready; never retag a request with a later attempt just to make it execute.
+    while RPCSession.read(from: rpcDirectory()?.deletingLastPathComponent()) == nil {
+      try validate()
+      guard Date() < request.deadline else {
+        throw ProviderMessageError(code: "network_extension_timeout", message: "tunnel not ready")
+      }
+      try await Task.sleep(nanoseconds: pollIntervalNanoseconds)
+    }
+    try validate()
     pruneOrphans()
-    guard writeRequest(id: id, data: data) else {
+    guard writeRequest(id: id, data: try JSONEncoder().encode(request)) else {
       throw ProviderMessageError(
         code: "network_extension_error",
         message: "failed to enqueue network extension request"
@@ -417,13 +499,20 @@ actor ProviderMessageBridge {
     }
     defer { cleanup(id: id) }
     postCommandNotification()
-    let deadline = Date().addingTimeInterval(timeout)
     repeat {
-      if let response = readResponse(id: id) {
-        return response
+      try validate()
+      if let response = readResponse(id: id),
+        let bytes = response.data(using: .utf8),
+        let reply = try? JSONDecoder().decode(RPCReply.self, from: bytes),
+        reply.version == RPCWire.version, reply.owner == request.owner {
+        try validate()
+        guard let text = String(data: reply.data, encoding: .utf8) else {
+          throw ProviderMessageError(code: "invalid_utf8", message: "invalid response encoding")
+        }
+        return text
       }
-      try? await Task.sleep(nanoseconds: pollIntervalNanoseconds)
-    } while Date() < deadline
+      try await Task.sleep(nanoseconds: pollIntervalNanoseconds)
+    } while Date() < request.deadline
     throw ProviderMessageError(
       code: "network_extension_timeout",
       message: "network extension response timed out"
@@ -489,8 +578,16 @@ actor ProviderMessageBridge {
     }
   }
 
+  #if IOS_ATTEMPT_TESTING
+  static var testDirectory: URL?
+  static func setTestRoot(_ root: URL) { testDirectory = root }
+  #endif
+
   private func rpcDirectory() -> URL? {
-    FileManager.default.containerURL(
+    #if IOS_ATTEMPT_TESTING
+    if let root = Self.testDirectory { return root.appendingPathComponent(directoryName, isDirectory: true) }
+    #endif
+    return FileManager.default.containerURL(
       forSecurityApplicationGroupIdentifier: appGroupIdentifier
     )?.appendingPathComponent(directoryName, isDirectory: true)
   }

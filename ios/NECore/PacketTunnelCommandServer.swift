@@ -24,6 +24,7 @@ final class PacketTunnelCommandServer {
   private let pollInterval: DispatchTimeInterval = .milliseconds(200)
 
   private var running = false
+  private var attempt: UUID?
   private var timer: DispatchSourceTimer?
   // Each admission owns a token, not just a reusable mailbox filename.
   // Do not impose a server deadline: configuration clients allow 120 seconds.
@@ -37,9 +38,14 @@ final class PacketTunnelCommandServer {
     self.invoke = invoke
   }
 
-  func start() {
-    queue.async { [weak self] in
-      guard let self, !self.running else { return }
+  @discardableResult
+  func start(attempt: UUID = UUID()) -> Bool {
+    queue.sync { [weak self] in
+      guard let self else { return false }
+      if self.running { return self.attempt == attempt }
+      guard RPCSession(version: RPCWire.version, attempt: attempt, ready: true)
+        .publish(to: self.sharedStateStore.appGroupDirectory()) else { return false }
+      self.attempt = attempt
       self.running = true
       self.registerObserver()
       let timer = DispatchSource.makeTimerSource(queue: self.queue)
@@ -52,7 +58,8 @@ final class PacketTunnelCommandServer {
       }
       self.timer = timer
       timer.resume()
-      self.drain()
+      self.queue.async { self.drain() }
+      return true
     }
   }
 
@@ -60,6 +67,12 @@ final class PacketTunnelCommandServer {
     queue.sync { [weak self] in
       guard let self, self.running else { return }
       self.running = false
+      if let attempt = self.attempt,
+        RPCSession.read(from: self.sharedStateStore.appGroupDirectory())?.attempt == attempt {
+        RPCSession(version: RPCWire.version, attempt: attempt, ready: false, retired: true)
+          .publish(to: self.sharedStateStore.appGroupDirectory())
+      }
+      self.attempt = nil
       self.timer?.cancel()
       self.timer = nil
       self.inFlight.removeAll()
@@ -112,13 +125,21 @@ final class PacketTunnelCommandServer {
       // Consume the request immediately so a mid-flight restart cannot run it
       // twice; the response is keyed by the same id.
       try? FileManager.default.removeItem(at: fileURL)
+      guard let request = try? JSONDecoder().decode(RPCRequest.self, from: data),
+        request.version == RPCWire.version,
+        request.owner.attempt == attempt,
+        RPCSession.read(from: sharedStateStore.appGroupDirectory())?.attempt == attempt,
+        request.deadline > Date(),
+        request.deadline.timeIntervalSinceNow <= 125
+      else { continue } // fail closed: legacy/unknown/old/expired requests never reach Core
       let token = UUID()
       inFlight[id] = token
-      process(id: id, token: token, data: data)
+      process(id: id, token: token, request: request)
     }
   }
 
-  private func process(id: String, token: UUID, data: Data) {
+  private func process(id: String, token: UUID, request: RPCRequest) {
+    let data = request.data
     let receivedAt = ProcessInfo.processInfo.systemUptime
     let requestID = SwitchDiagnostics.requestID(data)
     let method = SwitchDiagnostics.method(data)
@@ -134,7 +155,10 @@ final class PacketTunnelCommandServer {
     invoke(data) { [weak self] response in
       guard let self else { return }
       self.queue.async {
-        guard self.running, self.inFlight[id] == token else {
+        guard self.running, self.inFlight[id] == token,
+          request.owner.attempt == self.attempt,
+          RPCSession.read(from: self.sharedStateStore.appGroupDirectory())?.attempt == self.attempt
+        else {
           self.logger.debug("ignoring late RPC response id=\(id, privacy: .public)")
           return
         }
@@ -145,9 +169,11 @@ final class PacketTunnelCommandServer {
           object["error"] == nil || object["error"] is NSNull,
           let result = object["result"] as? String,
           result.isEmpty {
-          self.sharedStateStore.markConfigurationRequestApplied(requestID)
+          self.sharedStateStore.markConfigurationRequestApplied(requestID, owner: request.owner)
         }
-        self.writeResponse(id: id, data: payload)
+        if let reply = try? JSONEncoder().encode(RPCReply(
+          version: RPCWire.version, owner: request.owner, data: payload
+        )) { self.writeResponse(id: id, data: reply) }
         SwitchDiagnostics.record("rpc_reply", fields: [
           "request_id": requestID,
           "method": method,
