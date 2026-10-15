@@ -22,6 +22,10 @@ CASES = {'provider': ['cold-settings-stop', 'quicksetup-stop', 'old-cleanup-new-
          'integration': ['receipt-codable-owner', 'manager-held-cancel', 'absolute-deadline', 'wrong-reply-owner',
                          'cold-connecting-pending-ready', 'session-replace', 'same-attempt-slot-read',
                          'foreign-obsolete-status', 'legal-disconnect-recovery', 'router-old-app-phase', 'ack-lost-reply']}
+BASELINE_REDS = {
+    'cold-settings-stop': 'FAIL NATIVE cold-settings-stop: cold stopped attempt remains published',
+    'initial-publish-failure': 'FAIL NATIVE initial-publish-failure: old ready file survived failed initial publication',
+}
 
 def transform(text, path):
     # Only framework imports, bundle/container boundaries change. Production
@@ -77,8 +81,9 @@ def main():
                 out = subprocess.run([str(binary), case], capture_output=True, text=True, timeout=25)
                 print(out.stdout, end=''); print(out.stderr, end='')
                 if args.baseline:
-                    if out.returncode != 1 or f'FAIL NATIVE {case}:' not in out.stdout:
-                        print('Baseline must fail the named semantic assertion, not compile/crash/timeout')
+                    expected_red = BASELINE_REDS[case]
+                    if out.returncode != 1 or expected_red not in out.stdout:
+                        print('Baseline must fail the exact target semantic assertion, not another assertion/compile/crash/timeout')
                         return 1
                     print(f'CONFIRMED NATIVE RED de44ae3 {case} (not acceptance)')
                 elif out.returncode != 0 or f'PASS NATIVE {case}' not in out.stdout:

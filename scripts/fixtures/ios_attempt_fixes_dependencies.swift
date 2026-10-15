@@ -38,7 +38,10 @@ final class NETunnelProviderProtocol: NEVPNProtocol {
   var includeAllNetworks = false, excludeLocalNetworks = true, excludeAPNs = true
   var excludeCellularServices = true, enforceRoutes = false, excludeDeviceCommunication = true
 }
-class NEOnDemandRule: NSObject {}
+enum NEOnDemandRuleInterfaceType { case any, ethernet, wiFi, cellular }
+class NEOnDemandRule: NSObject {
+  var interfaceTypeMatch: NEOnDemandRuleInterfaceType = .any
+}
 final class NEOnDemandRuleDisconnect: NEOnDemandRule { var ssidMatch: [String]? }
 final class NEOnDemandRuleConnect: NEOnDemandRule {}
 final class NETunnelProviderManager: NSObject {
@@ -59,7 +62,10 @@ final class NETunnelProviderManager: NSObject {
 }
 extension Notification.Name { static let NEVPNStatusDidChange = Notification.Name("test.status") }
 let NEVPNErrorDomain = "test.nevpn"
-enum NEVPNError: Int { case configurationInvalid = 1, configurationStale, configurationUnknown }
+enum NEVPNError: Int {
+  typealias Code = NEVPNError
+  case configurationInvalid = 1, configurationStale, configurationUnknown
+}
 enum SwitchDiagnostics {
   static let processID = "native-fixture"
   static func record(_ phase: String, fields: [String: String] = [:]) {}

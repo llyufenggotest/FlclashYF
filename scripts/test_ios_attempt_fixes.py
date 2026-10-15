@@ -102,6 +102,32 @@ class AttemptFixContracts(unittest.TestCase):
                      'ios/Runner/Tunnel/TunnelManagerStore.swift']:
             self.assertIn(path, sources)
 
+    def test_native_fixture_matches_manager_framework_boundary(self):
+        fixture = (ROOT / 'scripts/fixtures/ios_attempt_fixes_dependencies.swift').read_text(encoding='utf-8')
+        self.assertIn('enum NEOnDemandRuleInterfaceType', fixture)
+        self.assertIn('var interfaceTypeMatch: NEOnDemandRuleInterfaceType', fixture)
+        self.assertIn('typealias Code = NEVPNError', fixture)
+
+    def test_baseline_red_requires_exact_target_assertions(self):
+        import runpy
+        gate = runpy.run_path(str(ROOT / 'scripts/test_ios_attempt_fixes_swift.py'))
+        self.assertEqual({
+            'cold-settings-stop': 'FAIL NATIVE cold-settings-stop: cold stopped attempt remains published',
+            'initial-publish-failure': 'FAIL NATIVE initial-publish-failure: old ready file survived failed initial publication',
+        }, gate['BASELINE_REDS'])
+
+    def test_baseline_red_rejects_unrelated_case_failure(self):
+        import runpy
+        import unittest.mock as mock
+        gate = runpy.run_path(str(ROOT / 'scripts/test_ios_attempt_fixes_swift.py'))
+        def run(command, **kwargs):
+            if command[0] == 'swiftc':
+                return subprocess.CompletedProcess(command, 0, '', '')
+            case = command[-1]
+            return subprocess.CompletedProcess(command, 1, f'FAIL NATIVE {case}: unrelated prerequisite failed\n', '')
+        with mock.patch('platform.system', return_value='Darwin'), mock.patch('shutil.which', return_value='swiftc'), mock.patch('sys.argv', ['gate', '--baseline']), mock.patch('subprocess.run', side_effect=run):
+            self.assertEqual(1, gate['main']())
+
     def test_native_compile_failure_cannot_count_as_red(self):
         import runpy
         import unittest.mock as mock
