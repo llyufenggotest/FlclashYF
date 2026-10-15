@@ -140,7 +140,7 @@ void main() {
           scrollable: find.byType(Scrollable).last,
         );
         final bottomBar = initialWidth == 400
-            ? tester.element(find.byType(NavigationBar))
+            ? tester.element(find.byType(CapsuleNavigation))
             : null;
         final bottomBarRect = bottomBar == null
             ? null
@@ -175,7 +175,7 @@ void main() {
             same(generalElement),
           );
           if (width == 400) {
-            expect(find.byType(NavigationBar), findsNothing);
+            expect(find.byType(CapsuleNavigation), findsNothing);
             expect(tester.getRect(find.byType(GeneralView)).bottom, 1000);
           } else {
             expect(find.byType(NavigationRail).hitTestable(), findsOneWidget);
@@ -189,13 +189,19 @@ void main() {
         await navigator.maybePop();
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 100));
-        final returningBar = find.byType(NavigationBar, skipOffstage: false);
+        final returningBar = find.byType(
+          CapsuleNavigation,
+          skipOffstage: false,
+        );
         expect(returningBar, findsOneWidget);
         expect(tester.getRect(returningBar).bottom, 1000);
-        expect(tester.getSize(returningBar).height, 80);
+        expect(
+          tester.getSize(find.byKey(CapsuleNavigation.surfaceKey)).height,
+          66,
+        );
         await tester.pumpAndSettle();
         expect(find.byType(GeneralView), findsNothing);
-        expect(find.byType(NavigationBar), findsOneWidget);
+        expect(find.byType(CapsuleNavigation), findsOneWidget);
       },
       variant: TargetPlatformVariant.only(TargetPlatform.windows),
     );
