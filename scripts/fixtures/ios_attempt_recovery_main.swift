@@ -159,6 +159,7 @@ Task { @MainActor in
   controller.finishConfigurationApply(generation: generationA, success: true)
   do { _ = try await controller.sendProviderMessage(read); check(false, "old finish released new gate") }
   catch let e as ProviderMessageError { check(e.code == "profile_switching", "new gate not held") }
+  catch { check(false, "new gate wrong error") }
   controller.finishConfigurationApply(generation: generationB, success: true)
   var readDone = false
   Task { @MainActor in
@@ -192,6 +193,18 @@ Task { @MainActor in
     catch { check(false, "cancellation wrong error") }
   }
   await wait { count() == 6 }; task.cancel(); await wait { cancelled }
+  // Preserve mailbox nil response as an error payload, not mutation replay.
+  var nilReadDone = false
+  Task { @MainActor in
+    do {
+      let response = try await controller.sendProviderMessage(read)
+      check(response.contains("empty_response"), "mailbox nil response contract changed")
+      nilReadDone = true
+    } catch { check(false, "nil mailbox response unexpectedly threw") }
+  }
+  await wait { count() == 7 }; respond(6, nil)
+  await wait { nilReadDone }
+  check(count() == 7, "nil mailbox response unexpectedly replayed")
   server.stop()
   print("PASS ATTEMPT real Swift: old queued writes rejected; version/expiry; same-attempt setup; strict receipt owner; late callback; stopped/restarted await retirement; old gate finish; cancellation")
   #endif
