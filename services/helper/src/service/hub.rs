@@ -355,8 +355,14 @@ fn reap_exited_core(session_id: &str) {
             };
             match core.child.try_wait() {
                 Ok(Some(status)) => {
-                    log_message(format!("Core process exit owner=helper pid={} exit_code={} stop_requested=false",
-                        core.child.id(), status.code().map(|code| code.to_string()).unwrap_or_else(|| "unknown".to_owned())));
+                    log_message(format!(
+                        "Core process exit owner=helper pid={} exit_code={} stop_requested=false",
+                        core.child.id(),
+                        status
+                            .code()
+                            .map(|code| code.to_string())
+                            .unwrap_or_else(|| "unknown".to_owned())
+                    ));
                     *managed = None;
                     return;
                 }
@@ -1069,13 +1075,21 @@ mod tests {
     fn owned_child_exit_is_diagnosed_with_numeric_code() {
         let _state = lock_process_state();
         let session_id = "0123456789abcdef0123456789abcdef";
-        let child = Command::new("cmd").args(["/c", "exit", "17"])
-            .stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
+        let child = Command::new("cmd")
+            .args(["/c", "exit", "17"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
         let pid = child.id();
-        *lock_surviving_poison(&MANAGED_CORE) = Some(ManagedCore::adopt(session_id.to_owned(), child).unwrap());
+        *lock_surviving_poison(&MANAGED_CORE) =
+            Some(ManagedCore::adopt(session_id.to_owned(), child).unwrap());
         reap_exited_core(session_id);
-        let expected = format!("Core process exit owner=helper pid={pid} exit_code=17 stop_requested=false");
-        assert!(lock_surviving_poison(&LOGS).iter().any(|entry| entry == &expected));
+        let expected =
+            format!("Core process exit owner=helper pid={pid} exit_code=17 stop_requested=false");
+        assert!(lock_surviving_poison(&LOGS)
+            .iter()
+            .any(|entry| entry == &expected));
     }
 
     #[test]

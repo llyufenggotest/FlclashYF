@@ -189,15 +189,29 @@ mod tests {
 
     #[test]
     fn interrupted_read_retries_but_a_real_timeout_is_explicit() {
-        let mut reader = StepReader { steps: VecDeque::from([
-            ReadStep::Interrupted, ReadStep::Data(vec![5, 0]), ReadStep::WouldBlock,
-            ReadStep::Interrupted, ReadStep::Data(vec![0, 0]), ReadStep::Data(b"hello".to_vec()),
-        ]) };
+        let mut reader = StepReader {
+            steps: VecDeque::from([
+                ReadStep::Interrupted,
+                ReadStep::Data(vec![5, 0]),
+                ReadStep::WouldBlock,
+                ReadStep::Interrupted,
+                ReadStep::Data(vec![0, 0]),
+                ReadStep::Data(b"hello".to_vec()),
+            ]),
+        };
         let mut decoder = FrameReader::default();
         assert!(decoder.poll(&mut reader).unwrap().is_none());
         assert_eq!(decoder.poll(&mut reader).unwrap(), Some(b"hello".to_vec()));
-        let mut timeout = StepReader { steps: VecDeque::from([ReadStep::Timeout]) };
-        assert_eq!(FrameReader::default().poll(&mut timeout).unwrap_err().kind(), io::ErrorKind::TimedOut);
+        let mut timeout = StepReader {
+            steps: VecDeque::from([ReadStep::Timeout]),
+        };
+        assert_eq!(
+            FrameReader::default()
+                .poll(&mut timeout)
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::TimedOut
+        );
     }
 
     #[test]

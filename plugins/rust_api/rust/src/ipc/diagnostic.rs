@@ -20,15 +20,28 @@ impl DisconnectDiagnostic {
             io::ErrorKind::Interrupted => 7,
             _ => 8,
         };
-        Self { source, reason, os_code: error.raw_os_error() }
+        Self {
+            source,
+            reason,
+            os_code: error.raw_os_error(),
+        }
     }
 
     pub fn local(source: u8, reason: u8) -> Self {
-        Self { source, reason, os_code: None }
+        Self {
+            source,
+            reason,
+            os_code: None,
+        }
     }
 
     pub fn encode(self, last_frame_age_ms: u64) -> Vec<u8> {
-        let mut payload = vec![1, self.source, self.reason, u8::from(self.os_code.is_some())];
+        let mut payload = vec![
+            1,
+            self.source,
+            self.reason,
+            u8::from(self.os_code.is_some()),
+        ];
         payload.extend_from_slice(&self.os_code.unwrap_or_default().to_le_bytes());
         payload.extend_from_slice(&last_frame_age_ms.to_le_bytes());
         payload

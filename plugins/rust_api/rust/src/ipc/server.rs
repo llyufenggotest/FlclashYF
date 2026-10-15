@@ -1,10 +1,9 @@
+use super::diagnostic::DisconnectDiagnostic;
 use super::frame::{
     self, FrameReader, IO_POLL_INTERVAL, TYPE_CONNECTED, TYPE_DATA, TYPE_DISCONNECTED, TYPE_ERROR,
     TYPE_READY,
 };
 use super::platform;
-use super::diagnostic::DisconnectDiagnostic;
-use std::time::Instant;
 use super::queue::{enqueue_message, MessageSender, MAX_PENDING_MESSAGES, SEND_QUEUE_TIMEOUT};
 use crate::frb_generated::StreamSink;
 use flutter_rust_bridge::for_generated::SseCodec;
@@ -15,6 +14,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Instant;
 
 macro_rules! ipc_debug {
     ($($arg:tt)*) => {
@@ -216,7 +216,9 @@ fn io_loop(name: String, sink: StreamSink<Vec<u8>, SseCodec>) {
                         pending_bytes.fetch_sub(data.len(), Ordering::SeqCst);
                         if let Err(e) = frame::write_frame(&mut sender, &data, &is_running) {
                             if is_running() {
-                                writer_disconnect.lock().unwrap_or_else(|p| p.into_inner())
+                                writer_disconnect
+                                    .lock()
+                                    .unwrap_or_else(|p| p.into_inner())
                                     .get_or_insert(DisconnectDiagnostic::io(2, &e));
                                 if !frame::is_expected_disconnect_error(&e) {
                                     error = Some("write_io_failure".to_owned());
@@ -227,7 +229,9 @@ fn io_loop(name: String, sink: StreamSink<Vec<u8>, SseCodec>) {
                     }
                     Err(mpsc::RecvTimeoutError::Timeout) => continue,
                     Err(mpsc::RecvTimeoutError::Disconnected) => {
-                        writer_disconnect.lock().unwrap_or_else(|p| p.into_inner())
+                        writer_disconnect
+                            .lock()
+                            .unwrap_or_else(|p| p.into_inner())
                             .get_or_insert(DisconnectDiagnostic::local(2, 10));
                         break;
                     }
@@ -252,14 +256,18 @@ fn io_loop(name: String, sink: StreamSink<Vec<u8>, SseCodec>) {
                 Ok(Some(data)) => {
                     last_frame = Instant::now();
                     if sink.add(frame::make_frame(TYPE_DATA, &data)).is_err() {
-                        disconnect.lock().unwrap_or_else(|p| p.into_inner())
+                        disconnect
+                            .lock()
+                            .unwrap_or_else(|p| p.into_inner())
                             .get_or_insert(DisconnectDiagnostic::local(3, 9));
                         break;
                     }
                 }
                 Ok(None) => thread::sleep(IO_POLL_INTERVAL),
                 Err(e) => {
-                    disconnect.lock().unwrap_or_else(|p| p.into_inner())
+                    disconnect
+                        .lock()
+                        .unwrap_or_else(|p| p.into_inner())
                         .get_or_insert(DisconnectDiagnostic::io(1, &e));
                     reader_failed = !frame::is_expected_disconnect_error(&e);
                     // The diagnostic is emitted before a generic error so Dart
@@ -276,16 +284,26 @@ fn io_loop(name: String, sink: StreamSink<Vec<u8>, SseCodec>) {
         let writer_error = match writer.join() {
             Ok(error) => error,
             Err(_) => {
-                disconnect.lock().unwrap_or_else(|p| p.into_inner())
+                disconnect
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner())
                     .get_or_insert(DisconnectDiagnostic::local(2, 11));
                 Some("writer_panicked".to_owned())
             }
         };
-        let diagnostic = disconnect.lock().unwrap_or_else(|p| p.into_inner())
+        let diagnostic = disconnect
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
             .unwrap_or(DisconnectDiagnostic::local(4, 12));
         let age = last_frame.elapsed().as_millis().min(u64::MAX as u128) as u64;
         if server_active() {
-            if sink.add(frame::make_frame(TYPE_DISCONNECTED, &diagnostic.encode(age))).is_err() {
+            if sink
+                .add(frame::make_frame(
+                    TYPE_DISCONNECTED,
+                    &diagnostic.encode(age),
+                ))
+                .is_err()
+            {
                 break;
             }
             if reader_failed {

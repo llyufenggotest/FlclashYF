@@ -1,7 +1,7 @@
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-mod frame;
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod diagnostic;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod frame;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod platform;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
