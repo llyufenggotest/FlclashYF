@@ -6,7 +6,7 @@
 
 # FlClash Patched
 
-[![Downloads](https://img.shields.io/github/downloads/chenx-dust/FlClash-Patched/total?style=flat-square&logo=github)](https://github.com/chenx-dust/FlClash-Patched/releases/)[![Last Version](https://img.shields.io/github/release/chenx-dust/FlClash-Patched/all.svg?style=flat-square)](https://github.com/chenx-dust/FlClash-Patched/releases/)[![License](https://img.shields.io/github/license/chenx-dust/FlClash-Patched?style=flat-square)](LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/llyufenggotest/FlclashYF/total?style=flat-square&logo=github)](https://github.com/llyufenggotest/FlclashYF/releases/)[![Last Version](https://img.shields.io/github/release/llyufenggotest/FlclashYF/all.svg?style=flat-square)](https://github.com/llyufenggotest/FlclashYF/releases/)[![License](https://img.shields.io/github/license/llyufenggotest/FlclashYF?style=flat-square)](LICENSE)
 
 A soft fork of [FlClash](https://github.com/chen08209/FlClash), with several bug fixes, power efficiency improvements and new features.
 
@@ -67,7 +67,7 @@ Support the following actions
 
 ## Download
 
-<a href="https://github.com/chenx-dust/FlClash-Patched/releases"><img alt="Get it on GitHub" src="snapshots/get-it-on-github.svg" width="200px"/></a>
+<a href="https://github.com/llyufenggotest/FlclashYF/releases/latest"><img alt="Get it on GitHub" src="snapshots/get-it-on-github.svg" width="200px"/></a>
 
 ## Build
 
