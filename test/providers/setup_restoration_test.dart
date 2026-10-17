@@ -21,11 +21,13 @@ import 'package:riverpod/riverpod.dart';
 class _Core extends Fake implements CoreHandlerInterface {
   final calls = <String>[];
   bool failProviders = false;
+  String setupMessage = '';
+  Completer<List<ExternalProvider>>? providerGate;
 
   @override
   Future<String> setupConfig(SetupParams params) async {
     calls.add('setup');
-    return '';
+    return setupMessage;
   }
 
   @override
@@ -63,6 +65,7 @@ class _Core extends Fake implements CoreHandlerInterface {
   Future<List<ExternalProvider>> getExternalProviders() async {
     calls.add('providers');
     if (failProviders) throw StateError('temporarily unavailable');
+    if (providerGate != null) return providerGate!.future;
     return [
       ExternalProvider(
         name: 'subscription',
@@ -291,6 +294,58 @@ void main() {
     expect(core.calls, isEmpty);
   });
 
+  test(
+    'groups hydrate without provider publication and apply waits for both once',
+    () async {
+      container.read(providersProvider.notifier);
+      core.providerGate = Completer<List<ExternalProvider>>();
+      final groupsReady = Completer<void>();
+      final subscription = container.listen(groupsProvider, (_, groups) {
+        if (groups.isNotEmpty && !groupsReady.isCompleted) {
+          groupsReady.complete();
+        }
+      });
+      addTearDown(subscription.close);
+      var completed = false;
+      final apply = action.applyProfile(force: true).then((value) {
+        completed = true;
+        return value;
+      });
+      await groupsReady.future;
+      expect(container.read(groupsProvider).single.all.single.name, 'DIRECT');
+      expect(container.read(providersProvider), isEmpty);
+      expect(completed, isFalse);
+      core.providerGate!.complete([
+        ExternalProvider(
+          name: 'subscription',
+          type: 'Proxy',
+          count: 1,
+          vehicleType: 'HTTP',
+          updateAt: DateTime.utc(2026),
+        ),
+      ]);
+      expect(await apply, isTrue);
+      expect(core.calls.first, 'setup');
+      expect(core.calls.skip(1), unorderedEquals(['groups', 'providers']));
+      expect(container.read(providersProvider).single.name, 'subscription');
+    },
+  );
+
+  test(
+    'failed setup retains prior providers and configuration success gate',
+    () async {
+      await action.initStatus();
+      final prior = container.read(providersProvider);
+      core.calls.clear();
+      core.setupMessage = 'fixture rejected';
+      globalState.lastConfigMd5 = 'last-good';
+      expect(await action.applyProfile(force: true), isFalse);
+      expect(core.calls, ['setup']);
+      expect(container.read(providersProvider), prior);
+      expect(globalState.lastConfigMd5, 'last-good');
+    },
+  );
+
   test('explicit forced apply still pushes config after restoration', () async {
     await action.initStatus();
     core.calls.clear();
@@ -298,7 +353,10 @@ void main() {
 
     expect(await action.applyProfile(force: true), isTrue);
 
-    expect(core.calls, ['setup', 'groups', 'providers']);
+    expect(core.calls.first, 'setup');
+    expect(core.calls.skip(1), unorderedEquals(['groups', 'providers']));
+    expect(container.read(groupsProvider).single.name, 'Proxy');
+    expect(container.read(providersProvider).single.name, 'subscription');
   });
 
   test('unchanged config hydration failure does not reapply or stop', () async {
@@ -329,7 +387,10 @@ void main() {
 
       expect(await action.applyProfile(), isTrue);
 
-      expect(core.calls, ['setup', 'groups', 'providers']);
+      expect(core.calls.first, 'setup');
+      expect(core.calls.skip(1), unorderedEquals(['groups', 'providers']));
+      expect(container.read(groupsProvider).single.name, 'Proxy');
+      expect(container.read(providersProvider).single.name, 'subscription');
       expect(globalState.lastConfigMd5, '');
     },
   );
