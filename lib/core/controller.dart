@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/core.dart';
+import 'package:fl_clash/core/configuration_lifecycle.dart';
 import 'package:fl_clash/core/interface.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
@@ -54,13 +55,32 @@ class CoreController {
     return _instance!;
   }
 
-  Future<CoreLifecycleResult> start() => _interface.start();
+  final configuration = CoreConfigurationLifecycle();
 
-  Future<CoreLifecycleResult> restart() => _interface.restart();
+  Future<CoreLifecycleResult> _startSession(
+    Future<CoreLifecycleResult> Function() action,
+  ) async {
+    final epoch = configuration.retire();
+    final result = await action();
+    if (result.outcome != CoreLifecycleOutcome.superseded) {
+      configuration.started(epoch);
+    }
+    return result;
+  }
 
-  Future<CoreLifecycleResult> stop() => _interface.stop();
+  Future<CoreLifecycleResult> start() => _startSession(_interface.start);
 
-  Future<CoreLifecycleResult> close() => _interface.close();
+  Future<CoreLifecycleResult> restart() => _startSession(_interface.restart);
+
+  Future<CoreLifecycleResult> stop() {
+    configuration.retire();
+    return _interface.stop();
+  }
+
+  Future<CoreLifecycleResult> close() {
+    configuration.retire();
+    return _interface.close();
+  }
 
   static Future<void> ensureHomeDir() async {
     final homePath = await appPath.homeDirPath;
@@ -138,14 +158,22 @@ class CoreController {
     required SetupParams params,
     Future<void> Function()? preloadInvoke,
   }) async {
-    if (preloadInvoke == null) {
-      return _interface.setupConfig(params);
+    final operation = configuration.begin();
+    var success = false;
+    try {
+      // Future.sync also captures synchronous fixture/platform failures; wait
+      // consumes BOTH branches before the readiness boundary is released.
+      final results = await Future.wait([
+        Future<String>.sync(() => _interface.setupConfig(params)),
+        if (preloadInvoke != null)
+          Future<void>.sync(preloadInvoke).then((_) => ''),
+      ]);
+      final result = results.first;
+      success = result.isEmpty;
+      return result;
+    } finally {
+      configuration.finish(operation, success);
     }
-    final (result, _) = await (
-      _interface.setupConfig(params),
-      preloadInvoke(),
-    ).wait;
-    return result;
   }
 
   Future<List<Group>> getProxiesGroups({

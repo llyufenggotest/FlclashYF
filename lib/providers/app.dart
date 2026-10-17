@@ -6,7 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/common/log_buffer.dart';
 import 'package:fl_clash/common/native_log_export.dart';
-import 'package:fl_clash/core/method.dart';
+import 'package:fl_clash/core/loaded_provider_recovery.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/plugins/service.dart';
@@ -169,15 +169,33 @@ class DnsQueries extends _$DnsQueries with AutoDisposeNotifierMixin {
 class Providers extends _$Providers with AutoDisposeNotifierMixin {
   int _syncGeneration = 0;
   int? _publishedProfileId;
+  late LoadedProviderRecovery recovery;
 
   @override
   List<ExternalProvider> build() {
+    final core = ref.watch(coreHandlerProvider);
+    final owner = LoadedProviderRecovery(
+      core: core,
+      context: () => (_syncGeneration, ref.read(currentProfileIdProvider)),
+      publish: (providers) {
+        if (!ref.mounted) return;
+        final profileId = ref.read(currentProfileIdProvider);
+        if (providers.isEmpty &&
+            value.isNotEmpty &&
+            (_publishedProfileId == profileId || _publishedProfileId == null)) {
+          return;
+        }
+        value = providers;
+        _publishedProfileId = profileId;
+      },
+      updated: () {},
+    );
+    recovery = owner;
+    ref.onDispose(owner.dispose);
     ref.listen(currentProfileIdProvider, (previous, next) {
       _syncGeneration++;
-      if (previous != next) {
-        _publishedProfileId = null;
-        value = [];
-      }
+      // A failed candidate must not erase the last working provider view.
+      // Ownership still changes immediately, rejecting in-flight old reads.
     });
     return [];
   }
@@ -190,41 +208,8 @@ class Providers extends _$Providers with AutoDisposeNotifierMixin {
     value = newState;
   }
 
-  Future<void> syncProviders() async {
-    final profileId = ref.read(currentProfileIdProvider);
-    final generation = _syncGeneration;
-    if (_publishedProfileId == null && generation == 0 && value.isNotEmpty) {
-      _publishedProfileId = profileId;
-    }
-    try {
-      final providers = await ref
-          .read(coreHandlerProvider)
-          .getExternalProviders();
-      if (generation != _syncGeneration ||
-          ref.read(currentProfileIdProvider) != profileId) {
-        return;
-      }
-      if (providers.isEmpty &&
-          value.isNotEmpty &&
-          _publishedProfileId == profileId) {
-        commonPrint.log(
-          'syncProviders: retaining last providers after empty read',
-          logLevel: LogLevel.debug,
-        );
-        return;
-      }
-      value = providers;
-      _publishedProfileId = profileId;
-    } catch (error) {
-      if (!isCoreUnavailableError(error)) {
-        rethrow;
-      }
-      commonPrint.log(
-        'syncProviders: retaining last providers while Core is unavailable',
-        logLevel: LogLevel.debug,
-      );
-    }
-  }
+  Future<void> syncProviders({bool force = false}) =>
+      recovery.sync(force: force);
 }
 
 @Riverpod(keepAlive: true)
@@ -806,7 +791,10 @@ List<Override> buildAppStateOverrides(AppState appState) {
     checkIpNumProvider.overrideWithBuild((_, _) => appState.checkIpNum),
     systemBrightnessProvider.overrideWithBuild((_, _) => appState.brightness),
     runTimeProvider.overrideWithBuild((_, _) => appState.runTime),
-    providersProvider.overrideWithBuild((_, _) => appState.providers),
+    providersProvider.overrideWithBuild((_, notifier) {
+      notifier.build();
+      return appState.providers;
+    }),
     localIpProvider.overrideWithBuild((_, _) => appState.localIp),
     requestsProvider.overrideWithBuild((_, _) => appState.requests),
     versionProvider.overrideWithBuild((_, _) => appState.version),

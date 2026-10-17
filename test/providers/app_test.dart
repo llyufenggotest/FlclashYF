@@ -33,7 +33,11 @@ void main() {
   late ProviderContainer container;
 
   setUp(() {
-    container = ProviderContainer();
+    container = ProviderContainer(
+      overrides: [
+        coreHandlerProvider.overrideWithValue(CoreController.scoped(_Core())),
+      ],
+    );
   });
 
   tearDown(() {
@@ -217,7 +221,7 @@ void main() {
     });
 
     test(
-      'clears old providers when the new profile Core is unavailable',
+      'retains old providers when the new profile Core is unavailable',
       () async {
         final core = _Core();
         when(
@@ -242,7 +246,7 @@ void main() {
 
         await notifier.syncProviders();
 
-        expect(scopedContainer.read(providersProvider), isEmpty);
+        expect(scopedContainer.read(providersProvider).single.name, 'a');
       },
     );
   });

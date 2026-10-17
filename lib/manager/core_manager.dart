@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/core.dart';
+import 'package:fl_clash/core/loaded_provider_recovery.dart';
 import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:fl_clash/providers/action.dart';
 import 'package:fl_clash/providers/app.dart';
 import 'package:fl_clash/providers/config.dart';
-import 'package:fl_clash/providers/core.dart';
 import 'package:fl_clash/providers/state.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,17 +23,31 @@ class CoreManager extends ConsumerStatefulWidget {
 
 class _CoreContainerState extends ConsumerState<CoreManager>
     with CoreEventListener {
-  CoreController get _core => ref.read(coreHandlerProvider);
+  LoadedProviderRecovery? _recovery;
 
   @override
   Widget build(BuildContext context) {
+    final owner = ref.watch(providersProvider.notifier).recovery;
+    _attachRecovery(owner);
     return widget.child;
+  }
+
+  void _attachRecovery(LoadedProviderRecovery owner) {
+    if (!identical(_recovery, owner)) _recovery?.pause();
+    _recovery = owner;
+    owner.resume();
+    owner.updated = () {
+      if (mounted) {
+        ref.read(proxiesActionProvider.notifier).updateGroupsDebounce();
+      }
+    };
   }
 
   @override
   void initState() {
     super.initState();
     coreEventManager.addListener(this);
+    _attachRecovery(ref.read(providersProvider.notifier).recovery);
     ref.read(updatingActionProvider.notifier);
     // A rejected profile stays selected on purpose: silently reverting to
     // the previous one hides the error and looks like the switch was lost.
@@ -76,6 +90,8 @@ class _CoreContainerState extends ConsumerState<CoreManager>
   @override
   void dispose() {
     coreEventManager.removeListener(this);
+    _recovery?.pause();
+    debouncer.cancel(FunctionTag.updateGroups);
     super.dispose();
   }
 
@@ -116,18 +132,11 @@ class _CoreContainerState extends ConsumerState<CoreManager>
   }
 
   @override
-  Future<void> onLoaded(String providerName) async {
-    final provider = await _core.getExternalProvider(providerName);
-    if (!mounted) {
-      return;
-    }
-    ref.read(providersProvider.notifier).setProvider(provider);
-    debouncer.call(FunctionTag.loadedProvider, () async {
-      if (!mounted) {
-        return;
-      }
-      ref.read(proxiesActionProvider.notifier).updateGroupsDebounce();
-    }, duration: const Duration(milliseconds: 5000));
+  void onLoaded(String providerName) {
+    // Synchronous queueing: no async-void future can escape event dispatch.
+    // Read the current provider owner rather than retaining a global singleton.
+    _attachRecovery(ref.read(providersProvider.notifier).recovery);
+    _recovery!.loaded(providerName);
     super.onLoaded(providerName);
   }
 
@@ -136,6 +145,7 @@ class _CoreContainerState extends ConsumerState<CoreManager>
     if (ref.read(coreStatusProvider) != CoreStatus.connected) {
       return;
     }
+    _recovery?.core.configuration.retire();
     ref.read(coreStatusProvider.notifier).value = CoreStatus.disconnected;
     if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
       context.showNotifier(message, level: MessageLevel.error);
