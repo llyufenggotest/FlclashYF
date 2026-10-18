@@ -43,6 +43,10 @@ class RestartContracts(unittest.TestCase):
         self.assertNotIn('func reconcileRunningTunnel', fixture)
         self.assertNotIn('#if', fixture)
         self.assertIn('await pause(5.6)', fixture)
+        stale = fixture.split('caseName == "stale-completion"', 1)[1].split(
+            'caseName == "third-stop-and-unrelated-status"', 1)[0]
+        self.assertLess(stale.index('m.connection.stops == 1'), stale.index('post(m.connection)'))
+        self.assertLess(stale.index('post(m.connection)'), stale.index('connectionStates.last == "disconnected"'))
         self.assertEqual(8, len(set(gate.CASES)))
         for case in gate.CASES:
             self.assertIn('"' + case + '"', fixture)

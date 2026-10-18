@@ -137,6 +137,8 @@ Task { @MainActor in
     store.holdLoad = false
     let oldLoad = store.pendingLoad!; store.pendingLoad = nil
     oldLoad.resume(returning: m)
+    await until("new stop was not dispatched") { m.connection.stops == 1 }
+    post(m.connection)
     await until("new stop did not complete") { connectionStates.last == "disconnected" }
     check(m.connection.starts == 0 && m.connection.stops == 1, "stale load finished or launched retired start")
     store.options = "after-stale-load"
