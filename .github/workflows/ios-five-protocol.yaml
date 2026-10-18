@@ -98,6 +98,7 @@ jobs:
           (cd core/mihomo && CGO_ENABLED=1 go test -race -tags with_low_memory -count=1 ./component/resource ./component/profile/cachefile ./common/utils ./adapter/provider ./rules/provider)
           python3 scripts/protocol_smoke.py
           python3 scripts/test_oix_ci_wiring.py
+          python3 scripts/test_core_roots_wiring.py
           python3 scripts/test_ios_lifecycle_cleanup.py
 
       - name: Verify native test prerequisites
@@ -174,6 +175,16 @@ jobs:
             echo "storePassword=${{ secrets.STORE_PASSWORD }}"
             echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
           } >> android/local.properties
+      - name: Fetch CA certificates
+        shell: bash
+        run: |
+          bundle=core/mihomo/component/ca/ca-certificates.crt
+          curl -fsSL --retry 3 -o "$bundle" https://curl.se/ca/cacert.pem
+          count=$(grep -c 'BEGIN CERTIFICATE' "$bundle")
+          echo "$count CA certificates"
+          test "$count" -ge 100
+          mkdir -p assets/data
+          cp "$bundle" assets/data/ca-certificates.crt
       - name: Build APK
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
@@ -225,6 +236,16 @@ jobs:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
+      - name: Fetch CA certificates
+        shell: bash
+        run: |
+          bundle=core/mihomo/component/ca/ca-certificates.crt
+          curl -fsSL --retry 3 -o "$bundle" https://curl.se/ca/cacert.pem
+          count=$(grep -c 'BEGIN CERTIFICATE' "$bundle")
+          echo "$count CA certificates"
+          test "$count" -ge 100
+          mkdir -p assets/data
+          cp "$bundle" assets/data/ca-certificates.crt
       - name: Build portable archive
         shell: bash
         run: |
@@ -307,6 +328,16 @@ jobs:
           command -v swiftc
           python3 scripts/test_ios_lifecycle_cleanup.py
           python3 scripts/test_ios_lifecycle_behavior.py
+      - name: Fetch CA certificates
+        shell: bash
+        run: |
+          bundle=core/mihomo/component/ca/ca-certificates.crt
+          curl -fsSL --retry 3 -o "$bundle" https://curl.se/ca/cacert.pem
+          count=$(grep -c 'BEGIN CERTIFICATE' "$bundle")
+          echo "$count CA certificates"
+          test "$count" -ge 100
+          mkdir -p assets/data
+          cp "$bundle" assets/data/ca-certificates.crt
       - name: Build IPA without Apple provisioning
         run: |
           flutter pub get
@@ -361,6 +392,16 @@ jobs:
           channel: stable
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
+      - name: Fetch CA certificates
+        shell: bash
+        run: |
+          bundle=core/mihomo/component/ca/ca-certificates.crt
+          curl -fsSL --retry 3 -o "$bundle" https://curl.se/ca/cacert.pem
+          count=$(grep -c 'BEGIN CERTIFICATE' "$bundle")
+          echo "$count CA certificates"
+          test "$count" -ge 100
+          mkdir -p assets/data
+          cp "$bundle" assets/data/ca-certificates.crt
       - name: Build DMG
         run: |
           flutter pub get

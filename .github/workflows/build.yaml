@@ -345,6 +345,12 @@ jobs:
         with:
           submodules: recursive
 
+      # The core's reported version comes from `git describe` in the submodule,
+      # which needs the upstream tags and the history leading to them.
+      - name: Fetch mihomo tags
+        shell: bash
+        run: git -C core/mihomo fetch --unshallow --tags origin
+
       - name: Setup Android Signing
         if: startsWith(matrix.platform,'android')
         run: |
@@ -404,6 +410,17 @@ jobs:
         run: |
           flutter --version
           flutter pub get
+
+      - name: Fetch CA certificates
+        shell: bash
+        run: |
+          bundle=core/mihomo/component/ca/ca-certificates.crt
+          curl -fsSL --retry 3 -o "$bundle" https://curl.se/ca/cacert.pem
+          count=$(grep -c 'BEGIN CERTIFICATE' "$bundle")
+          echo "$count CA certificates"
+          test "$count" -ge 100
+          mkdir -p assets/data
+          cp "$bundle" assets/data/ca-certificates.crt
 
       - name: Setup
         env:

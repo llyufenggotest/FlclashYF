@@ -918,6 +918,8 @@
   "routeHealthInterval": "健康监测频率",
   "useGlobalTemplate": "使用全局配置模板",
   "useGlobalTemplateDesc": "开启后，完整 YAML 也仅提取节点并套用全局模板；不完整 YAML 和节点链接始终套用模板，随后仍执行覆写。远程更新沿用此设置。关闭不会还原已转换的文件，请重新下载或导入原始配置。",
+  "memoryFootprint": "进程物理内存占用",
+  "memoryApp": "应用内存",
   "rulesDesc": "查看规则及匹配统计",
   "ruleEnabled": "已启用",
   "ruleDisabled": "已禁用",

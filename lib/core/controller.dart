@@ -182,12 +182,15 @@ class CoreController {
     required Map<String, String> selectedMap,
     required String defaultTestUrl,
   }) async {
+    final delaySnapshot = {
+      for (final entry in delayMap.entries) entry.key: {...entry.value},
+    };
     final proxiesData = await _interface.getProxies();
     return toGroupsTask(
       ComputeGroupsState(
         proxiesData: proxiesData,
         sortType: sortType,
-        delayMap: delayMap,
+        delayMap: delaySnapshot,
         selectedMap: selectedMap,
         defaultTestUrl: defaultTestUrl,
       ),
@@ -316,6 +319,10 @@ class CoreController {
 
   Future<int> getGoroutineCount() async {
     return _interface.getGoroutineCount();
+  }
+
+  Future<String> getCoreVersion() async {
+    return _interface.getCoreVersion();
   }
 
   void resetTraffic() {

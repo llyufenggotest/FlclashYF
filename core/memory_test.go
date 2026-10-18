@@ -45,6 +45,22 @@ func TestMemoryInfoPartitionsSys(t *testing.T) {
 	}
 }
 
+func TestMemoryFootprintIsIndependentOfGoPartition(t *testing.T) {
+	info := memoryInfoFromStats(runtime.MemStats{Sys: 4096, HeapReleased: 1024})
+	info.Footprint = 8192
+	data, err := json.Marshal(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload["footprint"] != float64(8192) || payload["sys"] != float64(4096) || payload["heapReleased"] != float64(1024) || payload["buildVariant"] != coreBuildVariant {
+		t.Fatalf("footprint must not replace the Go partition or build variant: %s", data)
+	}
+}
+
 func TestGetMemoryReturnsConsistentSnapshot(t *testing.T) {
 	info := handleGetMemory()
 	sum := info.HeapObjects + info.HeapUnused + info.HeapIdle + info.HeapReleased + info.Stacks + info.Metadata + info.GC + info.Other

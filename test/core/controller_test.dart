@@ -159,6 +159,39 @@ void main() {
   });
 
   group('proxy methods', () {
+    test('group sorting owns delay values before awaiting the core', () async {
+      final response = Completer<ProxiesData>();
+      when(() => mock.getProxies()).thenAnswer((_) => response.future);
+      final delays = <String, Map<String, int>>{
+        'https://test.example': {'A': 10, 'B': 100},
+      };
+      final groups = controller.getProxiesGroups(
+        sortType: ProxiesSortType.delay,
+        delayMap: delays,
+        selectedMap: {},
+        defaultTestUrl: 'https://test.example',
+      );
+      // Upstream publishes a live view. A later batch must not change a
+      // sorting request already admitted for an earlier UI snapshot.
+      delays['https://test.example']!['A'] = 200;
+      response.complete(
+        const ProxiesData(
+          all: ['Group'],
+          proxies: {
+            'Group': {
+              'name': 'Group',
+              'type': 'Selector',
+              'all': ['A', 'B'],
+              'now': 'A',
+            },
+            'A': {'name': 'A', 'type': 'Direct'},
+            'B': {'name': 'B', 'type': 'Direct'},
+          },
+        ),
+      );
+      expect((await groups).single.all.map((proxy) => proxy.name), ['A', 'B']);
+    });
+
     test('changeProxy delegates to interface', () async {
       const params = ChangeProxyParams(groupName: 'G1', proxyName: 'P1');
       when(

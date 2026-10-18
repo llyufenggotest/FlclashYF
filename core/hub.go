@@ -1149,7 +1149,9 @@ func cacheDnsQuery(query DnsQuery) {
 func handleGetMemory() MemoryInfo {
 	var stats runtime.MemStats
 	runtime.ReadMemStats(&stats)
-	return memoryInfoFromStats(stats)
+	info := memoryInfoFromStats(stats)
+	info.Footprint = memoryFootprint()
+	return info
 }
 
 func handleGetGoroutineCount() int {

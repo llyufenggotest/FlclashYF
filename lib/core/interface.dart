@@ -86,6 +86,8 @@ mixin CoreInterface {
 
   FutureOr<int> getGoroutineCount();
 
+  FutureOr<String> getCoreVersion();
+
   FutureOr<void> resetTraffic();
 
   FutureOr<List<Log>> startLogNotify();
@@ -656,5 +658,10 @@ abstract class CoreHandlerInterface with CoreInterface {
   @override
   Future<int> getGoroutineCount() async {
     return await _invokeMethod<int>(method: CoreMethod.getGoroutineCount) ?? 0;
+  }
+
+  @override
+  Future<String> getCoreVersion() async {
+    return await _invokeMethod<String>(method: CoreMethod.getCoreVersion) ?? '';
   }
 }

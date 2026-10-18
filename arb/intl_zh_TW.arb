@@ -918,6 +918,8 @@
   "unsupportedProfileFileType": "不支援的設定檔類型",
   "useGlobalTemplate": "使用全域設定範本",
   "useGlobalTemplateDesc": "開啟後，完整 YAML 也只提取節點並套用全域範本；不完整 YAML 和節點連結一律套用範本，之後仍執行覆寫。遠端更新沿用此設定。關閉不會還原已轉換的檔案，請重新下載或匯入原始設定。",
+  "memoryFootprint": "處理程序實體記憶體用量",
+  "memoryApp": "應用程式記憶體",
   "rulesDesc": "檢視規則及匹配統計",
   "ruleEnabled": "已啟用",
   "ruleDisabled": "已停用",

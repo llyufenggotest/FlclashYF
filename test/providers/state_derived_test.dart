@@ -24,7 +24,10 @@ void main() {
     navigationPort = navigation;
     addTearDown(() => navigationPort = null);
     container = ProviderContainer(
-      overrides: [profilesProvider.overrideWith(TestProfiles.new)],
+      overrides: [
+        profilesProvider.overrideWith(TestProfiles.new),
+        providersProvider.overrideWithBuild((_, _) => []),
+      ],
     );
   });
 

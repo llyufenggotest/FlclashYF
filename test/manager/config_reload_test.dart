@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:drift/native.dart';
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/database/database.dart' as db;
@@ -12,6 +15,21 @@ import 'package:material_ui/material_ui.dart';
 
 import '../helpers/test_app.dart';
 import '../helpers/test_profiles.dart';
+
+class _TestPathProvider extends PathProviderPlatform {
+  _TestPathProvider(this.root);
+
+  final String root;
+
+  @override
+  Future<String?> getApplicationSupportPath() async => root;
+
+  @override
+  Future<String?> getTemporaryPath() async => root;
+
+  @override
+  Future<String?> getApplicationCachePath() async => root;
+}
 
 class _Setup extends SetupAction {
   int reloads = 0;
@@ -39,6 +57,16 @@ void main() {
   late db.Database database;
   late ProviderContainer container;
   late _Setup setup;
+
+  setUpAll(() {
+    final previous = PathProviderPlatform.instance;
+    final directory = Directory.systemTemp.createTempSync('config_reload_test');
+    PathProviderPlatform.instance = _TestPathProvider(directory.path);
+    addTearDown(() {
+      PathProviderPlatform.instance = previous;
+      directory.deleteSync(recursive: true);
+    });
+  });
 
   setUp(() {
     database = db.Database(NativeDatabase.memory());
