@@ -67,6 +67,15 @@ class RestartContracts(unittest.TestCase):
                 result = gate.run_phase(Path(directory), 'swiftc', baseline)
         return result, commands
 
+    def test_fixture_actor_helpers_match_production_isolation(self):
+        fixture = (ROOT / 'scripts/fixtures/ios_restart_main.swift').read_text()
+        # Nested functions do not inherit the enclosing Task's MainActor.
+        for name in ('pause', 'until', 'post', 'connected', 'restart'):
+            self.assertRegex(fixture, r'@MainActor\s+func ' + name + r'\(')
+        self.assertNotIn('@preconcurrency', fixture)
+        self.assertNotIn('nonisolated(unsafe)', fixture)
+        self.assertNotIn('assumeIsolated', fixture)
+
     def test_compiler_failure_is_not_red(self):
         result, commands = self.phase(True, compiler=1)
         self.assertEqual(3, result)

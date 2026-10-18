@@ -64,23 +64,23 @@ Task { @MainActor in
     onTunnelStateChanged: { tunnelStates.append($0) },
     onConnectionStateChanged: { connectionStates.append($0) },
     onExternalStart: { externalStarts += 1 }, onExternalStop: {})
-  func pause(_ seconds: Double = 0.08) async {
+  @MainActor func pause(_ seconds: Double = 0.08) async {
     try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
   }
-  func until(_ message: String, _ predicate: () -> Bool) async {
+  @MainActor func until(_ message: String, _ predicate: () -> Bool) async {
     let deadline = Date().addingTimeInterval(2)
     while !predicate() && Date() < deadline { await pause(0.01) }
     check(predicate(), message)
   }
-  func post(_ c: NEVPNConnection) {
+  @MainActor func post(_ c: NEVPNConnection) {
     coordinator.handleTunnelStatusNotification(Notification(name: Notification.Name("test.status"), object: c))
   }
-  func connected() async {
+  @MainActor func connected() async {
     m.connection.status = .connected; post(m.connection)
     await until("start did not settle") { connectionStates.last == "connected" }
     await pause()
   }
-  func restart() {
+  @MainActor func restart() {
     coordinator.submitTunnelRequest(target: .stopped)
     coordinator.submitTunnelRequest(target: .running)
   }
