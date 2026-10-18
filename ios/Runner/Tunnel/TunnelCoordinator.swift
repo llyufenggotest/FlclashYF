@@ -26,6 +26,10 @@ final class TunnelCoordinator {
   // A start that supersedes a stop before it stopped anything must still
   // cycle the tunnel, or a restart meant to apply new options is lost.
   private var restartOwed = false
+  // A failed restart must not publish the unchanged old connection as success.
+  // Keep the observed NE status intact; retire this failure on a new request
+  // or a real status transition, not on a refresh of the same connected tunnel.
+  private var failedRestartGeneration: UInt64?
 
   private var configurationContinuations: [CheckedContinuation<Void, Error>] = []
   private var needsStatusRefresh = false
@@ -66,6 +70,7 @@ final class TunnelCoordinator {
       restartOwed = true
     }
     requestGeneration &+= 1
+    failedRestartGeneration = nil
     let request = TunnelRequest(
       generation: requestGeneration,
       target: target,
@@ -111,6 +116,8 @@ final class TunnelCoordinator {
     let state: String
     if tunnelRequest != nil {
       state = "pending"
+    } else if failedRestartGeneration == requestGeneration {
+      state = "disconnected"
     } else {
       switch observedTunnelStatus {
       case .connected:
@@ -393,10 +400,21 @@ final class TunnelCoordinator {
       request: request,
       purpose: .stopping
     )
-    guard isCurrent(request), case .status = result else {
+    guard isCurrent(request) else {
       return false
     }
-    return true
+    switch result {
+    case .status:
+      return true
+    case .timeout:
+      // Retire this request instead of letting runCoordinator reuse the old
+      // connected tunnel as a successful restart. Never retry the stop here.
+      failedRestartGeneration = request.generation
+      finishTunnelRequest(request, actualState: .stopped)
+      return false
+    case .superseded:
+      return false
+    }
   }
 
   private func reconcileStoppedTunnel(
@@ -644,6 +662,7 @@ final class TunnelCoordinator {
       )
       if notifyExternal,
         generation == requestGeneration,
+        failedRestartGeneration != requestGeneration,
         tunnelRequest == nil,
         let state = status.tunnelState
       {
@@ -663,6 +682,7 @@ final class TunnelCoordinator {
     observedTunnelStatus = status
     defer { publishConnectionState() }
     if previousStatus != status {
+      failedRestartGeneration = nil
       log(
         "status changed \(statusDescription(previousStatus ?? .invalid)) -> \(statusDescription(status)) target=\(tunnelRequest?.target.description ?? "none")"
       )
@@ -673,6 +693,7 @@ final class TunnelCoordinator {
       return
     }
     guard tunnelRequest == nil,
+      failedRestartGeneration != requestGeneration,
       let stableState = status.tunnelState
     else {
       return

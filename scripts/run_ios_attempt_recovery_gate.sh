@@ -3,6 +3,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 command -v swiftc
+# Production restart behavior: immutable 5cad semantic RED before candidate GREEN.
+python3 scripts/test_ios_restart_gate.py
+python3 scripts/test_ios_restart_swift.py
 python3 scripts/test_ios_attempt_recovery.py
 python3 scripts/test_ios_attempt_fixes.py
 python3 scripts/test_ios_attempt_fixes_swift.py --baseline --require-swift
