@@ -7,6 +7,7 @@ import cc.chenx.flclash.service.models.AccessControlProps
 import cc.chenx.flclash.service.models.NotificationParams
 import cc.chenx.flclash.service.models.VpnOptions
 import com.google.gson.Gson
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
@@ -103,6 +104,7 @@ private class FakeHost(override val scope: CoroutineScope) : ServiceStateHost {
     var app: AppGateway? = null
     var duringSetup: (suspend () -> Unit)? = null
     var beforeStartService: (() -> Unit)? = null
+    var duringStopService: (suspend () -> Unit)? = null
 
     override var runtime: ServiceRuntime? = null
     override val homeDirPath = "/data/user/0/cc.chenx.flclash/files"
@@ -174,6 +176,7 @@ private class FakeHost(override val scope: CoroutineScope) : ServiceStateHost {
 
     override suspend fun stopService() {
         stopCalls++
+        duringStopService?.invoke()
         runtime = null
     }
 }
@@ -469,6 +472,69 @@ class ServiceStateMachineTest {
         assertEquals(2, host.startCalls)
         assertEquals("mixed", host.runtime?.options?.stack)
         assertEquals(RunState.STARTED, machine.runState.value)
+    }
+
+    @Test
+    fun `a newer restart during the stop barrier keeps the newest options`() = runTest {
+        val host = FakeHost(backgroundScope)
+        val machine = ServiceStateMachine(host)
+        machine.syncSharedState(configuredState())
+        assertTrue(machine.requestStart().await())
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        host.duringStopService = { entered.complete(Unit); release.await() }
+        machine.syncSharedState(configuredState(stack = "mixed"))
+        val stopA = machine.requestStop()
+        val startA = machine.requestStart()
+        entered.await()
+
+        machine.syncSharedState(configuredState(stack = "system"))
+        val stopB = machine.requestStop()
+        val startB = machine.requestStart()
+        release.complete(Unit)
+
+        assertFalse(stopA.await())
+        assertFalse(startA.await())
+        assertFalse(stopB.await())
+        assertTrue(startB.await())
+        testScheduler.runCurrent()
+        assertEquals("system", host.runtime?.requested?.stack)
+        assertEquals("system", host.runtime?.options?.stack)
+        assertEquals(2, host.startCalls)
+        assertEquals(1, host.stopCalls)
+        assertEquals(RunState.STARTED, machine.runState.value)
+        val token = machine.captureRequestToken()
+        assertTrue(machine.requestStart().await())
+        assertTrue(machine.captureRequestToken() === token)
+        testScheduler.runCurrent()
+        assertEquals(2, host.startCalls)
+        assertEquals(1, host.stopCalls)
+    }
+
+    @Test
+    fun `a terminal third stop during the restart barrier never dispatches the stale start`() = runTest {
+        val host = FakeHost(backgroundScope)
+        val machine = ServiceStateMachine(host)
+        machine.syncSharedState(configuredState())
+        assertTrue(machine.requestStart().await())
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        host.duringStopService = { entered.complete(Unit); release.await() }
+        val stopA = machine.requestStop()
+        val startA = machine.requestStart()
+        entered.await()
+
+        val finalStop = machine.requestStop()
+        release.complete(Unit)
+
+        assertFalse(stopA.await())
+        assertFalse(startA.await())
+        assertTrue(finalStop.await())
+        testScheduler.runCurrent()
+        assertEquals(1, host.startCalls)
+        assertEquals(null, host.runtime)
+        assertFalse(machine.isRunRequested)
+        assertEquals(RunState.STOPPED, machine.runState.value)
     }
 
     @Test

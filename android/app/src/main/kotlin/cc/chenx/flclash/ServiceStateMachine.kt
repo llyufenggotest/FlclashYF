@@ -266,6 +266,11 @@ internal class ServiceStateMachine(private val host: ServiceStateHost) {
                     if (restartOwed && host.runtime != null) {
                         stopLocked()
                     }
+                    // Stop may suspend while a newer request takes ownership, even under this lock.
+                    // Leave its restart debt intact and never start this request's retired options.
+                    if (!isCurrent(request)) {
+                        return@withLock false
+                    }
                     restartOwed = false
                     transitioning(RunState.STARTING) {
                         host.startService(withLocalNetworkFallback(options), options) &&
