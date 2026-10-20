@@ -19,11 +19,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Baseline power observation only
-        run: python3 scripts/run_ios_power_gate.py --observe-only --output "$RUNNER_TEMP/power-evidence/power"
-      - name: Baseline count observation only
+      - name: P02 baseline RED then candidate GREEN
+        run: python3 scripts/run_ios_power_gate.py --case p02 --output "$RUNNER_TEMP/power-evidence/power"
+      - name: Baseline count RED then candidate GREEN
         if: always()
-        run: python3 scripts/run_ios_power_gate.py --count-only --observe-only --output "$RUNNER_TEMP/power-evidence/count"
+        run: python3 scripts/run_ios_power_gate.py --count-only --output "$RUNNER_TEMP/power-evidence/count"
       - name: Preserve native proof including compiler failures
         if: always()
         uses: actions/upload-artifact@v4
