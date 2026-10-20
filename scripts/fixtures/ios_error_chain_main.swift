@@ -78,17 +78,36 @@ Task { @MainActor in
   let controller = TunnelController(sharedStateStore:runnerStore,onTunnelStateChanged:{ _ in },onConnectionStateChanged:{ _ in },onExternalStart:{},onExternalStop:{})
   let router = CoreMessageRouter(tunnelController:controller)
   let attempt = UUID()
+  let wire = caseName == "mailbox-success" ? success : failure
   var invokes = 0
   let server = PacketTunnelCommandServer(sharedStateStore:neStore) { bytes, cb in
     check(bytes == request, "mailbox_request_changed")
-    invokes += 1; cb(failure)
+    invokes += 1; cb(wire)
   }
   check(server.start(attempt:attempt), "server_start")
   IOSCoreBridge.testReply = String(decoding:failure,as:UTF8.self)
   router.updateTunnelState(caseName == "app-error" ? .stopped : .running)
+  // Expire the route-change detail window without substituting route behavior.
+  SwitchDiagnostics.setTestDirectory(fixtureRoot, bundleIdentifier: "audit.error.NECore")
+  try? FileManager.default.removeItem(at:fixtureRoot.appendingPathComponent("ios-switch-NECore.log"))
   PowerProbe.reset()
   let response = await router.invoke(request)
-  check(Data(response.utf8) == failure, "route_wire_changed")
+  check(Data(response.utf8) == wire, "route_wire_changed")
+  if caseName == "mailbox-success" {
+    // Successful real chain must decode only once per process, not each stage,
+    // and must still aggregate after the routine window, preserving all counts.
+    try? await Task.sleep(nanoseconds:1_500_000_000)
+    let logged = rows()
+    let stages = ["core_request_begin","core_request_reply","provider_request_begin","provider_request_send","provider_request_reply","rpc_received","rpc_reply"]
+    for stage in stages {
+      let total = logged.reduce(0) { $0 + (($1["counts"] as? [String:Int])?[stage] ?? 0) }
+      check(total == 1, "success_stage_accounting_\(stage)")
+    }
+    check(PowerProbe.decodes == 2, "success_one_decode_per_process_not_stage")
+    check(IOSCoreBridge.testCalls == 0 && invokes == 1, "success_route_unchanged")
+    server.stop()
+    finish(["rows":logged,"decodes":PowerProbe.decodes,"wire_success_preserved":true])
+  }
   await pause()
   let logged = rows()
   let expectedEvents = caseName == "app-error" ? ["core_request_reply"] : ["rpc_reply","provider_request_reply","core_request_reply"]
