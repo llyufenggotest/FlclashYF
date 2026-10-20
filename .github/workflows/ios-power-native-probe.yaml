@@ -19,6 +19,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Observe business error detail semantic RED before repair
+        run: python3 scripts/run_ios_error_envelope_gate.py --observe-only --output "$RUNNER_TEMP/power-evidence/error-envelope"
       - name: Full baseline RED then candidate GREEN
         run: python3 scripts/run_ios_power_gate.py --output "$RUNNER_TEMP/power-evidence/power"
       - name: Baseline count RED then candidate GREEN
