@@ -218,6 +218,7 @@ const (
 	getNodeTrafficMethod                 CoreMethod = "getNodeTraffic"
 	resetTrafficMethod                   CoreMethod = "resetTraffic"
 	asyncTestDelayMethod                 CoreMethod = "asyncTestDelay"
+	getConnectionsCountMethod            CoreMethod = "getConnectionsCount"
 	getConnectionsMethod                 CoreMethod = "getConnections"
 	closeConnectionsMethod               CoreMethod = "closeConnections"
 	resetConnectionsMethod               CoreMethod = "resetConnections"

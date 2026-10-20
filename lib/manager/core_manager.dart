@@ -24,6 +24,37 @@ class CoreManager extends ConsumerStatefulWidget {
 class _CoreContainerState extends ConsumerState<CoreManager>
     with CoreEventListener {
   LoadedProviderRecovery? _recovery;
+  bool _inBatch = false;
+  final _batchLogs = <Log>[];
+  final _batchRequests = <TrackerInfo>[];
+  final _batchDns = <DnsQuery>[];
+
+  @override
+  void onBatchStart() {
+    _inBatch = true;
+  }
+
+  @override
+  void onBatchEnd() {
+    _inBatch = false;
+    try {
+      if (mounted) {
+        if (_batchLogs.isNotEmpty) {
+          ref.read(logsProvider.notifier).addLogs(_batchLogs);
+        }
+        if (_batchRequests.isNotEmpty) {
+          ref.read(requestsProvider.notifier).addRequests(_batchRequests);
+        }
+        if (_batchDns.isNotEmpty) {
+          ref.read(dnsQueriesProvider.notifier).addQueries(_batchDns);
+        }
+      }
+    } finally {
+      _batchLogs.clear();
+      _batchRequests.clear();
+      _batchDns.clear();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +138,11 @@ class _CoreContainerState extends ConsumerState<CoreManager>
 
   @override
   void onLog(Log log) {
-    ref.read(logsProvider.notifier).add(log);
+    if (_inBatch) {
+      _batchLogs.add(log);
+    } else {
+      ref.read(logsProvider.notifier).add(log);
+    }
     if (log.logLevel == LogLevel.error) {
       throttler.call(
         FunctionTag.coreErrorNotifier,
@@ -120,14 +155,22 @@ class _CoreContainerState extends ConsumerState<CoreManager>
   }
 
   @override
-  void onRequest(TrackerInfo trackerInfo) async {
-    ref.read(requestsProvider.notifier).addRequest(trackerInfo);
+  void onRequest(TrackerInfo trackerInfo) {
+    if (_inBatch) {
+      _batchRequests.add(trackerInfo);
+    } else {
+      ref.read(requestsProvider.notifier).addRequest(trackerInfo);
+    }
     super.onRequest(trackerInfo);
   }
 
   @override
   void onDns(DnsQuery dnsQuery) {
-    ref.read(dnsQueriesProvider.notifier).addQuery(dnsQuery);
+    if (_inBatch) {
+      _batchDns.add(dnsQuery);
+    } else {
+      ref.read(dnsQueriesProvider.notifier).addQuery(dnsQuery);
+    }
     super.onDns(dnsQuery);
   }
 

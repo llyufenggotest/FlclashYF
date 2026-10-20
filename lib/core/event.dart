@@ -27,6 +27,10 @@ List<CoreEvent> coreEventsFromData(Object? data) {
 }
 
 abstract mixin class CoreEventListener {
+  void onBatchStart() {}
+
+  void onBatchEnd() {}
+
   void onLog(Log log) {}
 
   void onDelay(Delay delay) {}
@@ -48,46 +52,70 @@ abstract mixin class CoreEventListener {
 }
 
 class CoreEventManager {
-  final _controller = StreamController<CoreEvent>();
+  final _controller = StreamController<List<CoreEvent>>();
 
   CoreEventManager._() {
-    _controller.stream.listen((event) {
-      for (final CoreEventListener listener in List.of(_listeners)) {
+    _controller.stream.listen((events) {
+      final listeners = List.of(_listeners);
+      for (final listener in listeners) {
         try {
-          switch (event.type) {
-            case CoreEventType.log:
-              listener.onLog(
-                Log.fromJson(event.data).copyWith(source: LogSource.core),
-              );
-              break;
-            case CoreEventType.delay:
-              listener.onDelay(Delay.fromJson(event.data));
-              break;
-            case CoreEventType.request:
-              listener.onRequest(TrackerInfo.fromJson(event.data));
-              break;
-            case CoreEventType.dns:
-              listener.onDns(DnsQuery.fromJson(event.data));
-              break;
-            case CoreEventType.loaded:
-              listener.onLoaded(event.data);
-              break;
-            case CoreEventType.crash:
-              listener.onCrash(event.data);
-              break;
-            case CoreEventType.geoUpdate:
-              final data = event.data as Map<String, dynamic>;
-              listener.onGeoUpdate(
-                data['type'] as String,
-                data['updating'] as bool,
-                data['skipped'] as bool? ?? false,
-                data['error'] as String?,
-              );
-              break;
-          }
+          listener.onBatchStart();
         } catch (error) {
           commonPrint.log(
-            'Unable to dispatch Core event ${event.type.name}: $error',
+            'Unable to begin Core event batch: $error',
+            logLevel: LogLevel.error,
+          );
+        }
+      }
+      for (final event in events) {
+        for (final CoreEventListener listener in List.of(_listeners)) {
+          try {
+            switch (event.type) {
+              case CoreEventType.log:
+                listener.onLog(
+                  Log.fromJson(event.data).copyWith(source: LogSource.core),
+                );
+                break;
+              case CoreEventType.delay:
+                listener.onDelay(Delay.fromJson(event.data));
+                break;
+              case CoreEventType.request:
+                listener.onRequest(TrackerInfo.fromJson(event.data));
+                break;
+              case CoreEventType.dns:
+                listener.onDns(DnsQuery.fromJson(event.data));
+                break;
+              case CoreEventType.loaded:
+                listener.onLoaded(event.data);
+                break;
+              case CoreEventType.crash:
+                listener.onCrash(event.data);
+                break;
+              case CoreEventType.geoUpdate:
+                final data = event.data as Map<String, dynamic>;
+                listener.onGeoUpdate(
+                  data['type'] as String,
+                  data['updating'] as bool,
+                  data['skipped'] as bool? ?? false,
+                  data['error'] as String?,
+                );
+                break;
+            }
+          } catch (error) {
+            commonPrint.log(
+              'Unable to dispatch Core event ${event.type.name}: $error',
+              logLevel: LogLevel.error,
+            );
+          }
+        }
+      }
+      for (final listener in listeners) {
+        if (!_listeners.contains(listener)) continue;
+        try {
+          listener.onBatchEnd();
+        } catch (error) {
+          commonPrint.log(
+            'Unable to publish Core event batch: $error',
             logLevel: LogLevel.error,
           );
         }
@@ -105,7 +133,17 @@ class CoreEventManager {
   }
 
   void sendEvent(CoreEvent event) {
-    _controller.add(event);
+    sendEvents([event]);
+  }
+
+  // Bound provider work per chunk without delaying, sampling, or dropping events.
+  static const maxBatchEvents = 256;
+
+  void sendEvents(List<CoreEvent> events) {
+    for (var start = 0; start < events.length; start += maxBatchEvents) {
+      final end = (start + maxBatchEvents).clamp(0, events.length);
+      _controller.add(List.unmodifiable(events.sublist(start, end)));
+    }
   }
 
   void addListener(CoreEventListener listener) {

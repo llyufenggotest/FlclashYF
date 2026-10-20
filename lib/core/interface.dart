@@ -110,6 +110,8 @@ mixin CoreInterface {
 
   FutureOr<List<TrackerInfo>> getConnections();
 
+  FutureOr<int> getConnectionsCount();
+
   FutureOr<bool> closeConnection(String id);
 
   Future<List<CoreRule>> getRules();
@@ -425,6 +427,12 @@ abstract class CoreHandlerInterface with CoreInterface {
       method: CoreMethod.updateExternalProvider,
       arguments: providerName,
     );
+  }
+
+  @override
+  Future<int> getConnectionsCount() async {
+    return await _invokeMethod<int>(method: CoreMethod.getConnectionsCount) ??
+        0;
   }
 
   @override

@@ -10,6 +10,19 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 abstract mixin class ServiceListener {
+  void onServiceEvents(List<CoreEvent> events) {
+    for (final event in events) {
+      try {
+        onServiceEvent(event);
+      } catch (error) {
+        commonPrint.log(
+          'Unable to dispatch Core event ${event.type.name}: $error',
+          logLevel: LogLevel.error,
+        );
+      }
+    }
+  }
+
   void onServiceEvent(CoreEvent event) {}
 
   void onServiceStopped() {}
@@ -49,12 +62,11 @@ class Service {
           final methodCall = CoreMethodCall.fromJson(
             Map<String, Object?>.from(json.decode(data) as Map),
           );
-          for (final event in coreEventsFromData(methodCall.arguments)) {
-            _dispatch(
-              'Core event ${event.type.name}',
-              (listener) => listener.onServiceEvent(event),
-            );
-          }
+          final events = coreEventsFromData(methodCall.arguments);
+          _dispatch(
+            'Core event batch',
+            (listener) => listener.onServiceEvents(events),
+          );
           break;
         case 'stopped':
           // Native's received-command count; an older report is stale.

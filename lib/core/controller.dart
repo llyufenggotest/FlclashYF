@@ -25,6 +25,19 @@ Future<void> consumeNotificationFailure(
   }
 }
 
+/// Detached stop calls have no caller to receive unexpected failures. Preserve a
+/// diagnostic without allowing a rejected stop future to escape the UI zone.
+Future<void> _stopNotificationSafely(FutureOr<void> Function() action) async {
+  try {
+    await consumeNotificationFailure(action);
+  } catch (_) {
+    commonPrint.log(
+      'Unable to stop Core notification subscription',
+      logLevel: LogLevel.warning,
+    );
+  }
+}
+
 class CoreController {
   static CoreController? _instance;
   late CoreHandlerInterface _interface;
@@ -207,6 +220,10 @@ class CoreController {
     );
   }
 
+  Future<int> getConnectionsCount() async {
+    return _interface.getConnectionsCount();
+  }
+
   Future<List<TrackerInfo>> getConnections() async {
     return _interface.getConnections();
   }
@@ -334,7 +351,7 @@ class CoreController {
   }
 
   void stopLogNotify() {
-    unawaited(consumeNotificationFailure(_interface.stopLogNotify));
+    unawaited(_stopNotificationSafely(_interface.stopLogNotify));
   }
 
   Future<List<TrackerInfo>> startRequestNotify() async {
@@ -342,7 +359,7 @@ class CoreController {
   }
 
   void stopRequestNotify() {
-    unawaited(consumeNotificationFailure(_interface.stopRequestNotify));
+    unawaited(_stopNotificationSafely(_interface.stopRequestNotify));
   }
 
   Future<List<DnsQuery>> startDnsNotify() async {
@@ -350,7 +367,7 @@ class CoreController {
   }
 
   void stopDnsNotify() {
-    unawaited(consumeNotificationFailure(_interface.stopDnsNotify));
+    unawaited(_stopNotificationSafely(_interface.stopDnsNotify));
   }
 
   Future<DnsQuery> queryDns(String domain, String type) {

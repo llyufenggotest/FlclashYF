@@ -53,7 +53,7 @@ class _ConnectionInfoState extends ConsumerState<ConnectionInfo>
         return await connectionCountReader();
       }
       final connected = ref.read(coreStatusProvider) == CoreStatus.connected;
-      return connected ? (await _core.getConnections()).length : null;
+      return connected ? await _core.getConnectionsCount() : null;
     } catch (error) {
       commonPrint.log(
         'updateConnectionCount error: $error',

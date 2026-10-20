@@ -3,6 +3,15 @@ import 'package:fl_clash/enum/enum.dart';
 import 'package:fl_clash/models/models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+class _BrokenBatchListener with CoreEventListener {
+  @override
+  void onBatchStart() => throw StateError('batch start');
+  @override
+  void onBatchEnd() => throw StateError('batch end');
+  @override
+  void onLog(Log log) => throw StateError('log dispatch');
+}
+
 class _RecordingListener with CoreEventListener {
   _RecordingListener({this.onLoadedCallback});
 
@@ -23,6 +32,33 @@ class _RecordingListener with CoreEventListener {
 }
 
 void main() {
+  test(
+    'batch listener failures and malformed models do not drop later events',
+    () async {
+      final broken = _BrokenBatchListener();
+      final good = _RecordingListener();
+      coreEventManager.addListener(broken);
+      coreEventManager.addListener(good);
+      addTearDown(() {
+        coreEventManager.removeListener(broken);
+        coreEventManager.removeListener(good);
+      });
+      coreEventManager.sendEvents(const [
+        CoreEvent(
+          type: CoreEventType.log,
+          data: {'LogLevel': 'info', 'Payload': 'before'},
+        ),
+        CoreEvent(type: CoreEventType.request, data: {'metadata': 42}),
+        CoreEvent(
+          type: CoreEventType.log,
+          data: {'LogLevel': 'error', 'Payload': 'after'},
+        ),
+      ]);
+      await pumpEventQueue();
+      expect(good.logs.map((l) => l.payload), ['before', 'after']);
+    },
+  );
+
   test('live Core logs carry the Core source', () async {
     final listener = _RecordingListener();
     coreEventManager.addListener(listener);

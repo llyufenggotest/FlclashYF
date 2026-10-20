@@ -121,9 +121,11 @@ func handleGetIsInit() bool {
 func handleForceGC() {
 	log.Infoln("[APP] request force GC")
 	tunnel.InvalidateAllProxies()
-	runtime.GC()
 	if features.Android || features.IOS {
+		// FreeOSMemory already forces a GC before returning unused pages to the OS.
 		debug.FreeOSMemory()
+	} else {
+		runtime.GC()
 	}
 }
 
@@ -405,6 +407,18 @@ func handleTestDelay(params *TestDelayParams) *Delay {
 
 	delayData.Value = delayValue(delay)
 	return delayData
+}
+
+func handleGetConnectionsCount() int {
+	// Count the same live manager entries as Snapshot, without calling Info or
+	// allocating per-connection models. Range has the same concurrent-view
+	// semantics as the existing snapshot and close-all paths.
+	count := 0
+	statistic.DefaultManager.Range(func(_ statistic.Tracker) bool {
+		count++
+		return true
+	})
+	return count
 }
 
 func handleGetConnections() *statistic.Snapshot {

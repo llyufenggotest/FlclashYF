@@ -229,6 +229,9 @@ var methodHandlers = map[CoreMethod]methodHandler{
 			response.success(handleTestDelay(params))
 		})
 	}),
+	getConnectionsCountMethod: withoutArguments(func(response MethodResponse) {
+		response.success(handleGetConnectionsCount())
+	}),
 	getConnectionsMethod: withoutArguments(func(response MethodResponse) {
 		response.success(handleGetConnections())
 	}),

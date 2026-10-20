@@ -68,6 +68,11 @@ class _MobileManagerState extends ConsumerState<MobileManager>
   }
 
   @override
+  void onServiceEvents(List<CoreEvent> events) {
+    coreEventManager.sendEvents(events);
+  }
+
+  @override
   void onServiceEvent(CoreEvent event) {
     coreEventManager.sendEvent(event);
     super.onServiceEvent(event);

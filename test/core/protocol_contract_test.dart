@@ -47,6 +47,7 @@ class _RecordingCoreHandler extends CoreHandlerInterface {
         'url': 'https://example.com',
         'value': 42,
       },
+      CoreMethod.getConnectionsCount => 1,
       CoreMethod.getConnections => {
         'connections': [
           {
@@ -351,6 +352,7 @@ void main() {
       NodeTraffic(name: 'node', provider: 'other', up: 56, down: 78),
     ]);
     expect(handler.calls, containsPair(CoreMethod.getNodeTraffic, null));
+    expect(await handler.getConnectionsCount(), 1);
     expect((await handler.getConnections()).single.id, 'connection-1');
     expect((await handler.getExternalProviders()).single.name, 'provider-1');
     expect(

@@ -31,6 +31,15 @@ class _RequestsViewState extends ConsumerState<RequestsView> {
   late TrackerInfoFilter _trackerFilter = widget.initialFilter;
   late bool _showFilterBar = widget.initialFilter.isNotEmpty;
   bool _requestListening = false;
+  bool _pageActive = false;
+  int _listenGeneration = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _pageActive = PageActivityScope.isActiveOf(context);
+    _syncListening();
+  }
 
   void _setTrackerFilter(TrackerInfoFilter filter) {
     setState(() {
@@ -77,7 +86,8 @@ class _RequestsViewState extends ConsumerState<RequestsView> {
   }
 
   void _syncListening() {
-    if (globalState.isBackground.value ||
+    if (!_pageActive ||
+        globalState.isBackground.value ||
         ref.read(coreStatusProvider) != CoreStatus.connected) {
       _stopListening();
       return;
@@ -88,10 +98,15 @@ class _RequestsViewState extends ConsumerState<RequestsView> {
   void _startListening() {
     if (_requestListening) return;
     _requestListening = true;
+    final generation = ++_listenGeneration;
     unawaited(
       consumeNotificationFailure(
         () => _core.startRequestNotify().then((requests) {
-          if (!mounted || !_requestListening) return;
+          if (!mounted ||
+              !_requestListening ||
+              generation != _listenGeneration) {
+            return;
+          }
           ref.read(requestsProvider.notifier).addRequests(requests);
         }),
       ),
@@ -101,6 +116,7 @@ class _RequestsViewState extends ConsumerState<RequestsView> {
   void _stopListening() {
     if (!_requestListening) return;
     _requestListening = false;
+    _listenGeneration++;
     _core.stopRequestNotify();
   }
 

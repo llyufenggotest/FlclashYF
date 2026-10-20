@@ -62,6 +62,15 @@ class _DnsQueriesViewState extends ConsumerState<DnsQueriesView> {
   DnsQueryFilter _filter = const DnsQueryFilter();
   bool _showFilterBar = false;
   bool _listening = false;
+  bool _pageActive = false;
+  int _listenGeneration = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _pageActive = PageActivityScope.isActiveOf(context);
+    _syncListening();
+  }
 
   void _setFilter(DnsQueryFilter filter) {
     setState(() {
@@ -108,7 +117,8 @@ class _DnsQueriesViewState extends ConsumerState<DnsQueriesView> {
   }
 
   void _syncListening() {
-    if (globalState.isBackground.value ||
+    if (!_pageActive ||
+        globalState.isBackground.value ||
         ref.read(coreStatusProvider) != CoreStatus.connected) {
       _stopListening();
       return;
@@ -119,10 +129,13 @@ class _DnsQueriesViewState extends ConsumerState<DnsQueriesView> {
   void _startListening() {
     if (_listening) return;
     _listening = true;
+    final generation = ++_listenGeneration;
     unawaited(
       consumeNotificationFailure(
         () => _core.startDnsNotify().then((queries) {
-          if (!mounted || !_listening) return;
+          if (!mounted || !_listening || generation != _listenGeneration) {
+            return;
+          }
           ref.read(dnsQueriesProvider.notifier).addQueries(queries);
         }),
       ),
@@ -132,6 +145,7 @@ class _DnsQueriesViewState extends ConsumerState<DnsQueriesView> {
   void _stopListening() {
     if (!_listening) return;
     _listening = false;
+    _listenGeneration++;
     _core.stopDnsNotify();
   }
 

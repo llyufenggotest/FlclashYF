@@ -71,6 +71,15 @@ class _LogsViewState extends ConsumerState<LogsView> {
   late final ScrollController _scrollController;
   late final CoreController _core;
   bool _logListening = false;
+  bool _pageActive = false;
+  int _listenGeneration = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _pageActive = PageActivityScope.isActiveOf(context);
+    _syncListening();
+  }
 
   @override
   void initState() {
@@ -124,7 +133,8 @@ class _LogsViewState extends ConsumerState<LogsView> {
   }
 
   void _syncListening() {
-    if (globalState.isBackground.value ||
+    if (!_pageActive ||
+        globalState.isBackground.value ||
         ref.read(coreStatusProvider) != CoreStatus.connected) {
       _stopListening();
       return;
@@ -135,12 +145,14 @@ class _LogsViewState extends ConsumerState<LogsView> {
   void _startListening() {
     if (_logListening) return;
     _logListening = true;
+    final generation = ++_listenGeneration;
     final revision = ref.read(logsProvider).revision;
     unawaited(
       consumeNotificationFailure(
         () => _core.startLogNotify().then((logs) {
           if (!mounted ||
               !_logListening ||
+              generation != _listenGeneration ||
               ref.read(logsProvider).revision != revision) {
             return;
           }
@@ -159,6 +171,7 @@ class _LogsViewState extends ConsumerState<LogsView> {
   void _stopListening() {
     if (!_logListening) return;
     _logListening = false;
+    _listenGeneration++;
     _core.stopLogNotify();
   }
 
