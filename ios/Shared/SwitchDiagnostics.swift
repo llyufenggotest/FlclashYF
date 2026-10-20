@@ -58,7 +58,8 @@ final class SwitchDiagnostics: NSObject {
     "error_type": ["none", "unknown", "manager_load_failed", "network_extension_unavailable",
                    "nil_response", "empty_response", "invalid_utf8", "send_failed",
                    "network_extension_request_failed", "configuration_result_failed",
-                   "configuration_request_failed", "network_extension_error", "invalid_method_call"],
+                   "configuration_request_failed", "network_extension_error", "invalid_method_call",
+                   "core_error_response", "unclassified_response"],
     "outcome": ["pending", "success", "not_empty_success", "failure"],
     "success": ["true", "false"],
   ]
@@ -73,6 +74,35 @@ final class SwitchDiagnostics: NSObject {
       methods.contains(name)
     else { return "unknown" }
     return name
+  }
+
+  // Classification is diagnostic-only: never decode arbitrary result/message
+  // values or change the response, retry policy, receipt or Dart error handling.
+  // A fresh bounded decoder at response ingress is safe across both processes.
+  static func responseErrorType(_ data: Data?, method: String) -> String {
+    guard ["getTraffic", "getTotalTraffic"].contains(method) else { return "none" }
+    guard let data else { return "nil_response" }
+    guard data.count <= 4096 else { return "unclassified_response" }
+    struct Envelope: Decodable {
+      let hasError: Bool
+      enum CodingKeys: String, CodingKey { case error }
+      init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // Require the canonical envelope's explicit error:null for success.
+        hasError = !(try container.decodeNil(forKey: .error))
+      }
+    }
+    guard let envelope = try? JSONDecoder().decode(Envelope.self, from: data) else {
+      return "unclassified_response"
+    }
+    return envelope.hasError ? "core_error_response" : "none"
+  }
+
+  static func responseErrorType(_ response: String, method: String) -> String {
+    guard ["getTraffic", "getTotalTraffic"].contains(method) else { return "none" }
+    // Stop before allocating a Data copy of an unbounded response.
+    guard response.utf8.prefix(4097).count <= 4096 else { return "unclassified_response" }
+    return responseErrorType(Data(response.utf8), method: method)
   }
 
   // Only successful routine traffic telemetry is aggregated. Detailed traces

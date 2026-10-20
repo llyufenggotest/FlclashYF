@@ -22,6 +22,8 @@ struct PacketTunnelEnvironment {
   static let commandNotificationName = "test.attempt.command"
 }
 enum SwitchDiagnostics {
+  static func responseErrorType(_ data: Data?, method: String) -> String { "none" }
+  static func responseErrorType(_ response: String, method: String) -> String { "none" }
   static func record(_ event: String, fields: [String: String] = [:]) {}
   static func requestID(_ data: Data) -> String { "test-logical-id" }
   static func method(_ data: Data) -> String {

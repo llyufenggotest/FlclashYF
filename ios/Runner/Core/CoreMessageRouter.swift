@@ -463,12 +463,15 @@ final class CoreMessageRouter {
           message: "empty app core response"
         )
       }
-      record("core_request_reply", responseBytes: response.utf8.count)
+      record("core_request_reply", responseBytes: response.utf8.count,
+        errorType: SwitchDiagnostics.responseErrorType(response, method: method))
       return response
     case .networkExtension:
       do {
-        let response = try await tunnelController.sendProviderMessage(data)
-        record("core_request_reply", responseBytes: response.utf8.count)
+        // Reuse the Runner ingress classification; do not parse each stage.
+        var errorType = "none"
+        let response = try await tunnelController.sendProviderMessage(data, diagnosticReply: { errorType = $0 })
+        record("core_request_reply", responseBytes: response.utf8.count, errorType: errorType)
         return response
       } catch {
         record("core_request_failure", errorType: "network_extension_request_failed")
