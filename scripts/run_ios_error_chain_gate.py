@@ -59,7 +59,7 @@ def main():
         report.update(exit_code=code,status=status)
         (out/'result.json').write_text(json.dumps(report,indent=2));print(json.dumps({'exit_code':code,'status':status}));return code
     try:
-        for group,cases in [('provider',['raw-error']),('integration',['mailbox-error','app-error','classifier-boundaries'])]:
+        for group,cases in [('provider',['raw-error']),('integration',['mailbox-error','mailbox-success','app-error','classifier-boundaries'])]:
             directory,files=prepare(ROOT,out,group)
             if a.prepare_only:continue
             if platform.system()!='Darwin' or not shutil.which('xcrun'):return save(2,'BLOCKED_MACOS_NOT_RED')
