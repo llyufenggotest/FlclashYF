@@ -19,11 +19,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: P02 baseline RED then candidate GREEN
-        run: python3 scripts/run_ios_power_gate.py --case p02 --output "$RUNNER_TEMP/power-evidence/power"
+      - name: Full baseline RED then candidate GREEN
+        run: python3 scripts/run_ios_power_gate.py --output "$RUNNER_TEMP/power-evidence/power"
       - name: Baseline count RED then candidate GREEN
         if: always()
         run: python3 scripts/run_ios_power_gate.py --count-only --output "$RUNNER_TEMP/power-evidence/count"
+      - name: Existing attempt recovery required gate
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/power-evidence/existing"
+          set -o pipefail
+          bash scripts/run_ios_attempt_recovery_gate.sh 2>&1 | tee "$RUNNER_TEMP/power-evidence/existing/attempt.log"
+      - name: Existing exact Swift ObjC review required gate
+        if: always()
+        run: |
+          set -o pipefail
+          python3 scripts/test_ios_swift_review.py --baseline-native --require-swift 2>&1 | tee "$RUNNER_TEMP/power-evidence/existing/review-baseline.log"
+          python3 scripts/test_ios_swift_review.py --require-swift 2>&1 | tee "$RUNNER_TEMP/power-evidence/existing/review-candidate.log"
+          python3 scripts/test_ios_switch_diagnostics.py 2>&1 | tee "$RUNNER_TEMP/power-evidence/existing/diagnostics.log"
       - name: Preserve native proof including compiler failures
         if: always()
         uses: actions/upload-artifact@v4
