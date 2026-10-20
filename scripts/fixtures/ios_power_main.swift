@@ -100,8 +100,12 @@ if mode == "diagnostic-safety" {
   // Configuration success and nil-response statistics must not be coalesced away.
   SwitchDiagnostics.record("rpc_reply", fields: ["method": "setupConfig", "request_id": id, "status": "response"])
   SwitchDiagnostics.record("rpc_reply", fields: ["method": "getTraffic", "request_id": id, "status": "nil_response"])
+  // Successful routine traffic still has full request-level attribution in the
+  // lifecycle/config/switch detail window, not merely failure-path coverage.
+  SwitchDiagnostics.record("provider_request_begin", fields: ["method": "getTraffic", "request_id": id,
+    "status": "response", "error_type": "none"])
   let output = rows()
-  check(output.count == details.count + 2, "detailed_trace_missing_or_duplicate")
+  check(output.count == details.count + 3, "detailed_trace_missing_or_duplicate")
   check(output.allSatisfy { $0["process_id"] as? String == SwitchDiagnostics.processID }, "detailed_process_correlation")
   for event in details {
     check(output.contains { $0["event"] as? String == event && $0["request_id"] as? String == id
@@ -110,6 +114,7 @@ if mode == "diagnostic-safety" {
   }
   check(output.contains { $0["method"] as? String == "setupConfig" && $0["request_id"] as? String == id }, "configuration_trace_missing")
   check(output.contains { $0["status"] as? String == "nil_response" && $0["request_id"] as? String == id }, "nil_response_trace_missing")
+  check(output.contains { $0["event"] as? String == "provider_request_begin" && $0["request_id"] as? String == id }, "successful_switch_window_trace_missing")
   check(!String(describing: output).contains("DO-NOT-LOG-SECRET"), "diagnostic_privacy")
   finish([])
 }
