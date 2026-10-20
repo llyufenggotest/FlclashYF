@@ -23,6 +23,7 @@ class PreparationTests(unittest.TestCase):
             server = next(Path(name).read_text() for name in files if name.endswith('PacketTunnelCommandServer.swift'))
             self.assertEqual(server.count('PowerProbe.bump("enumerate")'), 2)
             self.assertEqual(server.count('PowerProbe.bump("timer")'), 1)
+            self.assertIn('timer.setEventHandler { [weak self] in\n        PowerProbe.bump("timer")', server)
             self.assertIn('request.deadline.timeIntervalSinceNow <= 125', server)
             self.assertIn('self.inFlight[id] == token', server)
             self.assertIn('PowerBoundary.containerURL(', next(Path(name).read_text() for name in files if name.endswith('PacketTunnelSharedStateStore.swift')))
