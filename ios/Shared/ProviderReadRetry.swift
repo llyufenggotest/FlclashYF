@@ -28,6 +28,7 @@ enum ProviderReadRetry {
       "getNodeTraffic",
       "getTotalTraffic",
       "getConnections",
+      "getConnectionsCount",
       "getExternalProviders",
       "getExternalProvider",
       "getOverlayNetworkStatus",

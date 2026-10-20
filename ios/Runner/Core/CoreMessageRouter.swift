@@ -28,6 +28,7 @@ private enum RuntimeStateCoreMethod: String {
   case resetTraffic
   case asyncTestDelay
   case getConnections
+  case getConnectionsCount
   case closeConnections
   case resetConnections
   case closeConnection

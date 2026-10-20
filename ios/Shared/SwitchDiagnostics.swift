@@ -16,7 +16,7 @@ final class SwitchDiagnostics: NSObject {
   private static let methods: Set<String> = [
     "message", "initClash", "getIsInit", "forceGc", "shutdown", "releaseConfig", "validateConfig",
     "updateConfig", "getProfileConfig", "getProxies", "changeProxy", "getTraffic",
-    "getTotalTraffic", "resetTraffic", "asyncTestDelay", "getConnections", "closeConnections",
+    "getTotalTraffic", "resetTraffic", "asyncTestDelay", "getConnections", "getConnectionsCount", "closeConnections",
     "resetConnections", "closeConnection", "getExternalProviders", "getExternalProvider",
     "getOverlayNetworkStatus", "activateOverlayNetwork", "pingTailscaleNode", "logoutTailscale",
     "updateGeoData", "updateExternalProvider", "sideLoadExternalProvider", "startLogNotify",
@@ -75,8 +75,73 @@ final class SwitchDiagnostics: NSObject {
     return name
   }
 
+  // Only successful routine traffic telemetry is aggregated. Detailed traces
+  // remain synchronous during lifecycle/config/route windows and for errors.
+  private static let routineEvents: Set<String> = [
+    "core_request_begin", "core_request_reply", "provider_request_begin",
+    "provider_request_send", "provider_request_reply", "rpc_received", "rpc_reply",
+  ]
+  private struct Summary {
+    var fields: [String: String]
+    var counts: [String: Int]
+  }
+  private static var summaries: [String: Summary] = [:]
+  private static var summaryScheduled = false
+  private static var detailedUntil: TimeInterval = 0
+
   static func record(_ event: String, fields: [String: String] = [:]) {
     queue.sync {
+      let now = ProcessInfo.processInfo.systemUptime
+      if event.hasPrefix("tunnel_") || event.hasPrefix("config") || event == "core_phase"
+        || event == "core_route_changed" || event == "core_route_fallback" {
+        detailedUntil = now + 10
+      }
+      let routine = routineEvents.contains(event)
+        && ["getTraffic", "getTotalTraffic"].contains(fields["method"] ?? "")
+        && (fields["error_type"] == nil || fields["error_type"] == "none")
+        && (fields["status"] == nil || fields["status"] == "response")
+        && (fields["outcome"] == nil || fields["outcome"] == "success" || fields["outcome"] == "pending")
+        && now >= detailedUntil
+      if routine {
+        // No untrusted strings or request IDs enter keys; cardinality is capped.
+        let keys = ["method", "route", "route_before", "route_after", "attempt_id",
+                    "generation", "config_generation"]
+        var attribution: [String: String] = [:]
+        for key in keys {
+          if let value = fields[key], let safe = safeValue(value, for: key) {
+            attribution[key] = safe
+          }
+        }
+        let key = keys.map { attribution[$0] ?? "" }.joined(separator: "|")
+        if summaries[key] == nil && summaries.count >= 16 { flushSummaries() }
+        var summary = summaries[key] ?? Summary(fields: attribution, counts: [:])
+        summary.counts[event, default: 0] += 1
+        summaries[key] = summary
+        if !summaryScheduled {
+          summaryScheduled = true
+          queue.asyncAfter(deadline: .now() + 1) {
+            summaryScheduled = false
+            flushSummaries()
+          }
+        }
+        return
+      }
+      flushSummaries()
+      write(event, fields: fields)
+    }
+  }
+
+  private static func flushSummaries() {
+    let pending = summaries
+    summaries.removeAll(keepingCapacity: true)
+    for summary in pending.values {
+      write("rpc_stats_summary", fields: summary.fields, counts: summary.counts)
+    }
+  }
+
+  // Serial queue ownership is shared by detailed and aggregate writes.
+  private static func write(_ event: String, fields: [String: String], counts: [String: Int]? = nil) {
+    do {
       guard let url = fileURL() else { return }
       var entry: [String: Any] = [
         "timestamp": formatter.string(from: Date()),
@@ -84,11 +149,12 @@ final class SwitchDiagnostics: NSObject {
         "pid": ProcessInfo.processInfo.processIdentifier,
         "process_id": processID,
         "footprint_mb": footprintMB(),
-        "event": events.contains(event) ? event : "unknown",
+        "event": events.contains(event) || event == "rpc_stats_summary" ? event : "unknown",
       ]
       for (key, value) in fields {
         if let safe = safeValue(value, for: key) { entry[key] = safe }
       }
+      if let counts { entry["counts"] = counts }
       guard var data = try? JSONSerialization.data(withJSONObject: entry, options: [.sortedKeys]),
         data.count < maxBytes
       else { return }
