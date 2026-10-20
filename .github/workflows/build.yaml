@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - '**'
+      # This candidate uses ios-five-protocol.yaml's complete gated five-platform build.
+      - '!repair/power-integration-20261020'
     tags:
       - 'v*'
       # YF releases are drafted by ios-five-protocol.yaml only.

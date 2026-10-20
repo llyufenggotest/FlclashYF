@@ -92,6 +92,10 @@ jobs:
           (cd core && CGO_ENABLED=0 go test ./... && CGO_ENABLED=0 go test -tags with_low_memory ./... && CGO_ENABLED=0 go vet ./...)
           (cd core/mihomo && CGO_ENABLED=1 go test -race -count=1 -run 'TestBlackstone|TestXHTTP' ./adapter ./adapter/outbound)
           (cd core/mihomo && CGO_ENABLED=1 go test -race -count=1 ./transport/xhttp)
+          (cd core/mihomo && go test -count=1 ./listener/sing_tun ./log)
+          (cd core/mihomo && go test -tags with_low_memory -count=1 ./listener/sing_tun ./transport/snell ./log)
+          (cd core/mihomo && go test -tags with_gvisor -count=1 ./listener/sing_tun ./transport/snell)
+          (cd core/mihomo && CGO_ENABLED=1 go test -race -count=1 ./listener/sing_tun ./transport/snell ./log)
           (cd core/mihomo && CGO_ENABLED=1 go test -race -count=1 ./dns ./component/resolver)
           (cd core/mihomo && CGO_ENABLED=1 go test -race -tags with_low_memory -count=1 ./dns ./component/resolver)
           (cd core/mihomo && CGO_ENABLED=1 go test -race -count=1 ./component/resource ./component/profile/cachefile ./common/utils ./adapter/provider ./rules/provider)
@@ -117,6 +121,8 @@ jobs:
           flutter test test/common/cache_test.dart test/core/service_test.dart test/pages/editor_unavailable_test.dart
           flutter test test/common/native_log_export_test.dart test/providers/logs_clear_test.dart test/views/logs_clear_test.dart test/providers/setup_restoration_test.dart
           flutter test test/manager/loaded_recovery_test.dart test/core/controller_test.dart test/core/event_test.dart
+          flutter test test/power_repair_test.dart test/notification_page_activity_test.dart test/wire_batch_publish_test.dart
+          python3 core/force_gc_semantics_test.py --output "$RUNNER_TEMP/power-force-gc"
           flutter test test/common/fastup_subscription_test.dart test/common/protocol_edit_policy_test.dart test/common/uri_subscription_test.dart test/common/profile_template_test.dart test/common/desktop_profile_drop_test.dart test/ios_profile_budget_test.dart test/ios_reclaim_battery_test.dart test/core/protocol_contract_test.dart test/providers/action_test.dart test/views/add_profile_view_test.dart test/views/clipboard_import_dialog_test.dart test/views/profile_template_test.dart test/views/tools_profile_template_test.dart
 
       - name: Verify iOS sideload asset
@@ -287,6 +293,24 @@ jobs:
           python3 scripts/test_ios_memory_round2.py --require-swift
           python3 scripts/test_ios_heartbeat.py
           python3 scripts/test_ios_lifecycle_behavior.py
+          python3 scripts/test_ios_power_gate.py
+          python3 scripts/run_ios_power_gate.py --output "$RUNNER_TEMP/ios-power-final"
+          python3 scripts/run_ios_power_gate.py --count-only --output "$RUNNER_TEMP/ios-count-final"
+          python3 scripts/test_ios_error_envelope_gate.py
+          python3 scripts/run_ios_error_envelope_gate.py --output "$RUNNER_TEMP/error-envelope"
+          python3 scripts/run_ios_error_chain_gate.py --output "$RUNNER_TEMP/error-chain"
+
+      - name: Preserve native power source and behavior proof
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: FlclashYF-native-power-proof
+          path: |
+            ${{ runner.temp }}/ios-power-final
+            ${{ runner.temp }}/ios-count-final
+            ${{ runner.temp }}/error-envelope
+            ${{ runner.temp }}/error-chain
+          if-no-files-found: error
 
   ios:
     name: iOS arm64 IPA
