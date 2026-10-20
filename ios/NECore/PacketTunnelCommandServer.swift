@@ -21,7 +21,10 @@ final class PacketTunnelCommandServer {
   private let requestExtension = "req"
   private let responseExtension = "resp"
   private let maxOrphanAge: TimeInterval = 180
-  private let pollInterval: DispatchTimeInterval = .milliseconds(200)
+  // Darwin notifications drive immediate work. A 1s fallback is below the
+  // shortest client deadline (8s), including when a notification is missed.
+  private let pollInterval: DispatchTimeInterval = .seconds(1)
+  private var nextPruneUptime: TimeInterval = 0
 
   private var running = false
   private var attempt: UUID?
@@ -46,6 +49,7 @@ final class PacketTunnelCommandServer {
       guard RPCSession(version: RPCWire.version, attempt: attempt, ready: true)
         .publish(to: self.sharedStateStore.appGroupDirectory()) else { return false }
       self.attempt = attempt
+      self.nextPruneUptime = 0
       self.running = true
       self.registerObserver()
       let timer = DispatchSource.makeTimerSource(queue: self.queue)
@@ -104,7 +108,11 @@ final class PacketTunnelCommandServer {
 
   private func drain() {
     guard running, let requestDirectory = requestDirectory() else { return }
-    pruneOrphans()
+    let now = ProcessInfo.processInfo.systemUptime
+    if now >= nextPruneUptime {
+      pruneOrphans()
+      nextPruneUptime = now + 30
+    }
     // Client owns deadlines; configuration can legitimately take >30 seconds.
     guard let files = try? FileManager.default.contentsOfDirectory(
       at: requestDirectory,
