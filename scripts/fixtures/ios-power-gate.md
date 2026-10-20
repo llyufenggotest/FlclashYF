@@ -1,8 +1,10 @@
-# iOS power native gate — preparation only until macOS executes it
+# iOS power native gate — real macOS RED/GREEN verified
 
 Baseline is fixed to `e502b9ce2b18bfebba550495f568f7f61e64f3da` (object must exist).
-No production Swift behavior has been changed in this slice. Windows preparation
-and Python tests are **not** semantic RED, native compilation, or native PASS.
+Windows preparation and Python tests are **not** native semantic evidence.
+The dedicated native probe first observed exact baseline RED before production
+edits, then executed independent P02/count acceptance and full P02/P03 acceptance.
+See the owner report under the parent audit root for pinned runs and source hashes.
 
 ## macOS required-job entry points (Python 3 standard library + Apple swiftc)
 
@@ -54,7 +56,10 @@ budget assertions, after loss/duplicate accounting passes.
 Candidate aggregation must preserve counts for each method/stage in JSON lines
 with event `rpc_stats_summary`, `method`, and numeric `counts` keyed by original
 stage name. Loss or duplicate is a different failure, not the accepted RED.
-The schema describes a future minimal aggregate contract, not implemented code.
+The implementation flushes after 1s, caps attribution keys at 16, and preserves
+method/stage counts plus safe route/attempt/generation attribution. Successful
+routine traffic stays detailed for 10s around lifecycle/config/route changes;
+errors, nil responses and config requests remain synchronous.
 
 `diagnostic-safety` independently checks failure/start/switch/config records,
 request/parent/attempt/generation correlation, nil-response retention and secret
@@ -80,15 +85,18 @@ and fast reply; stop with no timer/scans; restart and same filename with a stale
 callback preceding the new callback; real 31s held setupConfig response with a
 120s deadline; applied receipt owner; terminal retired session; balanced observers.
 The real 31s wait checks the historical >30s server-deadline hazard. It does not
-claim a full 120s boundary/device ruleset test. The fixture is still pending Mac
-compilation/execution, including Darwin callback feasibility on the CI host.
+claim a full 120s boundary/device ruleset test. The fixture ran on macOS,
+including real Darwin notification delivery. The candidate retains immediate
+Darwin drains, a 1s missed-notification fallback (below the shortest 8s client
+read deadline), and initial plus 30s monotonic orphan maintenance. Stop/restart
+resets maintenance without changing admission, owner, token or deadlines.
 
 ### Independent getConnectionsCount coordination
 
-Swift inspection found three hardcoded classifications needing a later native-
-verified change: `RuntimeStateCoreMethod` (otherwise NE errors may App-fallback),
+Three hardcoded classifications are now native-verified:
+`RuntimeStateCoreMethod` (NE errors must not App-fallback),
 `ProviderReadRetry.isReadOnlyMethod`, `SwitchDiagnostics.methods`.
-**No production edit has been made without native RED.** `--count-only` compiles
+Production changes followed real native baseline RED. `--count-only` compiles
 full production router/coordinator/retry/diagnostics with a transport boundary
 double, requiring exact baseline RED per classification and no-fallback case,
 then candidate GREEN. Success integer 123 must pass unchanged; failure must not
@@ -102,7 +110,9 @@ and required. Do not add count to AppCoreMethod or ConfigurationCoreMethod.
 
 P04 40ms response polling and P05 critical event backlog complexity are recorded
 only, not changed. NativeResourceHeartbeat, low-memory/GC policy, Go/Dart, wire,
-App Group/signing identity, workflows and all existing gate assertions are intact.
+App Group/signing identity and all existing gate assertions are intact. Only the
+isolated probe branch has CI-only trigger exclusions and its native workflow;
+these workflow commits are not intended for integration cherry-pick.
 The prior audit's eleven native declaration fixture and actor slice are evidence
 preparation, not proof of native execution: its Windows execution exits 2.
 Device energy, thermal and background suspension behavior remain separate gates.
