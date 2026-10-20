@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - '**'
+      # CI-only exclusion for this exact native probe branch.
+      - '!repair/power-native-observe-20261020'
     tags:
       - 'v*'
       # YF releases are drafted by ios-five-protocol.yaml only.

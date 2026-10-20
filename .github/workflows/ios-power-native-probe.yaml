@@ -1,0 +1,34 @@
+name: iOS power native probe
+on:
+  push:
+    branches: ['repair/power-native-observe-20261020']
+permissions:
+  contents: read
+concurrency:
+  group: power-native-observe
+  cancel-in-progress: false
+jobs:
+  native:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Baseline power observation only
+        run: python3 scripts/run_ios_power_gate.py --observe-only --output "$RUNNER_TEMP/power-evidence/power"
+      - name: Baseline count observation only
+        if: always()
+        run: python3 scripts/run_ios_power_gate.py --count-only --observe-only --output "$RUNNER_TEMP/power-evidence/count"
+      - name: Preserve native proof including compiler failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: power-native-${{ github.sha }}
+          path: ${{ runner.temp }}/power-evidence
+          if-no-files-found: error
+          retention-days: 14

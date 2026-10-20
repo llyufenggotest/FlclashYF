@@ -12,6 +12,8 @@ on:
       - core/sing-shadowsocks2
       - .github/workflows/ios-memory-native.yaml
   push:
+    branches-ignore:
+      - repair/power-native-observe-20261020
     paths:
       - ios/NECore/**
       - ios/Runner/Core/CoreEventRelay.swift
