@@ -153,6 +153,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--repo', type=Path, default=ROOT)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--case', choices=['p02', 'p03'], help='independent production repair; safety remains mandatory')
     parser.add_argument('--prepare-only', action='store_true')
     parser.add_argument('--count-only', action='store_true', help='independent getConnectionsCount route/retry/diagnostics gate')
     parser.add_argument('--observe-only', action='store_true', help='baseline metrics/RED only, never candidate acceptance')
@@ -176,6 +177,8 @@ def main():
         report['candidate_status'] = subprocess.check_output(['git', '-C', str(repo), 'status', '--porcelain'], text=True)
         prepare_fn = prepare_count if args.count_only else prepare
         cases = ['count-readonly', 'count-diagnostic', 'count-no-fallback', 'count-integer'] if args.count_only else ['diagnostic-safety', 'mailbox-safety', 'p02', 'p03']
+        if args.case and not args.count_only:
+            cases = ['diagnostic-safety', 'mailbox-safety', args.case]
         expected_reds = {
             'count-readonly': ['count_readonly_classification'],
             'count-diagnostic': ['count_diagnostic_allowlist'],
