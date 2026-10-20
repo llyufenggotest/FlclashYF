@@ -68,6 +68,8 @@ enum NEVPNError: Int {
 }
 enum SwitchDiagnostics {
   static let processID = "native-fixture"
+  static func responseErrorType(_ data: Data?, method: String) -> String { "none" }
+  static func responseErrorType(_ response: String, method: String) -> String { "none" }
   static func record(_ phase: String, fields: [String: String] = [:]) {}
   static func requestID(_ data: Data) -> String {
     ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["id"] as? String ?? "unknown"

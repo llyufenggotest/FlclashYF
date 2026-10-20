@@ -42,7 +42,7 @@ class AttemptFixContracts(unittest.TestCase):
 
     def test_r3_slot_captures_config_generation_before_wait(self):
         c = source('ios/Runner/Tunnel/TunnelController.swift')
-        send = c.split('func sendProviderMessage(_ data: Data)', 1)[1].split('private func sendProviderMessageAttempt', 1)[0]
+        send = c.split('func sendProviderMessage(', 1)[1].split('private func sendProviderMessageAttempt', 1)[0]
         self.assertLess(send.index('let generation = configurationGeneration'), send.index('await acquireProviderMessageSlot'))
         self.assertIn('configurationGeneration: retryRead ? generation : nil', send)
 

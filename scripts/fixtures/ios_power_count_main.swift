@@ -19,7 +19,7 @@ struct ProviderMessageError: Error { let code: String; let message: String }
   func validateProviderOwner(_ owner: ProviderOwner) throws {}
   func beginConfigurationApply() -> UInt64 { 0 }
   func finishConfigurationApply(generation: UInt64, success: Bool) {}
-  func sendProviderMessage(_ data: Data) async throws -> String {
+  func sendProviderMessage(_ data: Data, diagnosticReply: ((String) -> Void)? = nil) async throws -> String {
     requests.append(data)
     if shouldFail { throw ProviderMessageError(code: "network_extension_timeout", message: "fixture") }
     return #"{"result":123,"error":null}"#

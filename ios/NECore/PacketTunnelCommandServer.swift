@@ -187,6 +187,7 @@ final class PacketTunnelCommandServer {
           "method": method,
           "response_bytes": String(response?.count ?? 0),
           "status": response == nil ? "nil_response" : "response",
+          "error_type": SwitchDiagnostics.responseErrorType(response, method: method),
           "elapsed_ms": String(
             Int((ProcessInfo.processInfo.systemUptime - receivedAt) * 1000)
           ),

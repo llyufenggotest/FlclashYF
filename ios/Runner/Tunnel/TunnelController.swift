@@ -200,7 +200,9 @@ final class TunnelController {
     ])
   }
 
-  func sendProviderMessage(_ data: Data) async throws -> String {
+  func sendProviderMessage(
+    _ data: Data, diagnosticReply: ((String) -> Void)? = nil
+  ) async throws -> String {
     let providerOwner = captureProviderOwner()
     let method = SwitchDiagnostics.method(data)
     let retryRead = ProviderReadRetry.isReadOnlyMethod(method)
@@ -234,7 +236,7 @@ final class TunnelController {
         let response = try await sendProviderMessageAttempt(
           data,
           deadline: min(deadline, Date().addingTimeInterval(retryRead ? providerReadTimeout : configurationTimeout)),
-          owner: rpcOwner, clientEpoch: providerOwner.clientEpoch
+          owner: rpcOwner, clientEpoch: providerOwner.clientEpoch, diagnosticReply: diagnosticReply
         )
         try validateProviderOwner(providerOwner)
         guard Date() < deadline else {
@@ -302,7 +304,8 @@ final class TunnelController {
 
   private func sendProviderMessageAttempt(
     _ data: Data,
-    deadline: Date, owner: RPCOwner, clientEpoch: UInt64
+    deadline: Date, owner: RPCOwner, clientEpoch: UInt64,
+    diagnosticReply: ((String) -> Void)? = nil
   ) async throws -> String {
     let started = ProcessInfo.processInfo.systemUptime
     let requestID = SwitchDiagnostics.requestID(data)
@@ -360,7 +363,9 @@ final class TunnelController {
     do {
       let response = try await providerBridge.send(data, deadline: deadline, owner: owner,
         epoch: providerEpoch, clientEpoch: clientEpoch)
-      record("provider_request_reply", responseBytes: response.utf8.count)
+      let errorType = SwitchDiagnostics.responseErrorType(response, method: method)
+      record("provider_request_reply", responseBytes: response.utf8.count, errorType: errorType)
+      diagnosticReply?(errorType)
       return response
     } catch let error as ProviderMessageError {
       record(
