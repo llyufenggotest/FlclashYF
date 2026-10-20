@@ -75,7 +75,7 @@ def instrument(raw, rel, unique):
             raise ValueError(f'counter seam must match exactly once: {rel}: {anchor!r}; got {len(matches)}')
         i = matches[0]
         # guard/function/closure counters go before the guard or after the opening brace.
-        if anchor.endswith('{'):
+        if anchor.endswith('{') or anchor.endswith(' in'):
             lines.insert(i + 1, counter + '\n')
         else:
             lines.insert(i, counter + '\n')
