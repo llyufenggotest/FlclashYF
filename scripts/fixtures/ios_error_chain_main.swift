@@ -87,8 +87,8 @@ Task { @MainActor in
   check(server.start(attempt:attempt), "server_start")
   IOSCoreBridge.testReply = String(decoding:failure,as:UTF8.self)
   router.updateTunnelState(caseName == "app-error" ? .stopped : .running)
-  // Expire the route-change detail window without substituting route behavior.
-  SwitchDiagnostics.setTestDirectory(fixtureRoot, bundleIdentifier: "audit.error.NECore")
+  // Let the real route-change detail window expire; no clock/predicate seam.
+  try? await Task.sleep(nanoseconds:10_200_000_000)
   try? FileManager.default.removeItem(at:fixtureRoot.appendingPathComponent("ios-switch-NECore.log"))
   PowerProbe.reset()
   let response = await router.invoke(request)

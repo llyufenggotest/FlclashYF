@@ -23,6 +23,7 @@ final class PacketTunnelSharedStateStore {
   }
 }
 enum SwitchDiagnostics {
+  static func responseErrorType(_ data: Data?, method: String) -> String { "none" }
   static func requestID(_ data: Data) -> String { String(data: data, encoding: .utf8) ?? "" }
   static func method(_ data: Data) -> String { "setupConfig" }
   static func record(_ phase: String, fields: [String: String]) {}
