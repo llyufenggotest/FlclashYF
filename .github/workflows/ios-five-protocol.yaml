@@ -121,6 +121,7 @@ jobs:
           flutter test test/common/yf_update_boundary_test.dart test/common/yf_version_contract_test.dart test/common/app_update_test.dart test/common/protocol_edit_policy_test.dart test/common/task_test.dart test/core/desktop/lifecycle_test.dart test/plugins/code_forge/lifecycle_test.dart test/common/tray_lifecycle_test.dart test/common/tray_menu_test.dart test/common/tray_test.dart test/manager/tray_manager_test.dart
           flutter test test/common/cache_test.dart test/core/service_test.dart test/pages/editor_unavailable_test.dart
           flutter test test/common/native_log_export_test.dart test/providers/logs_clear_test.dart test/views/logs_clear_test.dart test/providers/setup_restoration_test.dart
+          flutter test test/providers/proxies_bootstrap_test.dart test/providers/groups_owner_bootstrap_test.dart test/providers/groups_owner_setup_test.dart test/providers/state_derived_test.dart test/pages/home_test.dart
           flutter test test/manager/loaded_recovery_test.dart test/core/controller_test.dart test/core/event_test.dart
           flutter test test/providers/groups_owner_test.dart test/providers/groups_owner_setup_test.dart test/providers/reset_rollback_owner_test.dart test/widgets/line_chart_zero_baseline_test.dart test/widgets/traffic_details_test.dart
           flutter test test/views/dashboard/quick_options_test.dart test/power_repair_test.dart test/notification_page_activity_test.dart test/wire_batch_publish_test.dart

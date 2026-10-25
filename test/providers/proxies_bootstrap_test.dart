@@ -33,17 +33,17 @@ class _Core extends Fake implements CoreHandlerInterface {
   Future<ProxiesData> getProxies() async {
     reads++;
     return ProxiesData(
-    all: ['Proxy'],
-    proxies: {
-      'Proxy': {
-        'name': 'Proxy',
-        'type': 'Selector',
-        'all': [member],
-        'now': member,
+      all: ['Proxy'],
+      proxies: {
+        'Proxy': {
+          'name': 'Proxy',
+          'type': 'Selector',
+          'all': [member],
+          'now': member,
+        },
+        member: {'name': member, 'type': 'ss'},
       },
-      member: {'name': member, 'type': 'ss'},
-    },
-  );
+    );
   }
 }
 
@@ -54,19 +54,23 @@ void main() {
   setUp(() {
     navigationPort = navigation;
     core = _Core();
-    c = ProviderContainer(overrides: [
-      ...buildAppStateOverrides(bootstrapAppState()),
-      ...buildConfigOverrides(bootstrapConfig),
-      profilesProvider.overrideWith(() => TestProfiles([
-        const Profile(
-          id: 1,
-          autoUpdateDuration: Duration.zero,
-          currentGroupName: 'Proxy',
-          selectedMap: {'Proxy': 'Node A'},
+    c = ProviderContainer(
+      overrides: [
+        ...buildAppStateOverrides(bootstrapAppState()),
+        ...buildConfigOverrides(bootstrapConfig),
+        profilesProvider.overrideWith(
+          () => TestProfiles([
+            const Profile(
+              id: 1,
+              autoUpdateDuration: Duration.zero,
+              currentGroupName: 'Proxy',
+              selectedMap: {'Proxy': 'Node A'},
+            ),
+          ]),
         ),
-      ])),
-      coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
-    ]);
+        coreHandlerProvider.overrideWithValue(CoreController.scoped(core)),
+      ],
+    );
     globalState.container = c;
   });
   tearDown(() {
@@ -85,24 +89,46 @@ void main() {
       // Keep the actual production navigation derivation observed before init.
       final nav = c.listen(currentNavigationItemsStateProvider, (_, _) {});
       addTearDown(nav.close);
-      expect(nav.read().value.map((item) => item.label), contains(PageLabel.proxies));
+      expect(
+        nav.read().value.map((item) => item.label),
+        contains(PageLabel.proxies),
+      );
       c.read(initProvider.notifier).value = true;
-      expect(nav.read().value.map((item) => item.label), isNot(contains(PageLabel.proxies)));
+      expect(
+        nav.read().value.map((item) => item.label),
+        isNot(contains(PageLabel.proxies)),
+      );
       c.read(coreStatusProvider.notifier).value = CoreStatus.connected;
-      await tester.runAsync(() => c.read(proxiesActionProvider.notifier).updateGroups());
-      expect(c.read(loadedGroupsProvider)?.groups.single.all.single.name, 'Node A');
+      await tester.runAsync(
+        () => c.read(proxiesActionProvider.notifier).updateGroups(),
+      );
+      expect(
+        c.read(loadedGroupsProvider)?.groups.single.all.single.name,
+        'Node A',
+      );
       c.read(currentPageLabelProvider.notifier).toPage(PageLabel.tools);
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: c,
-        child: const TestApp(includeNavigatorKey: false, child: HomePage()),
-      ));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: const TestApp(includeNavigatorKey: false, child: HomePage()),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(c.read(initProvider), isTrue);
       expect(c.read(coreStatusProvider), CoreStatus.connected);
       final capsule = find.byType(CapsuleNavigation);
       expect(capsule, findsOneWidget);
-      expect(tester.widget<CapsuleNavigation>(capsule).items.map((item) => item.pageLabel), contains(PageLabel.proxies));
-      final button = find.descendant(of: capsule, matching: find.text('Proxies'));
+      expect(
+        tester
+            .widget<CapsuleNavigation>(capsule)
+            .items
+            .map((item) => item.pageLabel),
+        contains(PageLabel.proxies),
+      );
+      final button = find.descendant(
+        of: capsule,
+        matching: find.text('Proxies'),
+      );
       expect(button, findsOneWidget);
       await tester.tap(button);
       await tester.pumpAndSettle();
@@ -111,17 +137,27 @@ void main() {
       expect(core.reads, 1);
       // Successful empty publication must clear the same production-derived
       // state, while a failed read is handled by the action's retain gate.
-      await tester.runAsync(() => c.read(proxiesActionProvider.notifier).updateGroups());
+      await tester.runAsync(
+        () => c.read(proxiesActionProvider.notifier).updateGroups(),
+      );
       await tester.pumpAndSettle();
       expect(c.read(groupsProvider), hasLength(1));
       expect(find.byType(ProxiesView), findsOneWidget);
       expect(find.byType(ProxyCard), findsOneWidget);
       expect(find.text('Node A', findRichText: true), findsWidgets);
-      expect(tester.widget<ProxyCard>(find.byType(ProxyCard)).proxy.name, 'Node A');
+      expect(
+        tester.widget<ProxyCard>(find.byType(ProxyCard)).proxy.name,
+        'Node A',
+      );
       core.member = 'Node Fresh';
-      await tester.runAsync(() => c.read(proxiesActionProvider.notifier).updateGroups());
+      await tester.runAsync(
+        () => c.read(proxiesActionProvider.notifier).updateGroups(),
+      );
       await tester.pumpAndSettle();
-      expect(tester.widget<ProxyCard>(find.byType(ProxyCard)).proxy.name, 'Node Fresh');
+      expect(
+        tester.widget<ProxyCard>(find.byType(ProxyCard)).proxy.name,
+        'Node Fresh',
+      );
       expect(find.text('Node A', findRichText: true), findsNothing);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
