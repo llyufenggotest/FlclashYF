@@ -23,16 +23,35 @@ class ProxiesAction extends _$ProxiesAction {
   final Map<String, _DelayTestTarget> _pendingDelayTargets = {};
   int _delayTestGeneration = 0;
   int _groupRefreshGeneration = 0;
-  int? _publishedGroupsProfileId;
+  final Map<String, ({int? profileId, Object token, String name})>
+  _pendingSelectedRollback = {};
 
-  final Map<String, String> _pendingSelectedRollback = {};
+  bool _configurationListening = false;
+
+  void _listenConfiguration() {
+    if (_configurationListening) return;
+    _configurationListening = true;
+    final config = _core.configuration;
+    Object token = config.token;
+    void changed() {
+      if (identical(token, config.token)) return;
+      token = config.token;
+      _groupRefreshGeneration++;
+      cancelDelayTests();
+      cancelPendingSelections();
+    }
+
+    config.addListener(changed);
+    ref.onDispose(() => config.removeListener(changed));
+  }
 
   @override
   void build() {
     ref.listen(currentProfileIdProvider, (previous, next) {
       _groupRefreshGeneration++;
       if (previous != next) {
-        _publishedGroupsProfileId = null;
+        cancelDelayTests();
+        cancelPendingSelections();
       }
     });
     ref.listen(coreStatusProvider, (_, next) {
@@ -40,6 +59,15 @@ class ProxiesAction extends _$ProxiesAction {
         cancelDelayTests();
       }
     });
+  }
+
+  void cancelPendingSelections() {
+    for (final group in _pendingSelectedRollback.keys.toList()) {
+      debouncer.cancel((FunctionTag.changeProxy, group));
+      final pending = _pendingSelectedRollback[group]!;
+      _writeSelection(pending.profileId, group, pending.name);
+    }
+    _pendingSelectedRollback.clear();
   }
 
   void cancelDelayTests() {
@@ -62,24 +90,71 @@ class ProxiesAction extends _$ProxiesAction {
     debouncer.call(FunctionTag.updateGroups, updateGroups, duration: duration);
   }
 
+  bool get _canChangeSelection {
+    _listenConfiguration();
+    final config = _core.configuration;
+    final loaded = ref.read(loadedGroupsProvider);
+    final owner = ref.read(setupActionProvider.notifier).coreGroupsOwner;
+    return config.sessionActive &&
+        !config.applying &&
+        (config.generation == 0 || (config.succeeded && owner != null)) &&
+        (loaded == null ||
+            (loaded.profileId == ref.read(currentProfileIdProvider) &&
+                identical(loaded.token, config.token))) &&
+        (owner == null ||
+            owner.profileId == ref.read(currentProfileIdProvider));
+  }
+
+  void _writeSelection(int? profileId, String groupName, String proxyName) {
+    if (profileId == null) return;
+    final profile = ref.read(profileProvider(profileId));
+    if (profile == null) return;
+    final selections = {...profile.selectedMap};
+    if (proxyName.isEmpty || proxyName == compatibleProxyName) {
+      selections.remove(groupName);
+    } else {
+      selections[groupName] = proxyName;
+    }
+    final unchanged =
+        selections.length == profile.selectedMap.length &&
+        selections.entries.every(
+          (entry) => profile.selectedMap[entry.key] == entry.value,
+        );
+    if (unchanged) return;
+    ref
+        .read(profilesProvider.notifier)
+        .put(profile.copyWith(selectedMap: selections));
+  }
+
   void changeProxyDebounce(String groupName, String proxyName) {
+    if (!_canChangeSelection) return;
+    final profileId = ref.read(currentProfileIdProvider);
+    final token = _core.configuration.token;
     _pendingSelectedRollback.putIfAbsent(
       groupName,
-      () => _currentSelectedName(groupName),
+      () => (
+        profileId: profileId,
+        token: token,
+        name: _currentSelectedName(groupName),
+      ),
     );
-    ref
-        .read(profilesActionProvider.notifier)
-        .updateCurrentSelectedMap(groupName, proxyName);
+    _writeSelection(profileId, groupName, proxyName);
     debouncer.call((FunctionTag.changeProxy, groupName), (
       String groupName,
       String proxyName,
     ) async {
+      if (!identical(token, _core.configuration.token) ||
+          ref.read(currentProfileIdProvider) != profileId ||
+          !_canChangeSelection) {
+        return;
+      }
       await changeProxy(groupName: groupName, proxyName: proxyName);
       updateGroupsDebounce();
     }, args: [groupName, proxyName]);
   }
 
   Future<void> resetProxySelection(String groupName) async {
+    if (!_canChangeSelection) return;
     debouncer.cancel((FunctionTag.changeProxy, groupName));
     debouncer.cancel(FunctionTag.updateGroups);
     _pendingSelectedRollback.remove(groupName);
@@ -92,65 +167,71 @@ class ProxiesAction extends _$ProxiesAction {
   }
 
   Future<void> updateGroups() async {
-    final profileId = ref.read(currentProfileProvider)?.id;
-    final generation = _groupRefreshGeneration;
-    if (_publishedGroupsProfileId == null &&
-        generation == 0 &&
-        ref.read(groupsProvider).isNotEmpty) {
-      _publishedGroupsProfileId = profileId;
+    _listenConfiguration();
+    final config = _core.configuration;
+    if (!config.sessionActive ||
+        config.applying ||
+        (config.generation > 0 && !config.succeeded)) {
+      return;
     }
+    final owner = ref.read(setupActionProvider.notifier).coreGroupsOwner;
+    // No guessed owner after a real configuration operation. Initial native
+    // hydration is explicitly bound by SetupAction's running-service path.
+    if (owner == null && config.generation > 0) return;
+    final loaded = ref.read(loadedGroupsProvider);
+    if (owner == null && loaded != null && !identical(loaded.token, config.token)) {
+      return;
+    }
+    final profileId = owner != null
+        ? owner.profileId
+        : loaded != null
+        ? loaded.profileId
+        : ref.read(currentProfileProvider)?.id;
+    final token = config.token;
+    final intent = ref.read(currentProfileIdProvider);
+    final generation = ++_groupRefreshGeneration;
+    bool owns() =>
+        identical(token, config.token) &&
+        config.sessionActive &&
+        !config.applying &&
+        generation == _groupRefreshGeneration &&
+        ref.read(currentProfileIdProvider) == intent;
     try {
       commonPrint.log('updateGroups');
-      final groups = await retry<List<Group>>(
+      List<Group>? result;
+      await retry<bool>(
         maxAttempts: system.isIOS ? 8 : 3,
         delay: system.isIOS ? const Duration(seconds: 2) : midDuration,
         task: () async {
-          final sortType = ref.read(
-            proxiesStyleSettingProvider.select((state) => state.sortType),
-          );
-          final delayMap = ref.read(delayDataSourceProvider);
-          final testUrl = ref.read(
-            appSettingProvider.select((state) => state.testUrl),
-          );
-          final selectedMap = ref.read(
-            currentProfileProvider.select((state) => state?.selectedMap ?? {}),
-          );
+          if (!owns()) return true;
           try {
-            return await _core.getProxiesGroups(
-              selectedMap: selectedMap,
-              sortType: sortType,
-              delayMap: delayMap,
-              defaultTestUrl: testUrl,
+            result = await _core.getProxiesGroups(
+              selectedMap: profileId == null
+                  ? {}
+                  : ref.read(profileProvider(profileId))?.selectedMap ?? {},
+              sortType: ref.read(proxiesStyleSettingProvider).sortType,
+              delayMap: ref.read(delayDataSourceProvider),
+              defaultTestUrl: ref.read(appSettingProvider).testUrl,
             );
+            return true; // A successful empty snapshot is authoritative.
           } catch (e) {
             commonPrint.log(
               'updateGroups error: $e',
               logLevel: coreFailureLogLevel(e),
             );
-            return <Group>[];
+            return false;
           }
         },
-        retryIf: (res) => res.isEmpty,
+        retryIf: (success) => !success,
       );
-      if (generation != _groupRefreshGeneration ||
-          ref.read(currentProfileProvider)?.id != profileId) {
-        return;
-      }
-      if (groups.isEmpty &&
-          ref.read(groupsProvider).isNotEmpty &&
-          _publishedGroupsProfileId == profileId) {
-        commonPrint.log('updateGroups: retaining last groups after empty read');
-        return;
-      }
-      ref.read(groupsProvider.notifier).value = groups;
-      _publishedGroupsProfileId = profileId;
-      if (groups.isNotEmpty) {
-        _removeUnavailableSelections(profileId: profileId, groups: groups);
+      if (!owns() || result == null) return;
+      ref
+          .read(groupsProvider.notifier)
+          .publish(profileId: profileId, token: token, groups: result!);
+      if (result!.isNotEmpty) {
+        _removeUnavailableSelections(profileId: profileId, groups: result!);
       }
     } catch (e) {
-      // The Core failure path already runs inside the retry task above; a
-      // throw here only means ref.read hit a disposed container or the
-      // groupsProvider write itself failed.
       commonPrint.log(
         'updateGroups failed: $e',
         logLevel: coreFailureLogLevel(e),
@@ -162,8 +243,9 @@ class ProxiesAction extends _$ProxiesAction {
     required int? profileId,
     required List<Group> groups,
   }) {
-    final currentProfile = ref.read(currentProfileProvider);
-    if (currentProfile == null || currentProfile.id != profileId) {
+    if (profileId == null) return;
+    final currentProfile = ref.read(profileProvider(profileId));
+    if (currentProfile == null) {
       return;
     }
     final availableProxies = {
@@ -210,17 +292,23 @@ class ProxiesAction extends _$ProxiesAction {
     required String groupName,
     required String proxyName,
   }) async {
+    if (!_canChangeSelection) return;
+    final profileId = ref.read(currentProfileIdProvider);
+    final token = _core.configuration.token;
     final appSetting = ref.read(appSettingProvider);
     final closeConnections = appSetting.closeConnections;
     final params = ChangeProxyParams(
       groupName: groupName,
       proxyName: proxyName,
     );
-    final profilesAction = ref.read(profilesActionProvider.notifier);
+    final pending = _pendingSelectedRollback.remove(groupName);
     final rollbackName =
-        _pendingSelectedRollback.remove(groupName) ??
-        _currentSelectedName(groupName);
-    profilesAction.updateCurrentSelectedMap(groupName, proxyName);
+        pending != null &&
+            pending.profileId == profileId &&
+            identical(pending.token, token)
+        ? pending.name
+        : _currentSelectedName(groupName);
+    _writeSelection(profileId, groupName, proxyName);
     try {
       await _core.changeProxy(params, closeConnections: closeConnections);
     } catch (error) {
@@ -228,11 +316,21 @@ class ProxiesAction extends _$ProxiesAction {
         'changeProxy($groupName -> $proxyName) failed: $error',
         logLevel: coreFailureLogLevel(error),
       );
-      profilesAction.updateCurrentSelectedMap(groupName, rollbackName);
+      // Compare-and-swap the original owner only. A late failure must not
+      // overwrite B, a newer tap, or a same-ID force reload's selection.
+      if (identical(token, _core.configuration.token) &&
+          ref.read(profileProvider(profileId))?.selectedMap[groupName] ==
+              proxyName) {
+        _writeSelection(profileId, groupName, rollbackName);
+      }
       dialogs.showNotifier(
         currentAppLocalizations.changeProxyFailedTip,
         level: MessageLevel.error,
       );
+      return;
+    }
+    if (!identical(token, _core.configuration.token) ||
+        ref.read(currentProfileIdProvider) != profileId) {
       return;
     }
     if (!closeConnections && appSetting.promptCloseConnections) {
@@ -242,6 +340,8 @@ class ProxiesAction extends _$ProxiesAction {
   }
 
   void _showCloseConnectionsSnackBar(ChangeProxyParams params) {
+    final token = _core.configuration.token;
+    final profileId = ref.read(currentProfileIdProvider);
     final context = globalState.navigatorKey.currentContext;
     if (context == null || !context.mounted) return;
     context.showSnackBar(
@@ -250,6 +350,11 @@ class ProxiesAction extends _$ProxiesAction {
       action: SnackBarAction(
         label: MaterialLocalizations.of(context).closeButtonTooltip,
         onPressed: () async {
+          if (!_canChangeSelection ||
+              !identical(token, _core.configuration.token) ||
+              ref.read(currentProfileIdProvider) != profileId) {
+            return;
+          }
           await _core.changeProxy(params, closeConnections: true);
         },
       ),
@@ -317,9 +422,13 @@ class ProxiesAction extends _$ProxiesAction {
   }
 
   Future<void> delayTestGroups(List<Group> groups) async {
+    _listenConfiguration();
+    final generation = _delayTestGeneration;
     for (final group in groups) {
+      if (generation != _delayTestGeneration) return;
       await _runDelayTests(group.all, group.testUrl, bumpSort: false);
     }
+    if (generation != _delayTestGeneration) return;
     ref.read(sortNumProvider.notifier).add();
   }
 
@@ -343,9 +452,7 @@ class ProxiesAction extends _$ProxiesAction {
     String? testUrl,
   ) {
     final groups = ref.read(groupsProvider);
-    final selectedMap = ref.read(
-      currentProfileProvider.select((state) => state?.selectedMap ?? {}),
-    );
+    final selectedMap = ref.read(selectedMapProvider);
     final fallbackTestUrl = ref.read(realTestUrlProvider(testUrl));
     final targets = <String, _DelayTestTarget>{};
     for (final proxy in proxies) {
@@ -380,6 +487,15 @@ class ProxiesAction extends _$ProxiesAction {
     required bool bumpSort,
     FutureOr<void> Function(Set<String> proxyNames)? onDelayChanged,
   }) async {
+    _listenConfiguration();
+    final config = _core.configuration;
+    final loaded = ref.read(loadedGroupsProvider);
+    if (!config.sessionActive ||
+        config.applying ||
+        (config.generation > 0 && (!config.succeeded || loaded == null)) ||
+        (loaded != null && !identical(loaded.token, config.token))) {
+      return;
+    }
     final generation = _delayTestGeneration;
     final targets = _resolveDelayTestTargets(proxies, testUrl);
     if (targets.isEmpty) {

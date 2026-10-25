@@ -382,11 +382,31 @@ class Version extends _$Version with AutoDisposeNotifierMixin {
   }
 }
 
+/// Owner and groups are one publication; UI intent can already name another
+/// profile while the last accepted runtime snapshot is still on screen.
+@Riverpod(keepAlive: true)
+class LoadedGroups extends _$LoadedGroups with AutoDisposeNotifierMixin {
+  @override
+  ({int? profileId, Object token, List<Group> groups})? build() => null;
+}
+
 @Riverpod(keepAlive: true)
 class Groups extends _$Groups with AutoDisposeNotifierMixin {
   @override
   List<Group> build() {
-    return [];
+    return ref.watch(loadedGroupsProvider)?.groups ?? [];
+  }
+
+  void publish({
+    required int? profileId,
+    required Object token,
+    required List<Group> groups,
+  }) {
+    ref.read(loadedGroupsProvider.notifier).value = (
+      profileId: profileId,
+      token: token,
+      groups: List<Group>.unmodifiable(groups),
+    );
   }
 }
 

@@ -25,6 +25,15 @@ class SetupAction extends _$SetupAction {
   _RunRequest? _latestRunRequest;
   DateTime? _startTime;
   var _pendingForceApply = false;
+  ({int? profileId, Object token})? _coreGroupsOwner;
+
+  /// Runtime identity, not the selected UI profile and not a readiness token.
+  ({int? profileId, Object token})? get coreGroupsOwner {
+    final owner = _coreGroupsOwner;
+    return owner != null && identical(owner.token, _core.configuration.token)
+        ? owner
+        : null;
+  }
 
   bool get _isRunning => _startTime != null && _startTime!.isBeforeNow;
 
@@ -33,8 +42,9 @@ class SetupAction extends _$SetupAction {
     ref.onDispose(() => foregroundTicker.unregister(_updateTickerTag));
   }
 
-  SetupParams get _setupParams {
-    final selectedMap = ref.read(selectedMapProvider);
+  SetupParams _setupParams(Profile? profile) {
+    // Applying B must not consume the selection used to display loaded A.
+    final selectedMap = profile?.selectedMap ?? <String, String>{};
     final testUrl = ref.read(
       appSettingProvider.select((state) => state.testUrl),
     );
@@ -112,6 +122,14 @@ class SetupAction extends _$SetupAction {
   Future<DateTime?> readServiceRunTime() async => service?.getRunTime();
 
   Future<void> _hydrateRunningState() async {
+    // Native running-state restoration has no Dart setup invocation. Bind only
+    // here, after the live-service query, never on arbitrary profile changes.
+    _coreGroupsOwner =
+        coreGroupsOwner ??
+        (
+          profileId: ref.read(currentProfileProvider)?.id,
+          token: _core.configuration.token,
+        );
     await ref.read(proxiesActionProvider.notifier).updateGroups();
     await ref.read(providersProvider.notifier).syncProviders();
   }
@@ -528,7 +546,18 @@ class SetupAction extends _$SetupAction {
     final profileFailed = realProfile == null;
     final yamlString = realProfile?.yaml ?? '';
     final yamlMd5 = realProfile?.md5 ?? '';
-    if (!profileFailed && yamlMd5 == globalState.lastConfigMd5 && !force) {
+    if (!profileFailed &&
+        yamlMd5 == globalState.lastConfigMd5 &&
+        !force &&
+        (coreGroupsOwner?.profileId == profile?.id) &&
+        _core.configuration.sessionActive &&
+        !_core.configuration.applying &&
+        (_core.configuration.generation == 0 ||
+            _core.configuration.succeeded)) {
+      _coreGroupsOwner = (
+        profileId: profile?.id,
+        token: _core.configuration.token,
+      );
       await globalState.safeRun(() async => await onUpdated?.call());
       return _SetupTaskResult.completed;
     }
@@ -548,13 +577,25 @@ class SetupAction extends _$SetupAction {
           if (profileId != null) {
             await appPath.ensureProviderDirs(profileId);
           }
-          final message = await _core.setupConfig(
-            params: _setupParams,
+          // Retire queued optimistic taps before copying the target selection.
+          ref.read(proxiesActionProvider.notifier).cancelPendingSelections();
+          final setup = _core.setupConfig(
+            params: _setupParams(
+              profile == null ? null : ref.read(profileProvider(profile.id)),
+            ),
             preloadInvoke: preloadInvoke,
           );
+          final token = _core.configuration.token;
+          final message = await setup;
+          if (!identical(token, _core.configuration.token) ||
+              !_core.configuration.sessionActive ||
+              _core.configuration.applying) {
+            throw StateError('Core configuration was superseded');
+          }
           if (message.isNotEmpty) {
             throw MessageException(message);
           }
+          _coreGroupsOwner = (profileId: profile?.id, token: token);
         } catch (e, s) {
           setupFailed = true;
           if (preloadInvoke != null) {

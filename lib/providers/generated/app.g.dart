@@ -250,7 +250,7 @@ final class ProvidersProvider
   }
 }
 
-String _$providersHash() => r'371ad37c19ed729f0a1e87238f7f7d4a9750a0df';
+String _$providersHash() => r'19065bf470477dc2c7eed3cbee85df1025069369';
 
 abstract class _$Providers extends $Notifier<List<ExternalProvider>> {
   List<ExternalProvider> build();
@@ -1220,6 +1220,86 @@ abstract class _$Version extends $Notifier<int> {
   }
 }
 
+/// Owner and groups are one publication; UI intent can already name another
+/// profile while the last accepted runtime snapshot is still on screen.
+
+@ProviderFor(LoadedGroups)
+final loadedGroupsProvider = LoadedGroupsProvider._();
+
+/// Owner and groups are one publication; UI intent can already name another
+/// profile while the last accepted runtime snapshot is still on screen.
+final class LoadedGroupsProvider
+    extends
+        $NotifierProvider<
+          LoadedGroups,
+          ({List<Group> groups, int? profileId, Object token})?
+        > {
+  /// Owner and groups are one publication; UI intent can already name another
+  /// profile while the last accepted runtime snapshot is still on screen.
+  LoadedGroupsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'loadedGroupsProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$loadedGroupsHash();
+
+  @$internal
+  @override
+  LoadedGroups create() => LoadedGroups();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(
+    ({List<Group> groups, int? profileId, Object token})? value,
+  ) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride:
+          $SyncValueProvider<
+            ({List<Group> groups, int? profileId, Object token})?
+          >(value),
+    );
+  }
+}
+
+String _$loadedGroupsHash() => r'693a70784c38721c210093707ec2de59e8258199';
+
+/// Owner and groups are one publication; UI intent can already name another
+/// profile while the last accepted runtime snapshot is still on screen.
+
+abstract class _$LoadedGroups
+    extends $Notifier<({List<Group> groups, int? profileId, Object token})?> {
+  ({List<Group> groups, int? profileId, Object token})? build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref =
+        this.ref
+            as $Ref<
+              ({List<Group> groups, int? profileId, Object token})?,
+              ({List<Group> groups, int? profileId, Object token})?
+            >;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<
+                ({List<Group> groups, int? profileId, Object token})?,
+                ({List<Group> groups, int? profileId, Object token})?
+              >,
+              ({List<Group> groups, int? profileId, Object token})?,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 @ProviderFor(Groups)
 final groupsProvider = GroupsProvider._();
 
@@ -1251,7 +1331,7 @@ final class GroupsProvider extends $NotifierProvider<Groups, List<Group>> {
   }
 }
 
-String _$groupsHash() => r'180ede48880a239add201c111ae45b2a6d98f3a5';
+String _$groupsHash() => r'5470275a9f0b4b42c79db54fc858122c874f4f7b';
 
 abstract class _$Groups extends $Notifier<List<Group>> {
   List<Group> build();
@@ -1303,7 +1383,7 @@ final class DelayDataSourceProvider
   }
 }
 
-String _$delayDataSourceHash() => r'9737cf2d943cb9b5504a5ec8ace20b0a9380b197';
+String _$delayDataSourceHash() => r'0d0fb2faccb3ce4539ce683b1a2bc4dcb8c8f3c0';
 
 abstract class _$DelayDataSource extends $Notifier<DelayMap> {
   DelayMap build();
@@ -1355,7 +1435,7 @@ final class PendingDelayTestsProvider
   }
 }
 
-String _$pendingDelayTestsHash() => r'ceaac9e42e13d87a1885d2f227971e34665b18ca';
+String _$pendingDelayTestsHash() => r'9f4e6eb253f7f2882e954c798ed4030b67f157f7';
 
 abstract class _$PendingDelayTests extends $Notifier<Set<String>> {
   Set<String> build();
