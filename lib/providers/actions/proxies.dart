@@ -320,13 +320,12 @@ class ProxiesAction extends _$ProxiesAction {
       );
       // Compare-and-swap the original owner only. A late failure must not
       // overwrite B, a newer tap, or a same-ID force reload's selection.
-      final expectedSelection =
-          proxyName.isEmpty || proxyName == compatibleProxyName
-          ? null
-          : proxyName;
-      if (identical(token, _core.configuration.token) &&
-          ref.read(profileProvider(profileId))?.selectedMap[groupName] ==
-              expectedSelection) {
+      final currentSelection = ref.read(profileProvider(profileId))?.selectedMap;
+      final selectionMatches = proxyName.isEmpty ||
+          proxyName == compatibleProxyName
+          ? currentSelection != null && !currentSelection.containsKey(groupName)
+          : currentSelection?[groupName] == proxyName;
+      if (identical(token, _core.configuration.token) && selectionMatches) {
         _writeSelection(profileId, groupName, rollbackName);
       }
       dialogs.showNotifier(
