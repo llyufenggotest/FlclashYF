@@ -122,6 +122,7 @@ jobs:
           flutter test test/common/cache_test.dart test/core/service_test.dart test/pages/editor_unavailable_test.dart
           flutter test test/common/native_log_export_test.dart test/providers/logs_clear_test.dart test/views/logs_clear_test.dart test/providers/setup_restoration_test.dart
           flutter test test/manager/loaded_recovery_test.dart test/core/controller_test.dart test/core/event_test.dart
+          flutter test test/providers/groups_owner_test.dart test/providers/groups_owner_setup_test.dart test/providers/reset_rollback_owner_test.dart test/widgets/line_chart_zero_baseline_test.dart test/widgets/traffic_details_test.dart
           flutter test test/views/dashboard/quick_options_test.dart test/power_repair_test.dart test/notification_page_activity_test.dart test/wire_batch_publish_test.dart
           python3 core/force_gc_semantics_test.py --output "$RUNNER_TEMP/power-force-gc"
           flutter test test/common/fastup_subscription_test.dart test/common/protocol_edit_policy_test.dart test/common/uri_subscription_test.dart test/common/profile_template_test.dart test/common/desktop_profile_drop_test.dart test/ios_profile_budget_test.dart test/ios_reclaim_battery_test.dart test/core/protocol_contract_test.dart test/providers/action_test.dart test/views/add_profile_view_test.dart test/views/clipboard_import_dialog_test.dart test/views/profile_template_test.dart test/views/tools_profile_template_test.dart
