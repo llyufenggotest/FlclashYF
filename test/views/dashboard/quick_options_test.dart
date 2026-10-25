@@ -22,6 +22,11 @@ class _CardCase {
 
 final _cardCases = <_CardCase>[
   _CardCase(
+    'Allow LAN',
+    const AllowLanButton(),
+    (container) => container.read(patchClashConfigProvider).allowLan,
+  ),
+  _CardCase(
     'TUN',
     const TUNButton(),
     (container) => container.read(patchClashConfigProvider).tun.enable,
