@@ -833,7 +833,13 @@ List<Override> buildAppStateOverrides(AppState appState) {
     viewSizeProvider.overrideWithBuild((_, _) => appState.viewSize),
     sideWidthProvider.overrideWithBuild((_, _) => appState.sideWidth),
     delayDataSourceProvider.overrideWithBuild((_, _) => appState.delayMap),
-    groupsProvider.overrideWithBuild((_, _) => appState.groups),
+    groupsProvider.overrideWithBuild((ref, notifier) {
+      // Keep Groups.build's loaded-snapshot dependency in the production
+      // bootstrap too. Restored groups are display-only until the first owned
+      // publication; an accepted empty snapshot must never revive them.
+      final groups = notifier.build();
+      return ref.watch(loadedGroupsProvider) == null ? appState.groups : groups;
+    }),
     checkIpNumProvider.overrideWithBuild((_, _) => appState.checkIpNum),
     systemBrightnessProvider.overrideWithBuild((_, _) => appState.brightness),
     runTimeProvider.overrideWithBuild((_, _) => appState.runTime),

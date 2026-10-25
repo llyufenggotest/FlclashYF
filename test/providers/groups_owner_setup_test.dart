@@ -20,6 +20,7 @@ import 'package:riverpod/riverpod.dart';
 
 import '../helpers/test_profiles.dart';
 import 'groups_owner_test.dart' show OwnerCore, data;
+import '../helpers/bootstrap_state.dart';
 
 class _Core extends OwnerCore {
   final setups = <SetupParams>[];
@@ -84,7 +85,7 @@ const _state = SetupState(
   dns: Dns(),
 );
 
-void main() {
+void main({bool productionBootstrap = false}) {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory directory;
   late PathProviderPlatform paths;
@@ -121,6 +122,10 @@ void main() {
     controller = CoreController.scoped(core);
     c = ProviderContainer(
       overrides: [
+        if (productionBootstrap) ...[
+          ...buildAppStateOverrides(bootstrapAppState()),
+          ...buildConfigOverrides(bootstrapConfig),
+        ],
         profilesProvider.overrideWith(() => TestProfiles([a, b])),
         setupStateProvider.overrideWith(
           (_, id) => _state.copyWith(profileId: id),
