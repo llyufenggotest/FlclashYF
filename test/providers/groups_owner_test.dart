@@ -1,4 +1,3 @@
-
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/controller.dart';
 import 'package:fl_clash/core/interface.dart';
@@ -92,16 +91,19 @@ void main() {
     expect(c.read(realSelectedProxyStateProvider('Proxy')).proxyName, 'A');
   });
 
-  test('retired initial hydration cannot silently rebind an old owner', () async {
-    await action().updateGroups();
-    final controller = c.read(coreHandlerProvider);
-    final prior = c.read(loadedGroupsProvider);
-    final epoch = controller.configuration.retire();
-    controller.configuration.started(epoch);
-    core.read = () async => data('A', group: 'WrongSession');
-    await action().updateGroups();
-    expect(c.read(loadedGroupsProvider), same(prior));
-  });
+  test(
+    'retired initial hydration cannot silently rebind an old owner',
+    () async {
+      await action().updateGroups();
+      final controller = c.read(coreHandlerProvider);
+      final prior = c.read(loadedGroupsProvider);
+      final epoch = controller.configuration.retire();
+      controller.configuration.started(epoch);
+      core.read = () async => data('A', group: 'WrongSession');
+      await action().updateGroups();
+      expect(c.read(loadedGroupsProvider), same(prior));
+    },
+  );
 
   test('successful empty read clears the prior groups', () async {
     await action().updateGroups();
