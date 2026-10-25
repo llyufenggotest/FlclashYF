@@ -323,10 +323,12 @@ class ProxiesAction extends _$ProxiesAction {
       final currentSelection = ref
           .read(profileProvider(profileId))
           ?.selectedMap;
-      final selectionMatches =
+      final requestedSelection =
           proxyName.isEmpty || proxyName == compatibleProxyName
-          ? currentSelection != null && !currentSelection.containsKey(groupName)
-          : currentSelection?[groupName] == proxyName;
+          ? null
+          : proxyName;
+      final selectionMatches =
+          currentSelection?[groupName] == requestedSelection;
       if (identical(token, _core.configuration.token) && selectionMatches) {
         _writeSelection(profileId, groupName, rollbackName);
       }
