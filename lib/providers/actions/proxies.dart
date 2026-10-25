@@ -179,7 +179,9 @@ class ProxiesAction extends _$ProxiesAction {
     // hydration is explicitly bound by SetupAction's running-service path.
     if (owner == null && config.generation > 0) return;
     final loaded = ref.read(loadedGroupsProvider);
-    if (owner == null && loaded != null && !identical(loaded.token, config.token)) {
+    if (owner == null &&
+        loaded != null &&
+        !identical(loaded.token, config.token)) {
       return;
     }
     final profileId = owner != null
@@ -318,9 +320,13 @@ class ProxiesAction extends _$ProxiesAction {
       );
       // Compare-and-swap the original owner only. A late failure must not
       // overwrite B, a newer tap, or a same-ID force reload's selection.
+      final expectedSelection =
+          proxyName.isEmpty || proxyName == compatibleProxyName
+          ? null
+          : proxyName;
       if (identical(token, _core.configuration.token) &&
           ref.read(profileProvider(profileId))?.selectedMap[groupName] ==
-              proxyName) {
+              expectedSelection) {
         _writeSelection(profileId, groupName, rollbackName);
       }
       dialogs.showNotifier(
