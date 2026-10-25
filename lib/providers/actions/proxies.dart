@@ -320,9 +320,11 @@ class ProxiesAction extends _$ProxiesAction {
       );
       // Compare-and-swap the original owner only. A late failure must not
       // overwrite B, a newer tap, or a same-ID force reload's selection.
-      final currentSelection = ref.read(profileProvider(profileId))?.selectedMap;
-      final selectionMatches = proxyName.isEmpty ||
-          proxyName == compatibleProxyName
+      final currentSelection = ref
+          .read(profileProvider(profileId))
+          ?.selectedMap;
+      final selectionMatches =
+          proxyName.isEmpty || proxyName == compatibleProxyName
           ? currentSelection != null && !currentSelection.containsKey(groupName)
           : currentSelection?[groupName] == proxyName;
       if (identical(token, _core.configuration.token) && selectionMatches) {
