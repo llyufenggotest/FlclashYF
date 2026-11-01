@@ -315,10 +315,32 @@ jobs:
             ${{ runner.temp }}/error-chain
           if-no-files-found: error
 
+  startup-diagnostics-native:
+    name: Required startup diagnostic RED and GREEN
+    if: github.event_name == 'push' || inputs.platforms == 'all' || inputs.platforms == 'ios'
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Compile production startup diagnostics and assert ownership
+        run: |
+          python3 scripts/test_ios_start_diagnostics.py
+          python3 scripts/test_ios_start_diagnostics_ci.py
+          python3 scripts/test_ios_start_diagnostics_swift.py --output "$RUNNER_TEMP/startup-diagnostics"
+      - name: Preserve startup diagnostic behavior evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: FlclashYF-startup-diagnostic-proof
+          path: ${{ runner.temp }}/startup-diagnostics
+          if-no-files-found: error
+
   ios:
     name: iOS arm64 IPA
     if: github.event_name == 'push' || inputs.platforms == 'all' || inputs.platforms == 'ios'
-    needs: [verify, swift-review-native]
+    needs: [verify, swift-review-native, startup-diagnostics-native]
     runs-on: macos-15
     timeout-minutes: 90
     steps:
