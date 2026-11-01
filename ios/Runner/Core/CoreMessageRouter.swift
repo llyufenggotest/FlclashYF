@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 import os
 
 private enum AppCoreMethod: String {
@@ -180,6 +181,23 @@ final class CoreMessageRouter {
     }
   }
 
+  // Internal App-process ABI only. Never route these operations through NE.
+  // A transport reply is not proof that the socket was closed/rebound.
+  static func setAppDNSListenerSuspended(_ suspended: Bool) async -> Bool {
+    let method = suspended ? "suspendDnsListener" : "resumeDnsListener"
+    let call = "{\"method\":\"\(method)\",\"arguments\":null}"
+    let response: String? = await withCheckedContinuation { continuation in
+      IOSCoreBridge.invokeMethod(call) { continuation.resume(returning: $0) }
+    }
+    guard let response, let data = response.data(using: .utf8),
+      let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+      payload["error"] == nil || payload["error"] is NSNull,
+      let result = payload["result"] as? NSNumber,
+      CFGetTypeID(result) == CFBooleanGetTypeID()
+    else { return false }
+    return result.boolValue
+  }
+
   func shutdownAppCore() async -> Bool {
     let methodCall = #"{"method":"shutdown","arguments":null}"#
     return await withCheckedContinuation { continuation in
@@ -294,6 +312,10 @@ final class CoreMessageRouter {
     // Capture before App Core await: a resumed old setup must not be delivered
     // into a newly started NE just because currentRoute is extension again.
     let configurationOwner = tunnelController.captureProviderOwner()
+    guard await tunnelController.prepareAppDNSForConfiguration() else {
+      throw CoreRoutingError(code: "app_dns_handoff_failed", message: "App DNS ownership could not be established")
+    }
+    if networkExtensionActive { try tunnelController.validateProviderOwner(configurationOwner) }
     if networkExtensionActive && method == .updateConfig {
       let networkExtensionData = try replacingArgument(
         in: data,

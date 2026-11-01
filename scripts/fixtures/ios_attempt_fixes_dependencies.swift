@@ -84,6 +84,10 @@ enum IOSCoreBridge {
   static var heldApp: ((String?) -> Void)?
   static var holdApp = false
   static func invokeMethod(_ data: String, completion: @escaping (String?) -> Void) {
+    // Internal App DNS ABI has a strict boolean result, unlike setupConfig.
+    if data.contains("\"method\":\"suspendDnsListener\"") || data.contains("\"method\":\"resumeDnsListener\"") {
+      completion(#"{"result":true,"error":null}"#); return
+    }
     if holdApp { heldApp = completion } else { completion("{\"result\":\"\",\"error\":null}") }
   }
 }

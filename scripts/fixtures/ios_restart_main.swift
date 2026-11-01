@@ -51,6 +51,10 @@ final class NETunnelProviderManager {
     manager.connection.preparedOptions = options
   }
 }
+enum CoreMessageRouter {
+  // Coordinator-only fixture dependency; full DNS gate compiles the real router.
+  static func setAppDNSListenerSuspended(_ suspended: Bool) async -> Bool { true }
+}
 enum SwitchDiagnostics {
   static func disconnectErrorFields(_ error: Error?) -> [String: String] { [:] }
   static func record(_ event: String, fields: [String: String] = [:]) {}

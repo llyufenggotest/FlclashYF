@@ -9,6 +9,12 @@ final class TunnelCoordinator {
   private let onConnectionStateChanged: (String) -> Void
   private let onExternalStart: () -> Void
   private let onExternalStop: () -> Void
+  private let setAppDNSSuspended: (Bool) async -> Bool
+  // Ordered ABI lane: late resume must finish before a newer suspend/start.
+  private var appDNSOperation: Task<Bool, Never>?
+  private var appDNSOperationGeneration: UInt64 = 0
+  private var appDNSWasSuspended = false
+  private var dnsOwnershipRevision: UInt64 = 0
   private let connectTimeout: TimeInterval = 5
   private let logger = Logger(
     subsystem: Bundle.main.bundleIdentifier ?? "cc.chenx.flclash",
@@ -43,13 +49,15 @@ final class TunnelCoordinator {
     onTunnelStateChanged: @escaping (TunnelTarget) -> Void,
     onConnectionStateChanged: @escaping (String) -> Void,
     onExternalStart: @escaping () -> Void,
-    onExternalStop: @escaping () -> Void
+    onExternalStop: @escaping () -> Void,
+    setAppDNSSuspended: @escaping (Bool) async -> Bool = { await CoreMessageRouter.setAppDNSListenerSuspended($0) }
   ) {
     self.managerStore = managerStore
     self.onTunnelStateChanged = onTunnelStateChanged
     self.onConnectionStateChanged = onConnectionStateChanged
     self.onExternalStart = onExternalStart
     self.onExternalStop = onExternalStop
+    self.setAppDNSSuspended = setAppDNSSuspended
   }
 
   deinit {
@@ -88,6 +96,82 @@ final class TunnelCoordinator {
     )
 
     driveCoordinator()
+  }
+
+  // Configuration admission and lifecycle share exactly the same App DNS lane.
+  // A failed/unknown manager lookup must never restore App ownership.
+  func prepareAppDNSForConfiguration() async -> Bool {
+    let generation = requestGeneration
+    let revision = dnsOwnershipRevision
+    do {
+      let manager = try await managerStore.loadManager(createIfNeeded: false)
+      guard generation == requestGeneration, revision == dnsOwnershipRevision else { return false }
+      let status = manager?.connection.status ?? .invalid
+      if status.isLifecycleActive || tunnelRequest?.target == .running {
+        let success = await changeAppDNSOwnership(suspended: true)
+        return success && generation == requestGeneration && revision == dnsOwnershipRevision
+      }
+      if appDNSWasSuspended {
+        recordObservedTunnelStatus(status, notifyExternal: false)
+        return await restoreAppDNSIfStopped()
+      }
+      return true
+    } catch { return false }
+  }
+
+  private func changeAppDNSOwnership(suspended: Bool) async -> Bool {
+    // Register debt before suspension so a concurrent terminal stop queues its
+    // restore behind this operation, even when the bridge reply arrives late.
+    if suspended { appDNSWasSuspended = true }
+    appDNSOperationGeneration &+= 1
+    let operationGeneration = appDNSOperationGeneration
+    let previous = appDNSOperation
+    let action = setAppDNSSuspended
+    let operation = Task { @MainActor in
+      if let previous { _ = await previous.value }
+      return await action(suspended)
+    }
+    appDNSOperation = operation
+    let success = await operation.value
+    if operationGeneration == appDNSOperationGeneration { appDNSOperation = nil }
+    return success
+  }
+
+  private func restoreAppDNSIfStopped() async -> Bool {
+    guard appDNSWasSuspended,
+      tunnelRequest?.target != .running,
+      observedTunnelStatus?.isTerminal == true
+    else { return !appDNSWasSuspended }
+    let generation = requestGeneration
+    let revision = dnsOwnershipRevision
+    appDNSOperationGeneration &+= 1
+    let operationGeneration = appDNSOperationGeneration
+    let previous = appDNSOperation
+    let operation = Task { @MainActor [weak self] in
+      if let previous { _ = await previous.value }
+      guard let self, generation == self.requestGeneration,
+        revision == self.dnsOwnershipRevision,
+        self.tunnelRequest?.target != .running,
+        self.observedTunnelStatus?.isTerminal == true
+      else { return false }
+      // Re-read the actual managed connection; a queued old stopped report is
+      // not authority to bind while an external/on-demand start is connecting.
+      do {
+        let manager = try await self.managerStore.loadManager(createIfNeeded: false)
+        guard generation == self.requestGeneration, revision == self.dnsOwnershipRevision,
+          self.tunnelRequest?.target != .running,
+          manager?.connection.status.isLifecycleActive != true
+        else { return false }
+      } catch { return false }
+      return await self.setAppDNSSuspended(false)
+    }
+    appDNSOperation = operation
+    let success = await operation.value
+    if operationGeneration == appDNSOperationGeneration { appDNSOperation = nil }
+    guard generation == requestGeneration, revision == dnsOwnershipRevision,
+      operationGeneration == appDNSOperationGeneration else { return false }
+    if success { appDNSWasSuspended = false }
+    return success
   }
 
   func toggleTunnelRequest() {
@@ -203,6 +287,14 @@ final class TunnelCoordinator {
         continue
       }
 
+      let ownershipRevision = dnsOwnershipRevision
+      if observedTunnelStatus?.isLifecycleActive == true {
+        _ = await changeAppDNSOwnership(suspended: true)
+      } else if observedTunnelStatus?.isTerminal == true && appDNSWasSuspended {
+        _ = await restoreAppDNSIfStopped()
+      }
+      // A request/status may replace the idle operation while it awaits.
+      if tunnelRequest != nil || needsStatusRefresh || ownershipRevision != dnsOwnershipRevision { continue }
       isCoordinatorRunning = false
       return
     }
@@ -329,6 +421,18 @@ final class TunnelCoordinator {
         continue
       }
 
+      let dnsReleased = await changeAppDNSOwnership(suspended: true)
+      guard isCurrent(request) else { return }
+      guard dnsReleased else {
+        throw ProviderMessageError(code: "app_dns_suspend_failed", message: "App DNS listener did not quiesce")
+      }
+      // Preferences/connection ownership can change across the App Core await.
+      guard managerStore.isCachedConnection(manager.connection) else { continue }
+      let releasedStatus = manager.connection.status
+      if releasedStatus.isLifecycleActive {
+        recordObservedTunnelStatus(releasedStatus, notifyExternal: false)
+        continue
+      }
       do {
         try manager.connection.startVPNTunnel()
         log("start requested")
@@ -683,6 +787,7 @@ final class TunnelCoordinator {
     let generation = requestGeneration
     do {
       let manager = try await managerStore.loadManager(createIfNeeded: false)
+      guard generation == requestGeneration else { return }
       let status = manager?.connection.status ?? .invalid
       recordObservedTunnelStatus(
         status,
@@ -710,6 +815,10 @@ final class TunnelCoordinator {
     observedTunnelStatus = status
     defer { publishConnectionState() }
     if previousStatus != status {
+      dnsOwnershipRevision &+= 1
+      // Wake the serialized owner reconciliation even for connecting and
+      // disconnecting, which intentionally do not publish a stopped route.
+      driveCoordinator()
       failedRestartGeneration = nil
       log(
         "status changed \(statusDescription(previousStatus ?? .invalid)) -> \(statusDescription(status)) target=\(tunnelRequest?.target.description ?? "none")"

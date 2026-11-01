@@ -51,7 +51,8 @@ final class TunnelController {
       onTunnelStateChanged: onTunnelStateChanged,
       onConnectionStateChanged: onConnectionStateChanged,
       onExternalStart: onExternalStart,
-      onExternalStop: onExternalStop
+      onExternalStop: onExternalStop,
+      setAppDNSSuspended: { await CoreMessageRouter.setAppDNSListenerSuspended($0) }
     )
   }
 
@@ -151,6 +152,10 @@ final class TunnelController {
   func toggle() {
     invalidateProviderRequests()
     coordinator.toggleTunnelRequest()
+  }
+
+  func prepareAppDNSForConfiguration() async -> Bool {
+    await coordinator.prepareAppDNSForConfiguration()
   }
 
   func reloadOnDemandRules() async throws {

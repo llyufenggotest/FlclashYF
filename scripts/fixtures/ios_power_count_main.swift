@@ -15,6 +15,7 @@ struct ProviderMessageError: Error { let code: String; let message: String }
   var shouldFail = false
   var requests: [Data] = []
   func isCoreActive() async -> Bool { true }
+  func prepareAppDNSForConfiguration() async -> Bool { true }
   func captureProviderOwner() -> ProviderOwner { ProviderOwner(clientEpoch: 0, attempt: nil) }
   func validateProviderOwner(_ owner: ProviderOwner) throws {}
   func beginConfigurationApply() -> UInt64 { 0 }
