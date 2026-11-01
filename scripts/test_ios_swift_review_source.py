@@ -1,6 +1,7 @@
 """Supplemental fail-closed source gates, NOT native compile/behavior evidence."""
 import argparse
 import pathlib
+import re
 import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -18,6 +19,9 @@ def check_tree(ref=None):
     script = read('scripts/test_ios_memory_round2.py')
     workflow = read('.github/workflows/ios-memory-native.yaml')
     packaging = read('.github/workflows/ios-five-protocol.yaml')
+    ios_job = re.search(r'^  ios:\n(.*?)(?=^  [\w-]+:|\Z)', packaging, re.M | re.S)
+    needs = re.search(r'^    needs: \[([^\]\n]*)\]$', ios_job.group(1), re.M) if ios_job else None
+    ios_dependencies = {name.strip() for name in needs.group(1).split(',')} if needs else set()
     tests = [
         ('M01 no synchronous diagnostic admission', 'queue.sync { write(data) }' not in log),
         ('M01 reserved critical diagnostic budget and counters', 'maxCriticalJobs' in log and 'droppedCritical' in log),
@@ -30,7 +34,7 @@ def check_tree(ref=None):
         ('ACK retry one payload-free generation-owned backoff', all(token in runner for token in ['private var retryWork: DispatchWorkItem?', 'retryWork == nil', 'self.generation == owner', 'self.retryToken == token', 'worker.asyncAfter', 'cancelRetry()', 'blockForRetry()']) and 'self.retryBlocked = true; return' not in runner),
         ('CI01 published immutable baseline', 'd4f707b7ed80d1a9eb2d0de07120bb83f4e228ce' in script),
         ('CI02 sibling replacement initialized', 'core/mihomo core/sing-shadowsocks2' in workflow),
-        ('CI03 packaging requires Swift behavior', 'test_ios_swift_review.py --require-swift' in packaging and 'fetch-depth: 0' in packaging and 'needs: [verify, swift-review-native]' in packaging),
+        ('CI03 packaging requires Swift behavior', 'test_ios_swift_review.py --require-swift' in packaging and 'fetch-depth: 0' in packaging and {'verify', 'swift-review-native'} <= ios_dependencies),
     ]
     for label, ok in tests:
         print(('PASS' if ok else 'FAIL') + ' SOURCE ONLY: ' + label)
