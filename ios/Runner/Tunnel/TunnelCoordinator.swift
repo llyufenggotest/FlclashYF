@@ -293,8 +293,8 @@ final class TunnelCoordinator {
       } else if observedTunnelStatus?.isTerminal == true && appDNSWasSuspended {
         _ = await restoreAppDNSIfStopped()
       }
-      // A request/status may replace the idle operation while it awaits.
-      if tunnelRequest != nil || needsStatusRefresh || ownershipRevision != dnsOwnershipRevision { continue }
+      // A request/status/configuration may arrive while the idle operation awaits.
+      if tunnelRequest != nil || !configurationContinuations.isEmpty || needsStatusRefresh || ownershipRevision != dnsOwnershipRevision { continue }
       isCoordinatorRunning = false
       return
     }

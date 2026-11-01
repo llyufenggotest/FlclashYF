@@ -4,7 +4,8 @@ import Darwin
 let caseName = CommandLine.arguments[1]
 let knownCases = ["suspend-barrier", "toggle-start", "superseded-start", "terminal-stop", "suspend-false",
   "active-config", "connecting-config", "stop-restore", "stop-failure", "stale-status",
-  "late-resume", "offline-config", "resume-false", "envelopes"]
+  "late-resume", "offline-config", "resume-false", "envelopes",
+  "reload-during-idle-suspend", "reload-during-idle-resume"]
 if !knownCases.contains(caseName) { print("FAIL DNS unknown case"); exit(1) }
 func check(_ ok: @autoclosure () -> Bool, _ message: String) {
   if !ok() { print("FAIL DNS \(caseName): \(message)"); exit(1) }
@@ -44,7 +45,48 @@ Task { @MainActor in
     controller.stop(); await pause(); await post(.disconnected)
   }
   let config = Data(#"{"method":"setupConfig","arguments":{},"id":"dns"}"#.utf8)
-  if caseName == "envelopes" {
+  if caseName == "reload-during-idle-suspend" || caseName == "reload-during-idle-resume" {
+    let resuming = caseName == "reload-during-idle-resume"
+    if resuming {
+      // Acquire suspend debt through idle reconciliation, not a start request.
+      await post(.connected)
+      check(IOSCoreBridge.calls.contains("suspendDnsListener"), "initial idle suspend missing")
+      IOSCoreBridge.holdResume = true
+      await post(.disconnected)
+      await until("idle resume not held") { IOSCoreBridge.heldResume != nil }
+    } else {
+      IOSCoreBridge.holdSuspend = true
+      await post(.connected)
+      await until("idle suspend not held") { IOSCoreBridge.heldSuspend != nil }
+    }
+    let savesBefore = manager.preferenceSaves
+    let startsBefore = manager.connection.starts, stopsBefore = manager.connection.stops
+    let statusBefore = manager.connection.status
+    var entered = 0, completed = 0, failures = 0
+    // Each task reaches the actual continuation queue while the ABI is held.
+    for _ in 0..<3 {
+      Task { @MainActor in
+        entered += 1
+        do { try await controller.reloadOnDemandRules() } catch { failures += 1 }
+        completed += 1
+      }
+    }
+    await until("reload tasks did not enter") { entered == 3 }
+    await pause()
+    check(completed == 0, "reload bypassed held idle operation")
+    check(manager.preferenceSaves == savesBefore, "reload executed before idle release")
+    let release = resuming ? IOSCoreBridge.heldResume! : IOSCoreBridge.heldSuspend!
+    IOSCoreBridge.heldResume = nil; IOSCoreBridge.heldSuspend = nil
+    IOSCoreBridge.holdResume = false; IOSCoreBridge.holdSuspend = false
+    release(#"{"result":true,"error":null}"#)
+    // No status notifications, start/stop, or further reloads may rescue waiters.
+    await until("configuration waiters stranded by idle DNS await") { completed == 3 }
+    check(failures == 0, "queued reload failed")
+    check(manager.preferenceSaves == savesBefore + 1, "queued reload batch lost or duplicated")
+    check(manager.connection.starts == startsBefore && manager.connection.stops == stopsBefore,
+      "reload changed tunnel request ownership")
+    check(manager.connection.status == statusBefore, "reload changed lifecycle status")
+  } else if caseName == "envelopes" {
     // Every false/malformed ABI envelope must prevent a real start.
     let bad: [String?] = [nil, #"{"result":false}"#, #"{"result":true,"error":{"code":"failed"}}"#,
       #"{"result":1}"#, #"{"result":"true"}"#, #"{}"#, "broken"]
