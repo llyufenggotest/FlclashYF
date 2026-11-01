@@ -150,8 +150,7 @@ func TestDNSWrapperSetupReportsReadinessFailure(t *testing.T) {
 		t.Fatal(e)
 	}
 	setupConfig = func(*SetupParams) error {
-		dns.ReCreateServer(addr, &net.ListenConfig{}, dnsWrapperService{})
-		return nil
+		return dns.ReplaceServerWithError(addr, &net.ListenConfig{}, dnsWrapperService{})
 	}
 	if got := handleSetupConfig(&SetupParams{}); got == "" {
 		tcp.Close()

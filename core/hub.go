@@ -1339,11 +1339,8 @@ func handleSetupConfig(params *SetupParams) string {
 	if err := setupConfig(params); err != nil {
 		return err.Error()
 	}
-	configMu.Lock()
-	defer configMu.Unlock()
-	if err := dns.EnsureServer(); err != nil {
-		return err.Error()
-	}
+	// applyConfig admits DNS readiness inside the hub transaction, before
+	// publishing currentConfig. A post-commit retry cannot reject a candidate.
 	return ""
 }
 
