@@ -5,7 +5,15 @@ import 'package:fl_clash/common/dns_listener_dependency.dart';
 import 'package:fl_clash/common/ios_profile_budget.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'dns_listener_dependency_probe.dart' as fixture;
+
 void main() {
+  test(
+    'equivalent IPv6 spellings deduplicate without changing resolver literals',
+    () {
+      fixture.verifyEquivalentIpv6();
+    },
+  );
   final cases = <(String, Object, String?)>[
     ('127.0.0.1:7874', 'udp://127.0.0.1:7874', '127.0.0.1:7874'),
     ('127.0.0.2:7874', 'tcp://127.0.0.2:7874', '127.0.0.2:7874'),

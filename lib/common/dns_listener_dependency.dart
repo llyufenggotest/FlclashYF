@@ -22,7 +22,7 @@ String? referencedLoopbackDnsListener(Map dns, {Object? listener}) {
   if (bind == null) return null;
   final wildcard = bind.address.rawAddress.every((byte) => byte == 0);
   if (!wildcard && !bind.address.isLoopback) return null;
-  final matches = <String>{};
+  final matches = <InternetAddress>{};
   void visit(Object? value) {
     if (value is Map) {
       value.values.forEach(visit);
@@ -36,12 +36,7 @@ String? referencedLoopbackDnsListener(Map dns, {Object? listener}) {
           endpoint.address.type != bind.address.type)
         return;
       if (!wildcard && endpoint.address != bind.address) return;
-      final host = endpoint.address.address;
-      matches.add(
-        endpoint.address.type == InternetAddressType.IPv6
-            ? '[$host]:${bind.port}'
-            : '$host:${bind.port}',
-      );
+      matches.add(endpoint.address);
     }
   }
 
@@ -51,7 +46,32 @@ String? referencedLoopbackDnsListener(Map dns, {Object? listener}) {
   if (matches.isEmpty) return null;
   if (!wildcard) return declared;
   // One listener cannot safely narrow to several distinct local interfaces.
-  return matches.length == 1 ? matches.single : null;
+  if (matches.length != 1) return null;
+  final address = matches.single;
+  final host = address.address;
+  return address.type == InternetAddressType.IPv6
+      ? '[$host]:${bind.port}'
+      : '$host:${bind.port}';
+}
+
+/// Whether replacing a listener would break any of its surviving references.
+/// Examine endpoints individually so a wildcard with several references cannot
+/// hide a conflict merely because it cannot narrow to a single address.
+bool dnsListenerDependenciesConflict(Map dns, String replacement) {
+  bool conflicts(Object? value) {
+    if (value is Map) return value.values.any(conflicts);
+    if (value is List) return value.any(conflicts);
+    if (value is! String) return false;
+    final endpointDns = {
+      'listen': dns['listen'],
+      'nameserver': [value],
+    };
+    return referencedLoopbackDnsListener(endpointDns) != null &&
+        referencedLoopbackDnsListener(endpointDns, listener: replacement) ==
+            null;
+  }
+
+  return _resolverFields.any((key) => conflicts(dns[key]));
 }
 
 ({InternetAddress address, int port})? _endpoint(

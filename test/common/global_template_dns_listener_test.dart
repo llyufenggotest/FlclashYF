@@ -12,6 +12,9 @@ import 'global_template_private_dns_test.dart' show finalProfile;
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final template = File('assets/data/profile_template.yaml').readAsStringSync();
+  test('referenced template/source listener conflict fails closed safely', () {
+    fixture.verifyListenerConflict();
+  });
   for (final listen in ['127.0.0.1:7874', '0.0.0.0:7874', '[::]:7874']) {
     test(
       'bundled template -> actual ${Platform.operatingSystem} final task: $listen',

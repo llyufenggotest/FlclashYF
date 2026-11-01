@@ -191,6 +191,14 @@ void mergeSubscriptionDns(
     listener: sourceDns['listen'],
   );
   if (sourceDns['listen'] is String && listener != null) {
+    // Check surviving template references after merging: overwritten policy
+    // entries no longer depend on the old listener. Never silently break a
+    // second proven dependency when only one local listener can be retained.
+    if (dnsListenerDependenciesConflict(dns, listener)) {
+      throw const FormatException(
+        'DNS listener dependencies conflict. Adapt the template to use one shared local listener.',
+      );
+    }
     dns['listen'] = sourceDns['listen'];
   }
   _closeDnsDependencies(config, source, dns);
