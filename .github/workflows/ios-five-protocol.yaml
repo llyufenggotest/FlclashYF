@@ -100,6 +100,10 @@ jobs:
           (cd core/mihomo && CGO_ENABLED=1 go test -race -tags with_low_memory -count=1 ./dns ./component/resolver)
           (cd core/mihomo && CGO_ENABLED=1 go test -race -count=1 ./component/resource ./component/profile/cachefile ./common/utils ./adapter/provider ./rules/provider)
           (cd core/mihomo && CGO_ENABLED=1 go test -race -tags with_low_memory -count=1 ./component/resource ./component/profile/cachefile ./common/utils ./adapter/provider ./rules/provider)
+          (cd core/mihomo && go test -count=1 -timeout=120s -run '^TestDNSLifecycle' ./dns)
+          (cd core/mihomo && go test -tags with_low_memory -count=1 -timeout=120s -run '^TestDNSLifecycle' ./dns)
+          (cd core/mihomo && CGO_ENABLED=1 go test -race -count=1 -timeout=120s -run '^TestDNSLifecycle' ./dns)
+          (cd core/mihomo && CGO_ENABLED=1 go test -race -tags with_low_memory -count=1 -timeout=120s -run '^TestDNSLifecycle' ./dns)
           python3 scripts/protocol_smoke.py
           python3 scripts/test_oix_ci_wiring.py
           python3 scripts/test_core_roots_wiring.py
@@ -329,13 +333,18 @@ jobs:
         run: |
           python3 scripts/test_ios_start_diagnostics.py
           python3 scripts/test_ios_start_diagnostics_ci.py
+          python3 scripts/test_ios_dns_handoff_source.py
+          python3 scripts/test_ios_dns_handoff_harness.py
+          python3 scripts/test_ios_dns_handoff_swift.py --output "$RUNNER_TEMP/dns-handoff"
           python3 scripts/test_ios_start_diagnostics_swift.py --output "$RUNNER_TEMP/startup-diagnostics"
       - name: Preserve startup diagnostic behavior evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: FlclashYF-startup-diagnostic-proof
-          path: ${{ runner.temp }}/startup-diagnostics
+          path: |
+            ${{ runner.temp }}/startup-diagnostics
+            ${{ runner.temp }}/dns-handoff
           if-no-files-found: error
 
   ios:
