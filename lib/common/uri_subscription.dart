@@ -1,3 +1,4 @@
+import 'package:fl_clash/common/dns_listener_dependency.dart';
 import 'package:fl_clash/common/yaml.dart';
 import 'package:yaml/yaml.dart';
 
@@ -184,6 +185,13 @@ void mergeSubscriptionDns(
       }
     }
     if (exclusions.isNotEmpty) dns['fake-ip-filter'] = exclusions;
+  }
+  final listener = referencedLoopbackDnsListener(
+    dns,
+    listener: sourceDns['listen'],
+  );
+  if (sourceDns['listen'] is String && listener != null) {
+    dns['listen'] = sourceDns['listen'];
   }
   _closeDnsDependencies(config, source, dns);
 }

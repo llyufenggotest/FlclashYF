@@ -1,5 +1,7 @@
 library;
 
+import 'dns_listener_dependency.dart';
+
 // Keep mixed-port: system proxy and app-local requests still consume it.
 const iosRemovedGlobalKeys = <String>{
   'port',
@@ -40,9 +42,11 @@ Map<String, dynamic> sanitizeProfileForIOS(Map<String, dynamic> rawConfig) {
 
   final dns = config['dns'];
   if (dns is Map) {
+    final listener = referencedLoopbackDnsListener(dns);
     for (final key in iosRemovedDnsKeys) {
       dns.remove(key);
     }
+    if (listener != null) dns['listen'] = listener;
   }
 
   config['find-process-mode'] = 'off';
