@@ -65,14 +65,19 @@ final class PacketTunnelSharedStateStore {
 @MainActor final class TunnelCoordinator {
   init(managerStore: TunnelManagerStore, onTunnelStateChanged: @escaping (TunnelTarget) -> Void,
        onConnectionStateChanged: @escaping (String) -> Void, onExternalStart: @escaping () -> Void,
-       onExternalStop: @escaping () -> Void) {}
+       onExternalStop: @escaping () -> Void,
+       setAppDNSSuspended: @escaping (Bool) async -> Bool = { _ in true }) {}
   func ownsStatusConnection(_ c: NEVPNConnection) -> Bool { true }
   func handleTunnelStatusNotification(_ n: Notification) {}
   func requestStatusRefresh(notifyExternal: Bool) {}
   func submitTunnelRequest(target: TunnelTarget) {}
   func publishConnectionState() {}
   func toggleTunnelRequest() {}
+  func prepareAppDNSForConfiguration() async -> Bool { true }
   func reloadOnDemandRules() async throws {}
+}
+enum CoreMessageRouter {
+  static func setAppDNSListenerSuspended(_ suspended: Bool) async -> Bool { true }
 }
 func check(_ condition: @autoclosure () -> Bool, _ message: String) {
   if !condition() { print("FAIL ATTEMPT: \(message)"); exit(1) }

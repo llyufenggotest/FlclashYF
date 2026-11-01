@@ -102,6 +102,14 @@ class AttemptFixContracts(unittest.TestCase):
                      'ios/Runner/Tunnel/TunnelManagerStore.swift']:
             self.assertIn(path, sources)
 
+    def test_recovery_fixture_supplies_current_dns_dependencies(self):
+        fixture = (ROOT / 'scripts/fixtures/ios_attempt_recovery_main.swift').read_text(encoding='utf-8')
+        coordinator = fixture.split('@MainActor final class TunnelCoordinator {', 1)[1].split('func check(', 1)[0]
+        self.assertIn('setAppDNSSuspended: @escaping (Bool) async -> Bool', coordinator)
+        self.assertIn('func prepareAppDNSForConfiguration() async -> Bool', coordinator)
+        self.assertIn('enum CoreMessageRouter {', fixture)
+        self.assertIn('static func setAppDNSListenerSuspended(_ suspended: Bool) async -> Bool', fixture)
+
     def test_native_fixture_matches_manager_framework_boundary(self):
         fixture = (ROOT / 'scripts/fixtures/ios_attempt_fixes_dependencies.swift').read_text(encoding='utf-8')
         self.assertIn('enum NEOnDemandRuleInterfaceType', fixture)

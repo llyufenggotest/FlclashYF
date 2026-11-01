@@ -158,8 +158,8 @@ Task { @MainActor in
     if caseName == "stale-status" {
       controller.start(); await until("new start missing") { manager.connection.starts == 2 }
       let count = IOSCoreBridge.calls.filter { $0 == "resumeDnsListener" }.count
-      let foreign = NEVPNConnection(); foreign.status = .disconnected
-      NotificationCenter.default.post(name:.NEVPNStatusDidChange,object:foreign)
+      let foreign = NETunnelProviderManager(); foreign.connection.status = .disconnected
+      NotificationCenter.default.post(name:.NEVPNStatusDidChange,object:foreign.connection)
       // A queued old notification still reads the actual current connecting status.
       NotificationCenter.default.post(name:.NEVPNStatusDidChange,object:manager.connection)
       await pause()

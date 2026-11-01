@@ -11,6 +11,13 @@ import unittest
 import test_ios_dns_handoff_swift as gate
 
 class DNSHarnessTests(unittest.TestCase):
+    def test_foreign_status_uses_manager_owned_connection(self):
+        fixture = (gate.ROOT/'scripts/fixtures/ios_dns_handoff_main.swift').read_text()
+        foreign = fixture.split('if caseName == "stale-status" {', 1)[1].split('} else {', 1)[0]
+        self.assertIn('let foreign = NETunnelProviderManager()', foreign)
+        self.assertIn('object:foreign.connection', foreign)
+        self.assertNotIn('let foreign = NEVPNConnection()', foreign)
+
     def test_full_bodies_immutable_baseline_and_shared_fixture(self):
         with tempfile.TemporaryDirectory(prefix='dns-handoff-') as d:
             root=Path(d)
