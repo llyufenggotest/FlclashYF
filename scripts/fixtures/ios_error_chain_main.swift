@@ -6,7 +6,8 @@ import Darwin
 let caseName = CommandLine.arguments[1]
 let success = Data(#"{"result":{"up":1,"down":2},"error":null}"#.utf8)
 let failure = Data(#"{"result":null,"error":{"code":"invalid_arguments","message":"private-token","details":{"arguments":"private-config"}}}"#.utf8)
-let request = Data(#"{"method":"getTraffic","id":"chain-error"}"#.utf8)
+let delayMode = caseName.hasPrefix("app-delay-")
+let request = Data((delayMode ? #"{"method":"asyncTestDelay","id":"chain-delay"}"# : #"{"method":"getTraffic","id":"chain-error"}"#).utf8)
 enum PowerProbe {
   static let lock = NSLock()
   static var decodes = 0
@@ -47,6 +48,8 @@ Task { @MainActor in
     let cases: [(Data?, String, String)] = [
       (failure,"getTraffic","core_error_response"),
       (success,"getTraffic","none"),
+      (Data(#"{"result":{"up":1,"down":2}}"#.utf8),"getTraffic","none"),
+      (Data(#"{"result":{"up":1,"down":2}}"#.utf8),"getTotalTraffic","none"),
       (failure,"getTotalTraffic","core_error_response"),
       (nil,"getTraffic","nil_response"),
       (Data([0xff,0xfe]),"getTraffic","unclassified_response"),
@@ -69,6 +72,30 @@ Task { @MainActor in
     finish(["boundary_cases":cases.count,"concurrent_cases":400])
   }
   await ProviderMessageBridge.setTestRoot(fixtureRoot)
+  if delayMode {
+    let values: [String:(String,String)] = [
+      "app-delay-positive": (#"{"result":{"value":23,"name":"private-token","url":"private-config"}}"#, "delay_positive"),
+      "app-delay-negative": (#"{"result":{"value":-1}}"#, "delay_negative"),
+      "app-delay-zero": (#"{"result":{"value":0}}"#, "delay_invalid"),
+      "app-delay-missing": (#"{"result":{"value":null}}"#, "delay_missing"),
+      "app-delay-error": (String(decoding:failure,as:UTF8.self), "core_error_response"),
+      "app-delay-malformed": ("{broken private-token", "delay_invalid"),
+      "app-delay-oversize": (String(repeating:"private-token",count:400), "delay_invalid")
+    ]
+    let (reply, expected) = values[caseName]!
+    let controller = TunnelController(sharedStateStore:SharedStateStore(),onTunnelStateChanged:{ _ in },onConnectionStateChanged:{ _ in },onExternalStart:{},onExternalStop:{})
+    let router = CoreMessageRouter(tunnelController:controller)
+    router.updateTunnelState(.stopped)
+    IOSCoreBridge.testReply = reply
+    PowerProbe.reset()
+    let response = await router.invoke(request)
+    check(Data(response.utf8) == Data(reply.utf8), "delay_wire_changed")
+    check(IOSCoreBridge.testCalls == 1, "delay_reply_retried")
+    let logged = rows()
+    check(logged.contains { $0["event"] as? String == "core_request_reply" && $0["error_type"] as? String == expected }, "delay_production_reply_classification")
+    check(PowerProbe.decodes <= 1, "delay_multiple_decodes")
+    finish(["rows":logged,"wire_preserved":true])
+  }
   let runnerStore = SharedStateStore()
   let neStore = PacketTunnelSharedStateStore()
   let manager = NETunnelProviderManager()

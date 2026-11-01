@@ -35,7 +35,7 @@ final class SwitchDiagnostics: NSObject {
     "config_app_apply_begin", "config_app_apply_end", "config_ne_apply_begin", "config_ne_apply_end",
     "configuration_apply_state", "tunnel_start_requested", "tunnel_stop_requested", "tunnel_reconfigure_begin",
     "tunnel_reconfigure_end", "tunnel_reconfigure_failure", "runner_launch", "runner_termination",
-    "app_memory_warning",
+    "app_memory_warning", "tunnel_start_disconnect_error",
   ]
   private static let phases: Set<String> = [
     "apply_config_begin", "apply_config_lock_acquired", "apply_config_parse_begin",
@@ -59,7 +59,10 @@ final class SwitchDiagnostics: NSObject {
                    "nil_response", "empty_response", "invalid_utf8", "send_failed",
                    "network_extension_request_failed", "configuration_result_failed",
                    "configuration_request_failed", "network_extension_error", "invalid_method_call",
-                   "core_error_response", "unclassified_response"],
+                   "core_error_response", "unclassified_response", "delay_positive", "delay_negative",
+                   "delay_missing", "delay_invalid", "disconnect_error"],
+    "error_domain": ["none", "unknown", "NEVPNConnectionErrorDomain", "NEVPNErrorDomain",
+                     "NSPOSIXErrorDomain", "NSURLErrorDomain", "NSCocoaErrorDomain"],
     "outcome": ["pending", "success", "not_empty_success", "failure"],
     "success": ["true", "false"],
   ]
@@ -76,33 +79,68 @@ final class SwitchDiagnostics: NSObject {
     return name
   }
 
-  // Classification is diagnostic-only: never decode arbitrary result/message
-  // values or change the response, retry policy, receipt or Dart error handling.
-  // A fresh bounded decoder at response ingress is safe across both processes.
+  // Diagnostic-only, bounded at ingress; never changes reply bytes or policy.
   static func responseErrorType(_ data: Data?, method: String) -> String {
-    guard ["getTraffic", "getTotalTraffic"].contains(method) else { return "none" }
-    guard let data else { return "nil_response" }
-    guard data.count <= 4096 else { return "unclassified_response" }
+    guard ["getTraffic", "getTotalTraffic", "asyncTestDelay"].contains(method) else { return "none" }
+    let isDelay = method == "asyncTestDelay"
+    guard let data else { return isDelay ? "delay_missing" : "nil_response" }
+    guard data.count <= 4096 else { return isDelay ? "delay_invalid" : "unclassified_response" }
     struct Envelope: Decodable {
       let hasError: Bool
-      enum CodingKeys: String, CodingKey { case error }
+      let hasResult: Bool
+      let delayClass: String
+      enum CodingKeys: String, CodingKey { case error, result }
+      enum DelayKeys: String, CodingKey { case value }
       init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        // Require the canonical envelope's explicit error:null for success.
-        hasError = !(try container.decodeNil(forKey: .error))
+        // Go MethodResponse uses error,omitempty for successful replies.
+        hasError = container.contains(.error) ? !(try container.decodeNil(forKey: .error)) : false
+        hasResult = container.contains(.result)
+        let resultMissing = !hasResult ? true : (try container.decodeNil(forKey: .result))
+        if hasError {
+          delayClass = "core_error_response"
+        } else if resultMissing {
+          delayClass = "delay_missing"
+        } else if let result = try? container.nestedContainer(keyedBy: DelayKeys.self, forKey: .result) {
+          let valueMissing = !result.contains(.value) ? true : (try result.decodeNil(forKey: .value))
+          if valueMissing {
+            delayClass = "delay_missing"
+          } else if let value = try? result.decode(Int32.self, forKey: .value) {
+            delayClass = value > 0 ? "delay_positive" : (value < 0 ? "delay_negative" : "delay_invalid")
+          } else {
+            delayClass = "delay_invalid"
+          }
+        } else {
+          delayClass = "delay_invalid"
+        }
       }
     }
     guard let envelope = try? JSONDecoder().decode(Envelope.self, from: data) else {
-      return "unclassified_response"
+      return isDelay ? "delay_invalid" : "unclassified_response"
     }
-    return envelope.hasError ? "core_error_response" : "none"
+    if envelope.hasError { return "core_error_response" }
+    if isDelay { return envelope.delayClass }
+    return envelope.hasResult ? "none" : "unclassified_response"
   }
 
   static func responseErrorType(_ response: String, method: String) -> String {
-    guard ["getTraffic", "getTotalTraffic"].contains(method) else { return "none" }
+    guard ["getTraffic", "getTotalTraffic", "asyncTestDelay"].contains(method) else { return "none" }
     // Stop before allocating a Data copy of an unbounded response.
-    guard response.utf8.prefix(4097).count <= 4096 else { return "unclassified_response" }
+    guard response.utf8.prefix(4097).count <= 4096 else {
+      return method == "asyncTestDelay" ? "delay_invalid" : "unclassified_response"
+    }
     return responseErrorType(Data(response.utf8), method: method)
+  }
+
+  static func disconnectErrorFields(_ source: Error?) -> [String: String] {
+    guard let error = source as NSError? else {
+      return ["error_type": "none", "error_domain": "none"]
+    }
+    // Exact closed-set match, not a prefix or a free-form fallback.
+    let domain = values["error_domain"]!.contains(error.domain)
+      && error.domain != "none" ? error.domain : "unknown"
+    return ["error_type": "disconnect_error", "error_domain": domain,
+            "error_code": String(error.code)]
   }
 
   // Only successful routine traffic telemetry is aggregated. Detailed traces
@@ -265,6 +303,11 @@ final class SwitchDiagnostics: NSObject {
     guard value.utf8.count <= 128 else { return nil }
     if numericFields.contains(key) { return unsignedDecimal(value) }
     switch key {
+    case "error_code":
+      let digits = value.hasPrefix("-") ? value.dropFirst() : value[...]
+      guard !digits.isEmpty, digits.utf8.allSatisfy({ (48...57).contains($0) }),
+        let number = Int64(value) else { return nil }
+      return String(number)
     case "method": return methods.contains(value) || value == "unknown" ? value : nil
     case "core_phase": return phases.contains(value) ? value : nil
     case "request_id", "parent_request_id", "profile_digest":

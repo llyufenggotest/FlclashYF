@@ -28,7 +28,8 @@ BASELINE_REDS = {
 }
 
 def transform(text, path):
-    # Only framework imports, bundle/container boundaries change. Production
+    text = text.replace(chr(13) + chr(10), chr(10))
+    # Only framework imports, bundle/container boundaries change.
     # provider/router/manager/controller/receipt method bodies stay intact.
     for module in ['NetworkExtension', 'UIKit', 'WidgetKit']:
         text = text.replace(f'import {module}\n', '')

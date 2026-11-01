@@ -29,6 +29,7 @@ class NEVPNConnection: NSObject {
   unowned var manager: NETunnelProviderManager!
   func startVPNTunnel() throws { status = .connecting }
   func stopVPNTunnel() { status = .disconnected }
+  func fetchLastDisconnectError(completionHandler: @escaping (Error?) -> Void) { completionHandler(nil) }
 }
 class NEVPNProtocol: NSObject {}
 final class NETunnelProviderProtocol: NEVPNProtocol {
@@ -67,6 +68,7 @@ enum NEVPNError: Int {
   case configurationInvalid = 1, configurationStale, configurationUnknown
 }
 enum SwitchDiagnostics {
+  static func disconnectErrorFields(_ error: Error?) -> [String: String] { [:] }
   static let processID = "native-fixture"
   static func responseErrorType(_ data: Data?, method: String) -> String { "none" }
   static func responseErrorType(_ response: String, method: String) -> String { "none" }

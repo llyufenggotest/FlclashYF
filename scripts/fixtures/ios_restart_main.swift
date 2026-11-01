@@ -9,6 +9,7 @@ final class NEVPNConnection: NSObject {
   var status = NEVPNStatus.connected
   var starts = 0, stops = 0
   var holdStop = false, ignoreStop = false
+  func fetchLastDisconnectError(completionHandler: @escaping (Error?) -> Void) { completionHandler(nil) }
   var preparedOptions = "initial"
   var startedOptions: [String] = []
   func startVPNTunnel() throws {
@@ -49,6 +50,10 @@ final class NETunnelProviderManager {
   func applyNetworkExtensionOptions(to manager: NETunnelProviderManager, enableOnDemand: Bool) {
     manager.connection.preparedOptions = options
   }
+}
+enum SwitchDiagnostics {
+  static func disconnectErrorFields(_ error: Error?) -> [String: String] { [:] }
+  static func record(_ event: String, fields: [String: String] = [:]) {}
 }
 let caseName = CommandLine.arguments[1]
 func check(_ ok: @autoclosure () -> Bool, _ message: String) {

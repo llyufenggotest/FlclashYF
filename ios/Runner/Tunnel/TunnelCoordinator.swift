@@ -26,6 +26,9 @@ final class TunnelCoordinator {
   // A start that supersedes a stop before it stopped anything must still
   // cycle the tunnel, or a restart meant to apply new options is lost.
   private var restartOwed = false
+  // Diagnostic ownership is separate from lifecycle/transport ownership.
+  private var diagnosticConnectingGeneration: UInt64?
+  private var diagnosticFetchedGeneration: UInt64?
   // A failed restart must not publish the unchanged old connection as success.
   // Keep the observed NE status intact; retire this failure on a new request
   // or a real status transition, not on a refresh of the same connected tunnel.
@@ -515,6 +518,9 @@ final class TunnelCoordinator {
     }
     switch wait.purpose {
     case .starting:
+      if status == .connecting {
+        diagnosticConnectingGeneration = wait.request.generation
+      }
       if status.tunnelState == .running {
         resolveTunnelWait(wait, result: .status(status))
         return
@@ -523,6 +529,7 @@ final class TunnelCoordinator {
         wait.hasObservedProgress = true
       }
       if status.isTerminal && wait.hasObservedProgress {
+        captureLastStartDisconnect(wait)
         resolveTunnelWait(wait, result: .status(status))
       }
     case .stopping:
@@ -532,6 +539,27 @@ final class TunnelCoordinator {
     case .settleThenStart:
       if status.tunnelState != nil {
         resolveTunnelWait(wait, result: .status(status))
+      }
+    }
+  }
+
+  // Best effort only: no continuation, deadline, retry or lifecycle mutation.
+  // The token is captured before the wait resolves; a newer request drops it.
+  private func captureLastStartDisconnect(_ wait: TunnelWait) {
+    let generation = wait.request.generation
+    guard wait.purpose == .starting, isCurrent(wait.request),
+      diagnosticConnectingGeneration == generation,
+      diagnosticFetchedGeneration != generation
+    else { return }
+    diagnosticFetchedGeneration = generation
+    guard #available(iOS 16.0, macOS 13.0, *) else { return }
+    wait.manager.connection.fetchLastDisconnectError { [weak self] error in
+      let safeFields = SwitchDiagnostics.disconnectErrorFields(error)
+      Task { @MainActor [weak self] in
+        guard let self, self.requestGeneration == generation else { return }
+        var fields = safeFields
+        fields.merge(["stage": "start_tunnel", "generation": String(generation)]) { _, new in new }
+        SwitchDiagnostics.record("tunnel_start_disconnect_error", fields: fields)
       }
     }
   }
