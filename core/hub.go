@@ -16,7 +16,6 @@ import (
 	"slices"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/metacubex/mihomo/adapter"
@@ -347,24 +346,6 @@ func delayTestTimeout(milliseconds int64) time.Duration {
 	return time.Duration(milliseconds) * time.Millisecond
 }
 
-var missingDelayTestProxyAt atomic.Int64
-
-// A delay test against a name the tunnel does not know is what an apply that
-// fell back to the default config looks like from the outside: the profile
-// still lists every node and every one of them reports Timeout. Say so, once a
-// second rather than once per node, so the log names the real failure.
-func reportMissingDelayTestProxy(name string) {
-	now := time.Now().UnixNano()
-	last := missingDelayTestProxyAt.Load()
-	if last != 0 && now-last < int64(time.Second) {
-		return
-	}
-	if !missingDelayTestProxyAt.CompareAndSwap(last, now) {
-		return
-	}
-	logError("delay test: %q is not part of the applied config", name)
-}
-
 func handleTestDelay(params *TestDelayParams) *Delay {
 	url := params.TestUrl
 	if url == "" {
@@ -376,9 +357,10 @@ func handleTestDelay(params *TestDelayParams) *Delay {
 		Value: -1,
 	}
 
+	shape, hostPresent := delayTestURLShape(url)
 	proxy := lookupProxy(params.ProxyName)
 	if proxy == nil {
-		reportMissingDelayTestProxy(params.ProxyName)
+		delayDiagnostics.add(delayMissingProxy, -1, false, shape, hostPresent, false)
 		return delayData
 	}
 
@@ -391,8 +373,14 @@ func handleTestDelay(params *TestDelayParams) *Delay {
 	// back of the queue.
 	queueCtx, cancelQueue := context.WithTimeout(context.Background(), timeout)
 	granted := acquireDelayTestSlot(queueCtx)
+	queueErr := queueCtx.Err()
 	cancelQueue()
 	if !granted {
+		failure := delayQueueUnknown
+		if errors.Is(queueErr, context.DeadlineExceeded) {
+			failure = delayQueueDeadline
+		}
+		delayDiagnostics.add(failure, -1, true, shape, hostPresent, true)
 		return nil
 	}
 	defer releaseDelayTestSlot()
@@ -402,10 +390,16 @@ func handleTestDelay(params *TestDelayParams) *Delay {
 
 	delay, err := proxy.URLTest(ctx, url, anyDelayTestStatus)
 	if err != nil {
+		delayDiagnostics.add(classifyDelayFailure(err), -1, false, shape, hostPresent, true)
 		return delayData
 	}
 
 	delayData.Value = delayValue(delay)
+	failure := delayOK
+	if delay == 0 {
+		failure = delayZero
+	}
+	delayDiagnostics.add(failure, delayData.Value, false, shape, hostPresent, true)
 	return delayData
 }
 
