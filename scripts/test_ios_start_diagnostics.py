@@ -62,6 +62,9 @@ class StartDiagnosticsContracts(unittest.TestCase):
             report = json.loads((Path(tmp)/'result.json').read_text())
             self.assertFalse(report['native_acceptance'])
             self.assertEqual(report['executions'], [])
+            import subprocess
+            head = subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip()
+            self.assertEqual(report.get('candidate_head'), head)
 
     def test_error_persistence_has_closed_domain_and_signed_code(self):
         source = (ROOT/'ios/Shared/SwitchDiagnostics.swift').read_text()

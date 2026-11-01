@@ -42,7 +42,8 @@ def prepare_payload_red(out):
 def main():
     parser=argparse.ArgumentParser(); parser.add_argument('--output',type=Path,required=True); parser.add_argument('--prepare-only',action='store_true'); args=parser.parse_args()
     args.output.mkdir(parents=True,exist_ok=True)
-    report={'native_acceptance':False,'executions':[]}
+    report={'native_acceptance':False,'executions':[],
+            'candidate_head':subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip()}
     def finish(code,status):
         report.update(exit_code=code,status=status)
         (args.output/'result.json').write_text(json.dumps(report,indent=2)); print(json.dumps(report)); return code

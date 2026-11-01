@@ -94,6 +94,8 @@ class DNSHarnessTests(unittest.TestCase):
         code, report, seen = self.run_simulated_gate('success')
         self.assertEqual(code, 0)
         self.assertTrue(report['native_acceptance'])  # Simulated wiring, not native evidence.
+        head = subprocess.check_output(['git', '-C', str(gate.ROOT), 'rev-parse', 'HEAD'], text=True).strip()
+        self.assertEqual(report.get('candidate_head'), head)
         runs = [cmd for cmd in seen if cmd[0] != 'xcrun']
         self.assertEqual([cmd[1] for cmd in runs], ['suspend-barrier'] + gate.R1_CASES + gate.CASES)
 

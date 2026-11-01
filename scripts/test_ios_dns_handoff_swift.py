@@ -49,7 +49,8 @@ def prepare(out, baseline, baseline_ref=BASE):
 def main():
     p=argparse.ArgumentParser(); p.add_argument('--output',type=Path,required=True); p.add_argument('--prepare-only',action='store_true'); a=p.parse_args()
     a.output.mkdir(parents=True,exist_ok=True)
-    report=dict(native_acceptance=False, executions=[])
+    report=dict(native_acceptance=False, executions=[],
+                candidate_head=subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip())
     def finish(code,status):
         report.update(exit_code=code,status=status)
         (a.output/'result.json').write_text(json.dumps(report,indent=2));print(json.dumps(report));return code
