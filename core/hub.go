@@ -113,6 +113,22 @@ func handleStopListener() bool {
 	return true
 }
 
+func handleSuspendDnsListener() bool {
+	configMu.Lock()
+	defer configMu.Unlock()
+	return dns.SuspendServer() == nil
+}
+
+func handleResumeDnsListener() bool {
+	configMu.Lock()
+	defer configMu.Unlock()
+	if err := dns.ResumeServer(); err != nil {
+		log.Errorln("Resume DNS listener error: %s", err)
+		return false
+	}
+	return true
+}
+
 func handleGetIsInit() bool {
 	return isInit.Load()
 }
@@ -134,6 +150,7 @@ func handleShutdown() bool {
 	configMu.Lock()
 	isRunning.Store(false)
 	listener.StopListener()
+	dns.StopServer()
 	updater.StopGeoUpdater()
 	executor.Shutdown()
 	// Shutdown retires rule snapshots, but process-global proxy maps survive it.
@@ -153,6 +170,7 @@ func handleReleaseConfig() bool {
 	configMu.Lock()
 	isRunning.Store(false)
 	listener.StopListener()
+	dns.StopServer()
 	updater.StopGeoUpdater()
 	executor.Shutdown()
 	// Shutdown retires rule snapshots, but process-global proxy maps survive it.
@@ -1319,6 +1337,11 @@ func handleSetupConfig(params *SetupParams) string {
 		return "not initialized"
 	}
 	if err := setupConfig(params); err != nil {
+		return err.Error()
+	}
+	configMu.Lock()
+	defer configMu.Unlock()
+	if err := dns.EnsureServer(); err != nil {
 		return err.Error()
 	}
 	return ""

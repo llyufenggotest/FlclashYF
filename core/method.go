@@ -342,6 +342,12 @@ var methodHandlers = map[CoreMethod]methodHandler{
 	startListenerMethod: withoutArguments(func(response MethodResponse) {
 		response.success(handleStartListener())
 	}),
+	suspendDnsListenerMethod: withoutArguments(func(response MethodResponse) {
+		response.success(handleSuspendDnsListener())
+	}),
+	resumeDnsListenerMethod: withoutArguments(func(response MethodResponse) {
+		response.success(handleResumeDnsListener())
+	}),
 	stopListenerMethod: withoutArguments(func(response MethodResponse) {
 		response.success(handleStopListener())
 	}),

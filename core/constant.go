@@ -247,6 +247,8 @@ const (
 	queryRuleMethod                      CoreMethod = "queryRule"
 	startListenerMethod                  CoreMethod = "startListener"
 	stopListenerMethod                   CoreMethod = "stopListener"
+	suspendDnsListenerMethod             CoreMethod = "suspendDnsListener"
+	resumeDnsListenerMethod              CoreMethod = "resumeDnsListener"
 	updateDnsMethod                      CoreMethod = "updateDns"
 	crashMethod                          CoreMethod = "crash"
 	setupConfigMethod                    CoreMethod = "setupConfig"
