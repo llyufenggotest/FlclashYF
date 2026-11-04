@@ -28,7 +28,11 @@ class IOSLifecycleCleanupTests(unittest.TestCase):
         self.assertIn("self.coreSetupOwner = nil", provider)
         self.assertIn("activeCleanup == nil, coreSetupOwner == nil", provider)
         self.assertIn("self.lifecycleGeneration == generation", provider)
-        self.assertEqual(provider.count("startupCompletion?(PacketTunnelProviderError.couldNotStartCoreTun)"), 1)
+        # The diagnostic envelope must retain the original failure and the
+        # single serialized callback, rather than changing cleanup semantics.
+        self.assertEqual(provider.count("startupCompletion?("), 1)
+        self.assertRegex(provider, r"startupCompletion\?\(diagnosticError\(PacketTunnelProviderError\.couldNotStartCoreTun\)\)")
+        self.assertIn('diagnosticStage = "cancelled"', provider)
         self.assertGreaterEqual(provider.count("DispatchQueue.main.async"), 6)
         self.assertGreaterEqual(provider.count("guard self.activeCleanup === cleanup else"), 3)
 

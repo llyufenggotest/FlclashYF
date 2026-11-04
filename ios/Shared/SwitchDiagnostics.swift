@@ -562,7 +562,22 @@ extension SwitchDiagnostics {
       let shared = iPadSharedRoot()
       let sharedSource = read(shared?.appendingPathComponent("ipad-diagnostic-NECore.jsonl"))
       iPadLock.lock(); let dropped = droppedJobs; iPadLock.unlock()
-      let result = "===== \(iPadSchema) =====\n" + iPadIdentity() + "\ncontainer_identity=not_proved signing_entitlements=unavailable capability_scope=observed_only\nrunnerLocal=\(runnerLocal.0) sharedSource=\(sharedSource.0) dropped=\(dropped)\n" + (runnerLocal.0 == "readable" ? runnerLocal.1 : iPadMemory.joined(separator: "\n")) + "\n===== pinned startup window =====\n" + iPadPinned.keys.sorted().compactMap { iPadPinned[$0] }.joined(separator: "\n") + "\n===== NE shared diagnostic (NE private fallback is not app-readable) =====\n" + sharedSource.1 + "\nno_provider_evidence=entry_unknown_not_proof_of_no_launch\n"
+      // Keep each expression typed and small: the identical combined expression
+      // exceeded Swift's type-checking budget in both required native gates.
+      let localText: String = runnerLocal.0 == "readable"
+        ? runnerLocal.1 : iPadMemory.joined(separator: "\n")
+      let pinnedRows: [String] = iPadPinned.keys.sorted().compactMap { iPadPinned[$0] }
+      let pinnedText: String = pinnedRows.joined(separator: "\n")
+      var result: String = "===== \(iPadSchema) =====\n"
+      result.append(iPadIdentity())
+      result.append("\ncontainer_identity=not_proved signing_entitlements=unavailable capability_scope=observed_only\n")
+      result.append("runnerLocal=\(runnerLocal.0) sharedSource=\(sharedSource.0) dropped=\(dropped)\n")
+      result.append(localText)
+      result.append("\n===== pinned startup window =====\n")
+      result.append(pinnedText)
+      result.append("\n===== NE shared diagnostic (NE private fallback is not app-readable) =====\n")
+      result.append(sharedSource.1)
+      result.append("\nno_provider_evidence=entry_unknown_not_proof_of_no_launch\n")
       completion(result)
     }
   }
