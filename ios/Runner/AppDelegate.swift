@@ -6,20 +6,19 @@ private enum SideloadCompatibilityLoader {
   private static var handle: UnsafeMutableRawPointer?
 
   static func loadIfPresent() {
+    SwitchDiagnostics.record("ipad_loader_before")
+    defer { SwitchDiagnostics.record("ipad_loader_after", fields: ["loader_loaded": String(handle != nil)]) }
     guard handle == nil,
       let frameworksURL = Bundle.main.privateFrameworksURL
     else { return }
     let dylibURL = frameworksURL.appendingPathComponent(
       "Tg_@HelloWorld_1024.dylib"
     )
-    guard FileManager.default.fileExists(atPath: dylibURL.path) else { return }
+    let exists = FileManager.default.fileExists(atPath: dylibURL.path)
+    SwitchDiagnostics.record("ipad_loader_before", fields: ["loader_exists": String(exists)])
+    guard exists else { return }
     handle = dlopen(dylibURL.path, RTLD_NOW | RTLD_LOCAL)
-    if handle == nil, let message = dlerror() {
-      NSLog(
-        "[sideload] compatibility dylib load failed: %s",
-        String(cString: message)
-      )
-    }
+    if handle == nil { NSLog("[sideload] compatibility dylib load failed") }
   }
 }
 

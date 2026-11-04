@@ -329,8 +329,18 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Exercise Runner diagnostic Flutter export
+        run: |
+          python3 scripts/test_ipad_diagnostic_export.py --output "$RUNNER_TEMP/ipad-diagnostic/flutter-export"
       - name: Compile production startup diagnostics and assert ownership
         run: |
+          python3 scripts/test_ipad_diagnostic_source.py
+          python3 scripts/test_ipad_diagnostic_swift.py --output "$RUNNER_TEMP/ipad-diagnostic"
           python3 scripts/test_ios_start_diagnostics.py
           python3 scripts/test_ios_start_diagnostics_ci.py
           python3 scripts/test_ios_dns_handoff_source.py
@@ -343,6 +353,7 @@ jobs:
         with:
           name: FlclashYF-startup-diagnostic-proof
           path: |
+            ${{ runner.temp }}/ipad-diagnostic
             ${{ runner.temp }}/startup-diagnostics
             ${{ runner.temp }}/dns-handoff
           if-no-files-found: error

@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/services.dart';
 
 class NativeLogExport {
   final File nativeFile;
 
-  NativeLogExport(this.nativeFile);
+  final Future<String?> Function()? runnerDiagnosticReader;
+
+  NativeLogExport(this.nativeFile, {this.runnerDiagnosticReader});
 
   File get _cutoffFile =>
       File('${nativeFile.parent.path}/logs-cleared-at.json');
@@ -31,8 +34,33 @@ class NativeLogExport {
   }
 
   Future<String> read() async {
-    final cutoff = await _readCutoff();
     final buffer = StringBuffer();
+    // Collect Runner-local proof before touching the suspect shared path.
+    if (Platform.isIOS || runnerDiagnosticReader != null) {
+      try {
+        const channel = MethodChannel('cc.llyufeng.flclash.dev/service');
+        buffer.writeln(
+          runnerDiagnosticReader != null
+              ? await runnerDiagnosticReader!()
+              : await channel.invokeMethod<String>('exportIPadDiagnostics'),
+        );
+      } on PlatformException {
+        buffer.writeln('iPadDiagnostic-v1 native_channel=unavailable');
+      } on MissingPluginException {
+        buffer.writeln('iPadDiagnostic-v1 native_channel=unavailable');
+      }
+    }
+    DateTime? cutoff;
+    try {
+      cutoff = await _readCutoff();
+    } on FileSystemException {
+      buffer.writeln('shared_cutoff=unavailable');
+    } on FormatException {
+      if (!Platform.isIOS && runnerDiagnosticReader == null) rethrow;
+      // Never re-export cleared shared history when its cutoff is corrupt.
+      buffer.writeln('shared_cutoff=invalid shared_history=withheld');
+      return buffer.toString();
+    }
     for (final (file, title) in [
       (nativeFile, 'iOS NECore native diagnostics'),
       for (final name in ['ios-switch-Runner.log', 'ios-switch-NECore.log'])
@@ -45,7 +73,7 @@ class NativeLogExport {
         buffer.writeln(
           await file.exists()
               ? _afterCutoff(await file.readAsString(), cutoff)
-              : '(not recorded)',
+              : '(not recorded) source=unavailable_or_absent',
         );
       } on FileSystemException {
         buffer.writeln('(diagnostic file could not be read)');

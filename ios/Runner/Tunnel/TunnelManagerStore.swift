@@ -64,6 +64,7 @@ final class TunnelManagerStore {
   func loadManager(
     createIfNeeded: Bool = true, deadline: Date? = nil
   ) async throws -> NETunnelProviderManager? {
+    SwitchDiagnostics.record("ipad_manager_load")
     let requestID = UUID()
     let deadlineTask: Task<Void, Never>? = deadline.map { deadline in
       Task { @MainActor [weak self] in
@@ -344,6 +345,7 @@ final class TunnelManagerStore {
     }
 
     let loadedManager = selectManagedManager(managers)
+    SwitchDiagnostics.record("ipad_manager_selected", fields: ["count": String(managers?.count ?? 0), "provider_matches": String(loadedManager != nil), "protocol_exists": String(loadedManager?.protocolConfiguration != nil), "enabled": String(loadedManager?.isEnabled ?? false)])
     let needsManager = requests.contains { $0.createIfNeeded }
     let createdManager = loadedManager == nil && needsManager
       ? makeManager()

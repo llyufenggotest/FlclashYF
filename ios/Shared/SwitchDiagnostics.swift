@@ -1,7 +1,12 @@
 import CoreFoundation
 import CryptoKit
 import Darwin
+import MachO
 import Foundation
+import NetworkExtension // Apple NSError domain constants
+#if canImport(UIKit)
+import UIKit
+#endif
 
 @objc(SwitchDiagnostics)
 final class SwitchDiagnostics: NSObject {
@@ -134,13 +139,16 @@ final class SwitchDiagnostics: NSObject {
 
   static func disconnectErrorFields(_ source: Error?) -> [String: String] {
     guard let error = source as NSError? else {
-      return ["error_type": "none", "error_domain": "none"]
+      return iPadErrorFields(nil).merging(["error_type": "none"]) { _, new in new }
     }
     // Exact closed-set match, not a prefix or a free-form fallback.
     let domain = values["error_domain"]!.contains(error.domain)
       && error.domain != "none" ? error.domain : "unknown"
-    return ["error_type": "disconnect_error", "error_domain": domain,
-            "error_code": String(error.code)]
+    var result = iPadErrorFields(source)
+    result["error_type"] = "disconnect_error"
+    result["error_domain"] = domain
+    result["error_code"] = String(error.code)
+    return result
   }
 
   // Only successful routine traffic telemetry is aggregated. Detailed traces
@@ -158,6 +166,11 @@ final class SwitchDiagnostics: NSObject {
   private static var detailedUntil: TimeInterval = 0
 
   static func record(_ event: String, fields: [String: String] = [:]) {
+    if event.hasPrefix("ipad_") {
+      if event == "ipad_provider_entry" { recordIPadCapabilities() }
+      recordIPad(String(event.dropFirst(5)), fields: fields); return
+    }
+    if event == "tunnel_start_disconnect_error" { recordIPad("disconnect", fields: fields) }
     queue.sync {
       let now = ProcessInfo.processInfo.systemUptime
       if event.hasPrefix("tunnel_") || event.hasPrefix("config") || event == "core_phase"
@@ -236,6 +249,8 @@ final class SwitchDiagnostics: NSObject {
   }
 
   static func recordRunnerLaunch() {
+    recordIPad("runner_launch")
+    recordIPadCapabilities()
     record("runner_launch")
   }
 
@@ -369,5 +384,215 @@ final class SwitchDiagnostics: NSObject {
       }
     }
     return result == KERN_SUCCESS ? Double(info.phys_footprint) / (1024 * 1024) : -1
+  }
+}
+
+// Independent diagnostic storage. This is not a shared-container repair.
+extension SwitchDiagnostics {
+  static let iPadSchema = "iPadDiagnostic-v1"
+  private static let iPadQueue = DispatchQueue(label: "com.follow.clash.ipad-diagnostic", qos: .utility)
+  private static let iPadLock = NSLock()
+  static let maxPendingJobs = 64
+  static let maxPendingBytes = 64 * 1024
+  private static var pendingJobs = 0
+  private static var pendingBytes = 0
+  private static var droppedJobs = 0
+  private static var capabilityPending = false
+  private static var iPadMemory: [String] = []
+  private static var iPadPinned: [String: String] = [:]
+  private static let iPadStages: Set<String> = ["runner_launch", "loader_before", "loader_after", "provider_init", "provider_entry", "manager_load", "manager_selected", "save", "reload", "start_call", "start_throw", "disconnect", "rpc_publication", "vpn_options", "setup_params", "network_settings", "tunnel_fd", "init_core", "quick_setup", "start_tun", "command_server", "completion", "cleanup", "cancelled", "stop", "capabilities"]
+  private static let iPadBooleans: Set<String> = ["success", "loader_exists", "loader_loaded", "group_available", "directory_readable", "directory_writable", "probe_success", "defaults_available", "snapshot_exists", "snapshot_object", "vpn_options_object", "setup_exists", "setup_object", "enabled", "protocol_exists", "provider_matches", "bundle_relation"]
+  private static let iPadTokens: Set<String> = ["error_domain", "underlying_domain", "provider_stage", "observation"]
+  #if SWITCH_DIAGNOSTICS_TESTING
+  private static var testLocalDirectory: URL?
+  private static var testSharedUnavailable = false
+  static func setIPadTestStorage(local: URL?, sharedUnavailable: Bool) {
+    iPadQueue.sync { testLocalDirectory = local; testSharedUnavailable = sharedUnavailable; iPadMemory.removeAll(); iPadPinned.removeAll() }
+  }
+  static func iPadQueueBudget() -> (jobs: Int, bytes: Int, dropped: Int) {
+    iPadLock.lock(); defer { iPadLock.unlock() }; return (pendingJobs, pendingBytes, droppedJobs)
+  }
+  static func holdIPadQueue(_ semaphore: DispatchSemaphore) { iPadQueue.async { semaphore.wait() } }
+  #endif
+  private static func localIPadURL() -> URL? {
+    #if SWITCH_DIAGNOSTICS_TESTING
+    return testLocalDirectory?.appendingPathComponent("ipad-diagnostic-local.jsonl")
+    #else
+    guard let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+    let root = base.appendingPathComponent("iPadDiagnostics", isDirectory: true)
+    try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    return root.appendingPathComponent("ipad-diagnostic-local.jsonl")
+    #endif
+  }
+  private static func iPadSharedRoot() -> URL? {
+    #if SWITCH_DIAGNOSTICS_TESTING
+    if testSharedUnavailable { return nil }
+    if let testDirectory { return testDirectory }
+    #endif
+    guard let group = appGroupIdentifier(bundleIdentifier: Bundle.main.bundleIdentifier ?? "") else { return nil }
+    return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)
+  }
+  static func iPadErrorFields(_ source: Error?) -> [String: String] {
+    guard let error = source as NSError? else { return ["error_domain": "none", "observation": "no_error_no_entry_proof"] }
+    func domain(_ value: String) -> String {
+      // Apple constants, not guessed domain spellings; unknown text is never exported.
+      if #available(iOS 16.0, macOS 13.0, *), value == NetworkExtension.NEVPNConnectionErrorDomain { return "NEVPNConnectionErrorDomain" }
+      switch value {
+      case NetworkExtension.NEVPNErrorDomain: return "NEVPNErrorDomain"
+      case NSPOSIXErrorDomain: return "NSPOSIXErrorDomain"
+      case NSCocoaErrorDomain: return "NSCocoaErrorDomain"
+      case NSURLErrorDomain: return "NSURLErrorDomain"
+      case "com.flclashyf.iPadDiagnostic": return "provider_diagnostic"
+      default: return "unknown"
+      }
+    }
+    var fields = ["error_domain": domain(error.domain), "error_code": String(error.code), "observation": "system_error_entry_unknown"]
+    var current: NSError? = error
+    var seen = Set<ObjectIdentifier>()
+    for _ in 0..<4 {
+      guard let item = current, seen.insert(ObjectIdentifier(item)).inserted else { break }
+      if item.domain == "com.flclashyf.iPadDiagnostic", let stage = providerStages[item.code] {
+        fields["provider_stage"] = stage; fields["observation"] = "provider_entry_proved"
+      }
+      guard let underlying = item.userInfo[NSUnderlyingErrorKey] as? NSError else { break }
+      fields["underlying_domain"] = domain(underlying.domain)
+      fields["underlying_code"] = String(underlying.code)
+      current = underlying
+    }
+    return fields
+  }
+  static let providerStages: [Int: String] = [1:"rpc_publication", 2:"vpn_options", 3:"network_settings", 4:"tunnel_fd", 5:"quick_setup", 6:"start_tun", 7:"command_server", 8:"cancelled", 9:"completion"]
+  static func recordIPad(_ stage: String, fields: [String: String] = [:]) {
+    guard iPadStages.contains(stage) else { return }
+    var safe: [String: String] = ["schema": iPadSchema, "stage": stage, "process_id": processID, "timestamp": ISO8601DateFormatter().string(from: Date())]
+    if stage == "provider_entry" || stage == "runner_launch" {
+      let identity = iPadIdentity()
+      if let token = identity.split(separator: " ").first(where: { $0.hasPrefix("image_uuid=") }),
+        let uuid = UUID(uuidString: String(token.dropFirst("image_uuid=".count))) { safe["image_uuid"] = uuid.uuidString }
+    }
+    for (key, value) in fields.prefix(32) {
+      guard value.utf8.count <= 128 else { continue }
+      if iPadBooleans.contains(key), ["true", "false"].contains(value) { safe[key] = value }
+      if ["generation", "error_code", "underlying_code", "count"].contains(key), let n = Int64(value) { safe[key] = String(n) }
+      if key == "attempt_id", let uuid = UUID(uuidString: value) { safe[key] = uuid.uuidString }
+      if iPadTokens.contains(key), Set(["none", "unknown", "NEVPNErrorDomain", "NEVPNConnectionErrorDomain", "NSPOSIXErrorDomain", "NSCocoaErrorDomain", "NSURLErrorDomain", "provider_diagnostic", "provider_entry_proved", "system_error_entry_unknown", "no_error_no_entry_proof"] + Array(providerStages.values)).contains(value) { safe[key] = value }
+    }
+    guard let bytes = try? JSONSerialization.data(withJSONObject: safe, options: [.sortedKeys]), bytes.count <= 4096, let line = String(data: bytes, encoding: .utf8) else { return }
+    iPadLock.lock()
+    guard pendingJobs < maxPendingJobs, pendingBytes + bytes.count <= maxPendingBytes else { droppedJobs += 1; iPadLock.unlock(); return }
+    pendingJobs += 1; pendingBytes += bytes.count; iPadLock.unlock()
+    iPadQueue.async {
+      defer { iPadLock.lock(); pendingJobs -= 1; pendingBytes -= bytes.count; iPadLock.unlock() }
+      if ["runner_launch", "provider_init", "provider_entry", "disconnect", "completion", "capabilities"].contains(stage) { iPadPinned[stage] = line }
+      iPadMemory.append(line)
+      if iPadMemory.count > 256 { iPadMemory.removeFirst(iPadMemory.count - 256) }
+      if let url = localIPadURL() { appendIPad(bytes, to: url) }
+      if let root = iPadSharedRoot() {
+        let role = (Bundle.main.bundleIdentifier ?? "").hasSuffix(".NECore") ? "NECore" : "Runner"
+        appendIPad(bytes, to: root.appendingPathComponent("ipad-diagnostic-\(role).jsonl"))
+      }
+    }
+  }
+  private static func appendIPad(_ bytes: Data, to url: URL) {
+    var line = bytes; line.append(10)
+    let fm = FileManager.default
+    do {
+      if !fm.fileExists(atPath: url.path) { guard fm.createFile(atPath: url.path, contents: nil) else { return } }
+      let handle = try FileHandle(forUpdating: url); defer { try? handle.close() }
+      let size = try handle.seekToEnd()
+      if size + UInt64(line.count) > 256 * 1024 {
+        try handle.seek(toOffset: size > 128 * 1024 ? size - 128 * 1024 : 0)
+        let tail = try handle.read(upToCount: 128 * 1024) ?? Data()
+        let retained = tail.firstIndex(of: 10).map { Data(tail[tail.index(after: $0)...]) } ?? Data()
+        try handle.truncate(atOffset: 0); try handle.seek(toOffset: 0); try handle.write(contentsOf: retained)
+      }
+      try handle.write(contentsOf: line)
+    } catch { /* Memory evidence remains available. Never alter product failure. */ }
+  }
+  static func recordIPadCapabilities() {
+    iPadLock.lock()
+    guard !capabilityPending else { iPadLock.unlock(); return }
+    capabilityPending = true; iPadLock.unlock()
+    // At most one capability job in addition to the bounded record lane.
+    iPadQueue.async {
+      defer { iPadLock.lock(); capabilityPending = false; iPadLock.unlock() }
+      let root = iPadSharedRoot()
+      var probe = false
+      if let root {
+        let marker = root.appendingPathComponent(".ipad-diagnostic-probe-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: marker) }
+        if (try? Data([1]).write(to: marker, options: .atomic)) != nil { probe = (try? Data(contentsOf: marker)) == Data([1]) }
+      }
+      let group = appGroupIdentifier(bundleIdentifier: Bundle.main.bundleIdentifier ?? "")
+      let defaults = group.flatMap { UserDefaults(suiteName: $0) }
+      let snapshot = defaults?.data(forKey: "sharedState")
+      let object = snapshot.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+      let setup = defaults?.data(forKey: "setupParams")
+      recordIPad("capabilities", fields: ["group_available": String(root != nil), "directory_readable": String(root.map { FileManager.default.isReadableFile(atPath: $0.path) } ?? false), "directory_writable": String(root.map { FileManager.default.isWritableFile(atPath: $0.path) } ?? false), "probe_success": String(probe), "defaults_available": String(defaults != nil), "snapshot_exists": String(snapshot != nil), "snapshot_object": String(object != nil), "vpn_options_object": String(object?["vpnOptions"] is [String: Any]), "setup_exists": String(setup != nil), "setup_object": String(setup.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } != nil)])
+    }
+  }
+  static func exportIPadDiagnostics(_ completion: @escaping (String) -> Void) {
+    iPadQueue.async {
+      func read(_ url: URL?) -> (String, String) {
+        guard let url else { return ("unavailable", "") }
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return ("unreadable_or_absent", "") }
+        defer { try? handle.close() }
+        guard let data = try? handle.read(upToCount: 256 * 1024), let text = String(data: data, encoding: .utf8) else { return ("unreadable", "") }
+        let validated = text.split(separator: "\n").compactMap { line -> String? in
+          guard line.utf8.count <= 4096,
+            let row = (try? JSONSerialization.jsonObject(with: Data(line.utf8))) as? [String: String],
+            row["schema"] == iPadSchema, let stage = row["stage"], iPadStages.contains(stage),
+            let timestamp = row["timestamp"], ISO8601DateFormatter().date(from: timestamp) != nil,
+            let process = row["process_id"], UUID(uuidString: process) != nil
+          else { return nil }
+          var safe = ["schema": iPadSchema, "stage": stage, "timestamp": timestamp, "process_id": process]
+          let tokens = Set(["none", "unknown", "NEVPNErrorDomain", "NEVPNConnectionErrorDomain", "NSPOSIXErrorDomain", "NSCocoaErrorDomain", "NSURLErrorDomain", "provider_diagnostic", "provider_entry_proved", "system_error_entry_unknown", "no_error_no_entry_proof"] + Array(providerStages.values))
+          for (key, value) in row {
+            if iPadBooleans.contains(key), ["true", "false"].contains(value) { safe[key] = value }
+            if ["generation", "error_code", "underlying_code", "count"].contains(key), let n = Int64(value) { safe[key] = String(n) }
+            if ["attempt_id", "image_uuid"].contains(key), let uuid = UUID(uuidString: value) { safe[key] = uuid.uuidString }
+            if iPadTokens.contains(key), tokens.contains(value) { safe[key] = value }
+          }
+          guard let encoded = try? JSONSerialization.data(withJSONObject: safe, options: [.sortedKeys]) else { return nil }
+          return String(data: encoded, encoding: .utf8)
+        }.joined(separator: "\n")
+        return ("readable", validated)
+      }
+      let runnerLocal = read(localIPadURL())
+      let shared = iPadSharedRoot()
+      let sharedSource = read(shared?.appendingPathComponent("ipad-diagnostic-NECore.jsonl"))
+      iPadLock.lock(); let dropped = droppedJobs; iPadLock.unlock()
+      let result = "===== \(iPadSchema) =====\n" + iPadIdentity() + "\ncontainer_identity=not_proved signing_entitlements=unavailable capability_scope=observed_only\nrunnerLocal=\(runnerLocal.0) sharedSource=\(sharedSource.0) dropped=\(dropped)\n" + (runnerLocal.0 == "readable" ? runnerLocal.1 : iPadMemory.joined(separator: "\n")) + "\n===== pinned startup window =====\n" + iPadPinned.keys.sorted().compactMap { iPadPinned[$0] }.joined(separator: "\n") + "\n===== NE shared diagnostic (NE private fallback is not app-readable) =====\n" + sharedSource.1 + "\nno_provider_evidence=entry_unknown_not_proof_of_no_launch\n"
+      completion(result)
+    }
+  }
+  private static func iPadIdentity() -> String {
+    var imageUUID = "unavailable"
+    if let header = _dyld_get_image_header(0) {
+      let base = UnsafeRawPointer(header)
+      var offset = MemoryLayout<mach_header_64>.size
+      for _ in 0..<min(Int(header.pointee.ncmds), 4096) {
+        let command = base.advanced(by: offset).load(as: load_command.self)
+        guard command.cmdsize >= MemoryLayout<load_command>.size else { break }
+        if command.cmd == LC_UUID {
+          let value = base.advanced(by: offset).load(as: uuid_command.self).uuid
+          imageUUID = UUID(uuid: value).uuidString; break
+        }
+        offset += Int(command.cmdsize)
+      }
+    }
+    let bundle = Bundle.main
+    let mainID = bundle.bundleIdentifier ?? ""
+    let neID = bundle.builtInPlugInsURL.flatMap { try? FileManager.default.contentsOfDirectory(at: $0, includingPropertiesForKeys: nil) }?.compactMap { Bundle(url: $0)?.bundleIdentifier }.first { $0.hasSuffix(".NECore") }
+    let bundleRelation = mainID.hasSuffix(".NECore") || neID == mainID + ".NECore"
+    let embeddedProfile = bundle.url(forResource: "embedded", withExtension: "mobileprovision") != nil
+    let signatureDirectory = FileManager.default.fileExists(atPath: bundle.bundleURL.appendingPathComponent("_CodeSignature/CodeResources").path)
+    let os = ProcessInfo.processInfo.operatingSystemVersion
+    #if canImport(UIKit)
+    let deviceClass = UIDevice.current.userInterfaceIdiom == .pad ? "ipad" : "other"
+    #else
+    let deviceClass = "mac_gate"
+    #endif
+    return "schema=\(iPadSchema) source_base=de6517d43c3a3277df4f0ce14c42b3f791f9fb05 image_uuid=\(imageUUID) os=\(os.majorVersion).\(os.minorVersion).\(os.patchVersion) device_class=\(deviceClass) bundle_relation=\(bundleRelation) embedded_profile=\(embeddedProfile) signature_resources=\(signatureDirectory) signing_groups_count=unavailable signing_vpn_entitlement=unavailable"
   }
 }

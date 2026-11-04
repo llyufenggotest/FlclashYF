@@ -4,17 +4,23 @@ import NetworkExtension
 import WidgetKit
 import os
 
+private let SwitchDiagnosticProviderCodes = ["rpc_publication": 1, "vpn_options": 2, "network_settings": 3, "tunnel_fd": 4, "quick_setup": 5, "start_tun": 6, "command_server": 7, "cancelled": 8, "completion": 9]
+// IPadDiagnosticFailure is a fixed diagnostic classification, not a new retry policy.
 private enum NECoreSideloadCompatibilityLoader {
   private static var handle: UnsafeMutableRawPointer?
 
   static func loadIfPresent() {
+    SwitchDiagnostics.record("ipad_loader_before")
+    defer { SwitchDiagnostics.record("ipad_loader_after", fields: ["loader_loaded": String(handle != nil)]) }
     guard handle == nil,
       let frameworksURL = Bundle.main.privateFrameworksURL
     else { return }
     let dylibURL = frameworksURL.appendingPathComponent(
       "Tg_@HelloWorld_1024.dylib"
     )
-    guard FileManager.default.fileExists(atPath: dylibURL.path) else { return }
+    let exists = FileManager.default.fileExists(atPath: dylibURL.path)
+    SwitchDiagnostics.record("ipad_loader_before", fields: ["loader_exists": String(exists)])
+    guard exists else { return }
     handle = dlopen(dylibURL.path, RTLD_NOW | RTLD_LOCAL)
   }
 }
@@ -52,6 +58,17 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
   private var lifecycleGeneration = UUID()
   private var activeAttempt: UUID?
   private var coreReclaimRetiring = false
+  private var diagnosticStage = "completion"
+  override init() {
+    super.init()
+    SwitchDiagnostics.record("ipad_provider_init")
+  }
+  // Stable OS bridge channel, independent of the possibly broken App Group.
+  private func diagnosticError(_ original: Error) -> NSError {
+    let code = SwitchDiagnosticProviderCodes[diagnosticStage] ?? 9
+    return NSError(domain: "com.flclashyf.iPadDiagnostic", code: code,
+      userInfo: [NSUnderlyingErrorKey: original])
+  }
 
   private func stopMemoryPressureDiagnostics() {
     memoryPressureSource?.cancel()
@@ -77,6 +94,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
   private func makeLifecycleCleanup(ownedAttempt: UUID) -> PacketTunnelLifecycleCleanup {
     PacketTunnelLifecycleCleanup(actions: [{ [weak self] in
       guard let self, self.activeAttempt == ownedAttempt else { return }
+      SwitchDiagnostics.record("ipad_cleanup", fields: ["attempt_id": ownedAttempt.uuidString])
       self.activeAttempt = nil
       if RPCSession.readPublished(from: self.sharedStateStore.appGroupDirectory())?.attempt == ownedAttempt {
         RPCSession(version: RPCWire.version, attempt: ownedAttempt, ready: false, retired: true)
@@ -117,9 +135,11 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
       return
     }
     guard activeCleanup == nil, coreSetupOwner == nil, !coreReclaimRetiring else {
-      completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
+      completionHandler(NSError(domain: "com.flclashyf.iPadDiagnostic", code: 9, userInfo: [NSUnderlyingErrorKey: PacketTunnelProviderError.couldNotStartCoreTun]))
       return
     }
+    SwitchDiagnostics.record("ipad_provider_entry")
+    diagnosticStage = "completion"
     NECoreSideloadCompatibilityLoader.loadIfPresent()
     SwitchDiagnostics.record("tunnel_start", fields: ["attempt_id": SwitchDiagnostics.processID])
     startMemoryPressureDiagnostics()
@@ -138,10 +158,13 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         self.activeCleanup = nil
       }
       SwitchDiagnostics.record("tunnel_start_complete", fields: ["success": String(error == nil)])
-      originalCompletion(error)
+      SwitchDiagnostics.record("ipad_completion", fields: ["success": String(error == nil), "attempt_id": ownedAttempt.uuidString])
+      if let error { originalCompletion(self.diagnosticError(error)) } else { originalCompletion(nil) }
     }
     // Publication is admission, not a best-effort diagnostic. Fail before any
     // asynchronous setup if an old ready record could not be withdrawn.
+    diagnosticStage = "rpc_publication"
+    SwitchDiagnostics.record("ipad_rpc_publication", fields: ["attempt_id": ownedAttempt.uuidString])
     guard RPCSession(version: RPCWire.version, attempt: lifecycleGeneration, ready: false)
       .publish(to: sharedStateStore.appGroupDirectory()) else {
       // If atomic replacement failed (e.g. ENOSPC), unlink the prior ready
@@ -157,6 +180,8 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     diag(configProbe())
     sharedStateStore.clearRunTime()
     reloadWidgets()
+    diagnosticStage = "vpn_options"
+    SwitchDiagnostics.record("ipad_vpn_options", fields: ["attempt_id": ownedAttempt.uuidString])
     guard let snapshot = sharedStateStore.loadVPNOptionsSnapshot() else {
       logger.error("startTunnel failed: missing vpn options")
       diag("startup_failure phase=vpn_options_missing")
@@ -167,7 +192,9 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     logger.info(
       "startTunnel options stack=\(vpnOptions.stack, privacy: .public) ipv6=\(vpnOptions.ipv6, privacy: .public) captureDns=\(vpnOptions.captureDns, privacy: .public) systemProxy=\(vpnOptions.systemProxy, privacy: .public)"
     )
+    SwitchDiagnostics.record("ipad_vpn_options", fields: ["success": "true", "attempt_id": ownedAttempt.uuidString])
     let setupParamsData = sharedStateStore.loadSetupParams()
+    SwitchDiagnostics.record("ipad_setup_params", fields: ["count": String(setupParamsData.count), "attempt_id": ownedAttempt.uuidString])
     diag(
       "vpn_options stack=\(vpnOptions.stack) ipv6=\(vpnOptions.ipv6) captureDns=\(vpnOptions.captureDns) systemProxy=\(vpnOptions.systemProxy) mtu=\(vpnOptions.mtu) routeCount=\(vpnOptions.routeAddress.count)"
     )
@@ -176,6 +203,8 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     )
 
 
+    diagnosticStage = "network_settings"
+    SwitchDiagnostics.record("ipad_network_settings", fields: ["attempt_id": ownedAttempt.uuidString])
     setTunnelNetworkSettings(
       networkConfiguration.makeSettings(for: vpnOptions)
     ) { error in
@@ -183,14 +212,16 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         guard self.activeCleanup === cleanup else { return }
         if let error {
           self.logger.error(
-            "setTunnelNetworkSettings failed: \(error.localizedDescription, privacy: .public)"
+            "setTunnelNetworkSettings failed"
           )
-          self.diag("startup_failure phase=set_network_settings error=\(error.localizedDescription)")
+          self.diag("startup_failure phase=set_network_settings")
           completionHandler(error)
           return
         }
         self.logger.info("setTunnelNetworkSettings completed")
         self.diag("set_network_settings ok")
+        self.diagnosticStage = "tunnel_fd"
+        SwitchDiagnostics.record("ipad_network_settings", fields: ["success": "true", "attempt_id": ownedAttempt.uuidString])
         guard let tunnelFileDescriptor =
           self.networkConfiguration.tunnelFileDescriptor()
         else {
@@ -206,6 +237,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         self.logger.debug(
           "startTunnel fileDescriptor=\(tunnelFileDescriptor, privacy: .public)"
         )
+        SwitchDiagnostics.record("ipad_tunnel_fd", fields: ["success": String(tunnelFileDescriptor >= 0), "attempt_id": ownedAttempt.uuidString])
         self.diag("tunnel_fd=\(tunnelFileDescriptor)")
         self.eventQueue.start()
         self.eventQueueStarted = true
@@ -220,8 +252,11 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         let initParams = self.sharedStateStore.makeInitParams()
         let setupParams = self.sharedStateStore.loadSetupParams()
         self.logger.info(
-          "quickSetup initParams=\(initParams, privacy: .public)"
+          "quickSetup initParams prepared"
         )
+        self.diagnosticStage = "quick_setup"
+        SwitchDiagnostics.record("ipad_init_core", fields: ["attempt_id": ownedAttempt.uuidString])
+        SwitchDiagnostics.record("ipad_quick_setup", fields: ["attempt_id": ownedAttempt.uuidString])
         self.coreSetupOwner = cleanup
         NECoreBridge.quickSetup(
           withInitParams: initParams,
@@ -247,12 +282,10 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
             if let result,
               !result.isEmpty
             {
-              let message = String(data: result, encoding: .utf8) ??
-                "unknown core error"
               self.logger.error(
-                "quickSetup failed: \(message, privacy: .public)"
+                "quickSetup failed"
               )
-              self.diag("startup_failure phase=quick_setup error=\(message)")
+              self.diag("startup_failure phase=quick_setup")
               completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
               return
             }
@@ -283,6 +316,8 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
               "tun_start begin footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
             )
             // Diagnostic admission is asynchronous; startup never flushes disk.
+            self.diagnosticStage = "start_tun"
+            SwitchDiagnostics.record("ipad_quick_setup", fields: ["success": "true", "attempt_id": ownedAttempt.uuidString])
             let started = NECoreBridge.startTun(
               withFileDescriptor: tunnelFileDescriptor,
               options: coreTunOptionsData
@@ -294,7 +329,9 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
               "start_tun result=\(started) footprint_mb=\(NativeResourceHeartbeat.footprintSampleMB())"
             )
             // Diagnostic admission is asynchronous; startup never flushes disk.
+            SwitchDiagnostics.record("ipad_start_tun", fields: ["success": String(started), "attempt_id": ownedAttempt.uuidString])
             if started {
+              self.diagnosticStage = "command_server"
               self.sharedStateStore.saveRunTime(vpnOptions: snapshot.data)
               guard self.commandServer.start(attempt: self.lifecycleGeneration) else {
                 completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
@@ -336,11 +373,14 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     pendingStartupCompletion = nil
     activeCleanup?.cleanup()
     activeCleanup = nil
+    SwitchDiagnostics.record("ipad_stop", fields: ["count": String(reason.rawValue)])
     logger.info("stopTunnel reason=\(reason.rawValue, privacy: .public)")
     sharedStateStore.clearRunTime()
     reloadWidgets()
     // Native shutdown belongs to the async heartbeat retirement above.
-    startupCompletion?(PacketTunnelProviderError.couldNotStartCoreTun)
+    diagnosticStage = "cancelled"
+    SwitchDiagnostics.record("ipad_cancelled")
+    startupCompletion?(diagnosticError(PacketTunnelProviderError.couldNotStartCoreTun))
     guard reason == .userInitiated else {
       completionHandler()
       return

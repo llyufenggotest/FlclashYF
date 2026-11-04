@@ -24,7 +24,8 @@ def prepare(out, baseline=False):
     files=[]; manifest=[]
     for rel in ['ios/Runner/Tunnel/TunnelCoordinator.swift','ios/Runner/Tunnel/TunnelTypes.swift','ios/Shared/SwitchDiagnostics.swift']:
         raw = subprocess.check_output(['git','-C',str(ROOT),'show',f'{BASE}:{rel}']) if baseline and rel.endswith('TunnelCoordinator.swift') else (ROOT/rel).read_bytes()
-        text=raw.decode().replace('\r\n','\n').replace('import NetworkExtension\n','')
+        text=raw.decode().replace('\r\n','\n')
+        if not rel.endswith('SwitchDiagnostics.swift'): text=text.replace('import NetworkExtension\n','')
         dest=folder/Path(rel).name; dest.write_bytes(text.encode()); files.append(str(dest))
         manifest.append({'path':rel,'ref':BASE if baseline and rel.endswith('TunnelCoordinator.swift') else 'candidate','sha256':hashlib.sha256(raw).hexdigest()})
     files.append(str(folder/'main.swift'))

@@ -324,6 +324,7 @@ final class TunnelCoordinator {
           )
           continue
         }
+        SwitchDiagnostics.record("ipad_start_throw", fields: SwitchDiagnostics.disconnectErrorFields(error).merging(["generation": String(request.generation)]) { _, new in new })
         log(
           "\(request.target.description) failed: \(error.localizedDescription)"
         )
@@ -372,6 +373,7 @@ final class TunnelCoordinator {
 
       manager.isEnabled = true
       managerStore.applyNetworkExtensionOptions(to: manager, enableOnDemand: true)
+      SwitchDiagnostics.record("ipad_save", fields: ["generation": String(request.generation)])
       log("start save preferences")
       do {
         try await awaitPreferenceResult { completion in
@@ -390,6 +392,8 @@ final class TunnelCoordinator {
         return
       }
 
+      SwitchDiagnostics.record("ipad_save", fields: ["generation": String(request.generation), "success": "true"])
+      SwitchDiagnostics.record("ipad_reload", fields: ["generation": String(request.generation)])
       log("start reload preferences")
       do {
         try await awaitPreferenceResult { completion in
@@ -408,6 +412,7 @@ final class TunnelCoordinator {
         return
       }
 
+      SwitchDiagnostics.record("ipad_reload", fields: ["generation": String(request.generation), "success": "true"])
       let preparedStatus = manager.connection.status
       recordObservedTunnelStatus(preparedStatus, notifyExternal: false)
       if preparedStatus.tunnelState == .running {
@@ -434,7 +439,9 @@ final class TunnelCoordinator {
         continue
       }
       do {
+        SwitchDiagnostics.record("ipad_start_call", fields: ["generation": String(request.generation)])
         try manager.connection.startVPNTunnel()
+        SwitchDiagnostics.record("ipad_start_call", fields: ["generation": String(request.generation), "success": "true"])
         log("start requested")
       } catch {
         if finishRunningRequestIfSatisfied(request, manager: manager) {

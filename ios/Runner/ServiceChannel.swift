@@ -143,6 +143,10 @@ final class ServiceChannel {
   private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     log("handle method=\(call.method)")
     switch call.method {
+    case "exportIPadDiagnostics":
+      SwitchDiagnostics.exportIPadDiagnostics { text in
+        DispatchQueue.main.async { result(text) }
+      }
     case "invokeMethod":
       guard let data = methodCallData(call) else {
         result(invalidMethodCallResponse)
