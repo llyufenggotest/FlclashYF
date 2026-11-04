@@ -14,7 +14,10 @@ class NativeLogExport {
 
   Future<DateTime?> _readCutoff() async {
     final file = _cutoffFile;
-    if (!await file.exists()) return null;
+    if (await FileSystemEntity.type(file.path) ==
+        FileSystemEntityType.notFound) {
+      return null;
+    }
     final metadata = jsonDecode(await file.readAsString());
     if (metadata is! Map || metadata['cutoff'] is! String) {
       throw const FormatException('Invalid native log cutoff metadata');
@@ -35,15 +38,15 @@ class NativeLogExport {
 
   Future<String> read() async {
     final buffer = StringBuffer();
-    // Collect Runner-local proof before touching the suspect shared path.
+    String? runnerDiagnostics;
+    // Collect Runner-local proof before touching the suspect shared path, but
+    // defer exporting event history until the persisted cutoff is known.
     if (Platform.isIOS || runnerDiagnosticReader != null) {
       try {
         const channel = MethodChannel('cc.llyufeng.flclash.dev/service');
-        buffer.writeln(
-          runnerDiagnosticReader != null
-              ? await runnerDiagnosticReader!()
-              : await channel.invokeMethod<String>('exportIPadDiagnostics'),
-        );
+        runnerDiagnostics = runnerDiagnosticReader != null
+            ? await runnerDiagnosticReader!()
+            : await channel.invokeMethod<String>('exportIPadDiagnostics');
       } on PlatformException {
         buffer.writeln('iPadDiagnostic-v1 native_channel=unavailable');
       } on MissingPluginException {
@@ -51,16 +54,27 @@ class NativeLogExport {
       }
     }
     DateTime? cutoff;
+    var withholdHistory = false;
     try {
       cutoff = await _readCutoff();
     } on FileSystemException {
-      buffer.writeln('shared_cutoff=unavailable');
+      withholdHistory = true;
+      buffer.writeln('shared_cutoff=unavailable shared_history=withheld');
     } on FormatException {
       if (!Platform.isIOS && runnerDiagnosticReader == null) rethrow;
-      // Never re-export cleared shared history when its cutoff is corrupt.
+      withholdHistory = true;
       buffer.writeln('shared_cutoff=invalid shared_history=withheld');
-      return buffer.toString();
     }
+    if (runnerDiagnostics != null) {
+      buffer.writeln(
+        _runnerAfterCutoff(
+          runnerDiagnostics,
+          cutoff,
+          withholdHistory: withholdHistory,
+        ),
+      );
+    }
+    if (withholdHistory) return buffer.toString();
     for (final (file, title) in [
       (nativeFile, 'iOS NECore native diagnostics'),
       for (final name in ['ios-switch-Runner.log', 'ios-switch-NECore.log'])
@@ -107,12 +121,64 @@ class NativeLogExport {
     return entries.skip(start).map((entry) => entry.line).toList();
   }
 
+  String _runnerAfterCutoff(
+    String text,
+    DateTime? cutoff, {
+    required bool withholdHistory,
+  }) {
+    final buffer = StringBuffer();
+    for (final line in const LineSplitter().convert(text)) {
+      // Channel output mixes current capability headers with independent JSON
+      // rows from local, pinned and NE sources. Never carry row inclusion state
+      // across these boundaries or treat an invalid row as a continuation.
+      if (_isRunnerHeader(line)) {
+        buffer.writeln(line);
+      } else if (!withholdHistory && line.trimLeft().startsWith('{')) {
+        final timestamp = _timestamp(line.trimLeft());
+        if (timestamp != null &&
+            (cutoff == null || timestamp.isAfter(cutoff))) {
+          buffer.writeln(line);
+        }
+      }
+    }
+    return buffer.toString();
+  }
+
+  bool _isRunnerHeader(String line) {
+    const fixed = {
+      'iPadDiagnostic-v1',
+      '===== iPadDiagnostic-v1 =====',
+      '===== pinned startup window =====',
+      '===== NE shared diagnostic (NE private fallback is not app-readable) =====',
+      'container_identity=not_proved signing_entitlements=unavailable capability_scope=observed_only',
+      'no_provider_evidence=entry_unknown_not_proof_of_no_launch',
+    };
+    if (fixed.contains(line)) return true;
+    if (RegExp(
+      r'^runnerLocal=(readable|unavailable|unreadable_or_absent|unreadable) sharedSource=(readable|unavailable|unreadable_or_absent|unreadable) dropped=[0-9]+$',
+    ).hasMatch(line)) {
+      return true;
+    }
+    return RegExp(
+      r'^schema=iPadDiagnostic-v1 source_base=[a-f0-9]{40} image_uuid=(unavailable|[A-Fa-f0-9-]{36}) os=[0-9]+\.[0-9]+\.[0-9]+ device_class=(ipad|other|mac_gate) bundle_relation=(true|false) embedded_profile=(true|false) signature_resources=(true|false) signing_groups_count=unavailable signing_vpn_entitlement=unavailable$',
+    ).hasMatch(line);
+  }
+
   String _afterCutoff(String text, DateTime? cutoff) {
     if (cutoff == null) return text;
     final buffer = StringBuffer();
     var include = false;
     for (final line in const LineSplitter().convert(text)) {
-      final timestamp = _timestamp(line);
+      final isRow = line.trimLeft().startsWith('{');
+      final timestamp = _timestamp(line.trimLeft());
+      if (isRow) {
+        // JSONL has no continuations, including malformed/missing timestamps.
+        include = false;
+        if (timestamp != null && timestamp.isAfter(cutoff)) {
+          buffer.writeln(line);
+        }
+        continue;
+      }
       if (timestamp != null) {
         include = timestamp.isAfter(cutoff);
       }

@@ -5,6 +5,116 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test(
+    'unreadable cutoff keeps current identity but withholds channel history',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'ipad-unreadable-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      await Directory('${directory.path}/logs-cleared-at.json').create();
+      final exporter = NativeLogExport(
+        File('${directory.path}/native.log'),
+        runnerDiagnosticReader: () async =>
+            '===== iPadDiagnostic-v1 =====\n'
+            'runnerLocal=readable sharedSource=unavailable dropped=0\n'
+            '{"timestamp":"2026-11-04T00:00:01Z","event":"withheld-secret"}\n',
+      );
+      final output = await exporter.read();
+      expect(output, contains('runnerLocal=readable'));
+      expect(output, contains('shared_history=withheld'));
+      expect(output, isNot(contains('withheld-secret')));
+    },
+  );
+
+  for (final corrupt in [false, true]) {
+    test('channel sources respect cutoff corrupt=$corrupt', () async {
+      final directory = await Directory.systemTemp.createTemp('ipad-cutoff-');
+      addTearDown(() => directory.delete(recursive: true));
+      final native = File('${directory.path}/ios-necore-native.log');
+      String row(String marker, String timestamp) =>
+          '{"schema":"iPadDiagnostic-v1","stage":"disconnect","timestamp":"$timestamp","error_code":"$marker"}';
+      final history = StringBuffer()
+        ..writeln('===== iPadDiagnostic-v1 =====')
+        ..writeln(
+          'schema=iPadDiagnostic-v1 source_base=de6517d43c3a3277df4f0ce14c42b3f791f9fb05 image_uuid=unavailable os=27.0.1 device_class=ipad bundle_relation=true embedded_profile=true signature_resources=true signing_groups_count=unavailable signing_vpn_entitlement=unavailable',
+        )
+        ..writeln('runnerLocal=readable sharedSource=readable dropped=0');
+      for (final source in ['local', 'pinned', 'NE']) {
+        if (source == 'pinned') {
+          history.writeln('===== pinned startup window =====');
+        } else if (source == 'NE') {
+          history.writeln(
+            '===== NE shared diagnostic (NE private fallback is not app-readable) =====',
+          );
+        }
+        history
+          ..writeln(row('new-$source', '2026-11-04T00:00:01Z'))
+          ..writeln(row('old-$source', '2020-01-01T00:00:00Z'))
+          ..writeln(row('malformed-$source', 'bad-time'))
+          ..writeln('untimestamped-$source');
+      }
+      final exporter = NativeLogExport(
+        native,
+        runnerDiagnosticReader: () async => history.toString(),
+      );
+      await exporter.clear(DateTime.utc(2026, 11, 4));
+      if (corrupt) {
+        await File('${directory.path}/logs-cleared-at.json').writeAsString('{');
+      }
+      final output = await exporter.read();
+      expect(output, contains('source_base=de6517'));
+      expect(output, contains('runnerLocal=readable'));
+      expect(output, isNot(contains('old-')));
+      expect(output, isNot(contains('malformed-')));
+      expect(output, isNot(contains('untimestamped-')));
+      for (final source in ['local', 'pinned', 'NE']) {
+        expect(output.contains('new-$source'), !corrupt);
+      }
+      if (corrupt) expect(output, contains('shared_history=withheld'));
+    });
+  }
+
+  test(
+    'channel malformed timestamp never inherits a fresh row even without cutoff',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'ipad-malformed-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final exporter = NativeLogExport(
+        File('${directory.path}/native.log'),
+        runnerDiagnosticReader: () async =>
+            '{"timestamp":"2026-11-04T00:00:01Z","event":"fresh"}\n'
+            '{"timestamp":"bad-time","event":"malformed-secret"}\n'
+            '{"event":"missing-timestamp-secret"}\n',
+      );
+      expect(await exporter.read(), contains('fresh'));
+      expect(await exporter.read(), isNot(contains('secret')));
+    },
+  );
+
+  test('shared JSON rows cannot inherit timestamp as continuations', () async {
+    final directory = await Directory.systemTemp.createTemp('ipad-shared-');
+    addTearDown(() => directory.delete(recursive: true));
+    final native = File('${directory.path}/ios-necore-native.log');
+    final exporter = NativeLogExport(native);
+    await exporter.clear(DateTime.utc(2026, 11, 4));
+    for (final name in [
+      'ios-necore-native.log',
+      'ios-switch-Runner.log',
+      'ios-switch-NECore.log',
+    ]) {
+      await File('${directory.path}/$name').writeAsString(
+        '{"timestamp":"2026-11-04T00:00:01Z","event":"fresh"}\n'
+        '{"timestamp":"bad","event":"old-secret"}\n'
+        'old-secret-continuation\n',
+      );
+    }
+    final output = await exporter.read();
+    expect(output, contains('fresh'));
+    expect(output, isNot(contains('old-secret')));
+  });
+  test(
     'rotation, missing files, unknown old lines and repeat clears stay cleared',
     () async {
       final directory = await Directory.systemTemp.createTemp(
