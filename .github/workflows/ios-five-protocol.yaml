@@ -334,6 +334,24 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+      - name: Required config access production behavior before package
+        run: |
+          python3 scripts/test_ios_config_access.py
+          python3 scripts/test_ios_config_access_swift.py --output "$RUNNER_TEMP/config-access"
+          cd core
+          GOTOOLCHAIN=local GOWORK=off go test -count=1 ./internal/quicksetup
+          GOTOOLCHAIN=local GOWORK=off go test -count=1 -tags lowmem ./internal/quicksetup
+      - name: Preserve config access source and compiled proof
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: FlclashYF-config-access-proof
+          path: ${{ runner.temp }}/config-access
+          if-no-files-found: error
       - name: Exercise Runner diagnostic Flutter export
         run: |
           python3 scripts/test_ipad_diagnostic_export.py --output "$RUNNER_TEMP/ipad-diagnostic/flutter-export"

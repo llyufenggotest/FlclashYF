@@ -223,6 +223,13 @@ final class TunnelManagerStore {
     let envelope = try sharedStateStore.loadStartupEnvelope()
     var configuration = proto.providerConfiguration ?? [:]
     configuration[StartupEnvelope.key] = envelope.data
+    // The cached manager/provider owner was checked before any marker write.
+    // Persist the same receipt for manual start, cold start and OnDemand.
+    if let challenge = ConfigAccess.attach(revision: envelope.revision) {
+      configuration[ConfigAccess.key] = challenge
+    } else {
+      configuration.removeValue(forKey: ConfigAccess.key)
+    }
     proto.providerConfiguration = configuration
     return envelope
   }

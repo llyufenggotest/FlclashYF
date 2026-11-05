@@ -61,9 +61,15 @@ final class PacketTunnelSharedStateStore {
     return data
   }
 
+  var setupSourceCode: Int {
+    guard let defaults = userDefaults else { return 0 }
+    if defaults.data(forKey: setupParamsKey) != nil { return 1 }
+    if defaults.data(forKey: sharedStateKey) != nil { return 2 }
+    return 0
+  }
+
   func makeInitParams() -> String {
-    let homeDirectory = appGroupDirectory()?.path ?? ""
-    return "{\"home-dir\":\"\(homeDirectory)\",\"version\":0}"
+    ConfigAccess.initParams(root: appGroupDirectory())
   }
 
   func appGroupDirectory() -> URL? {

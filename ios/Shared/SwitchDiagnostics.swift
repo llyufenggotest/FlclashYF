@@ -400,7 +400,7 @@ extension SwitchDiagnostics {
   private static var capabilityPending = false
   private static var iPadMemory: [String] = []
   private static var iPadPinned: [String: String] = [:]
-  private static let iPadStages: Set<String> = ["runner_launch", "loader_before", "loader_after", "provider_init", "provider_entry", "manager_load", "manager_selected", "save", "reload", "start_call", "start_throw", "disconnect", "rpc_publication", "vpn_options", "setup_params", "network_settings", "tunnel_fd", "init_core", "quick_setup", "start_tun", "command_server", "completion", "cleanup", "cancelled", "stop", "capabilities"]
+  private static let iPadStages: Set<String> = ["runner_launch", "loader_before", "loader_after", "provider_init", "provider_entry", "manager_load", "manager_selected", "save", "reload", "start_call", "start_throw", "disconnect", "rpc_publication", "vpn_options", "setup_params", "network_settings", "tunnel_fd", "init_core", "quick_setup", "start_tun", "command_server", "completion", "cleanup", "cancelled", "stop", "capabilities", "config_access"]
   private static let iPadBooleans: Set<String> = ["success", "loader_exists", "loader_loaded", "group_available", "directory_readable", "directory_writable", "probe_success", "defaults_available", "snapshot_exists", "snapshot_object", "vpn_options_object", "setup_exists", "setup_object", "enabled", "protocol_exists", "provider_matches", "bundle_relation"]
   private static let iPadTokens: Set<String> = ["error_domain", "underlying_domain", "provider_stage", "observation"]
   #if SWITCH_DIAGNOSTICS_TESTING
@@ -451,6 +451,11 @@ extension SwitchDiagnostics {
     var seen = Set<ObjectIdentifier>()
     for _ in 0..<4 {
       guard let item = current, seen.insert(ObjectIdentifier(item)).inserted else { break }
+      if item.domain == "com.flclashyf.iPadDiagnostic", let access = configAccessDecodeFailure(item.code) {
+        fields.merge(access) { _, new in new }
+        fields["provider_stage"] = "quick_setup"; fields["observation"] = "provider_entry_proved"
+        recordIPad("config_access", fields: access)
+      }
       if item.domain == "com.flclashyf.iPadDiagnostic", let reason = downstreamReasons[item.code] {
         fields["provider_stage"] = "quick_setup"; fields["observation"] = "provider_entry_proved"
         fields["receive_reason"] = reason
@@ -470,6 +475,22 @@ extension SwitchDiagnostics {
     return fields
   }
   static let startupReasons: [Int: String] = [200:"suite_unavailable", 201:"no_data_or_type", 202:"root_decode", 203:"options_missing_or_type", 204:"options_encode", 205:"options_decode", 206:"bad_version", 207:"oversize", 208:"envelope_shape", 209:"stale_revision"]
+  private static func configAccessDecodeFailure(_ code: Int) -> [String: String]? {
+    guard code >= 1_000_000 else { return nil }
+    var n = code - 1_000_000
+    let names = ["home_equal","setup_source","setup_status","challenge_status","probe_errno","pre_probe","core_errno","core_kind"]
+    let radices = [2,4,5,6,8,9,8,4]
+    var fields = [String:String]()
+    for (name,radix) in zip(names,radices) { fields[name] = String(n % radix); n /= radix }
+    guard (0...5).contains(n) else { return nil }
+    fields["core_stage"] = String(n)
+    return fields
+  }
+  private static func configAccessSafeFields(_ fields: [String:String]) -> [String:String] {
+    let bounds = ["home_equal":2,"setup_source":4,"setup_status":5,"challenge_status":6,"probe_errno":8,"pre_probe":9,"core_errno":8,"core_kind":4,"core_stage":6]
+    return fields.filter { key,value in guard let bound = bounds[key], let n = Int(value) else { return false }; return n >= 0 && n < bound }
+  }
+
   static let downstreamReasons: [Int: String] = [300:"core_setup_rejected", 301:"home_unavailable", 302:"config_unreadable", 303:"setup_decode"]
   static let startupSources: Set<String> = ["options", "provider_configuration", "legacy_defaults"]
   static let providerStages: [Int: String] = [1:"rpc_publication", 2:"vpn_options", 3:"network_settings", 4:"tunnel_fd", 5:"quick_setup", 6:"start_tun", 7:"command_server", 8:"cancelled", 9:"completion"]
@@ -490,13 +511,14 @@ extension SwitchDiagnostics {
       if key == "attempt_id", let uuid = UUID(uuidString: value) { safe[key] = uuid.uuidString }
       if iPadTokens.contains(key), Set(["none", "unknown", "NEVPNErrorDomain", "NEVPNConnectionErrorDomain", "NSPOSIXErrorDomain", "NSCocoaErrorDomain", "NSURLErrorDomain", "provider_diagnostic", "provider_entry_proved", "system_error_entry_unknown", "no_error_no_entry_proof"] + Array(providerStages.values)).contains(value) { safe[key] = value }
     }
+    safe.merge(configAccessSafeFields(fields)) { _, new in new }
     guard let bytes = try? JSONSerialization.data(withJSONObject: safe, options: [.sortedKeys]), bytes.count <= 4096, let line = String(data: bytes, encoding: .utf8) else { return }
     iPadLock.lock()
     guard pendingJobs < maxPendingJobs, pendingBytes + bytes.count <= maxPendingBytes else { droppedJobs += 1; iPadLock.unlock(); return }
     pendingJobs += 1; pendingBytes += bytes.count; iPadLock.unlock()
     iPadQueue.async {
       defer { iPadLock.lock(); pendingJobs -= 1; pendingBytes -= bytes.count; iPadLock.unlock() }
-      if ["runner_launch", "provider_init", "provider_entry", "disconnect", "completion", "capabilities"].contains(stage) { iPadPinned[stage] = line }
+      if ["runner_launch", "provider_init", "provider_entry", "disconnect", "completion", "capabilities", "config_access"].contains(stage) { iPadPinned[stage] = line }
       iPadMemory.append(line)
       if iPadMemory.count > 256 { iPadMemory.removeFirst(iPadMemory.count - 256) }
       if let url = localIPadURL() { appendIPad(bytes, to: url) }
@@ -568,6 +590,7 @@ extension SwitchDiagnostics {
             if ["attempt_id", "image_uuid"].contains(key), let uuid = UUID(uuidString: value) { safe[key] = uuid.uuidString }
             if iPadTokens.contains(key), tokens.contains(value) { safe[key] = value }
           }
+          safe.merge(configAccessSafeFields(row)) { _, new in new }
           guard let encoded = try? JSONSerialization.data(withJSONObject: safe, options: [.sortedKeys]) else { return nil }
           return String(data: encoded, encoding: .utf8)
         }.joined(separator: "\n")

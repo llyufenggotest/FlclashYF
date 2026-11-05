@@ -9,6 +9,7 @@ import "C"
 
 import (
 	"core/platform"
+	"core/internal/quicksetup"
 	t "core/tun"
 	"encoding/json"
 	"errors"
@@ -304,20 +305,33 @@ func startTUN(callback unsafe.Pointer, fd C.int, optionsChar *C.char) bool {
 func quickSetup(callback unsafe.Pointer, initParamsChar *C.char, setupParamsChar *C.char) {
 	go func() {
 		defer releaseObject(callback)
+		initParamsString := takeCString(initParamsChar)
+		setupParamsString := takeCString(setupParamsChar)
+		initParams := InitParams{}
+		setupParams := defaultSetupParams()
+		// Only opted-in internal NE calls receive closed codes. Public ABI and
+		// all existing callers retain the historical callback format.
+		var control struct { ConfigAccessVersion int `json:"config-access-version"` }
+		_ = json.Unmarshal([]byte(initParamsString), &control)
+		if control.ConfigAccessVersion == 1 {
+			invokeResult(callback, quicksetup.Run(
+				func() error { return json.Unmarshal([]byte(initParamsString), &initParams) },
+				func() bool { return handleInitClash(&initParams) },
+				func() error { return UnmarshalJson([]byte(setupParamsString), setupParams) },
+				func() error { isRunning.Store(true); return handleSetupConfigError(setupParams) },
+			))
+			return
+		}
 		defer func() {
 			if r := recover(); r != nil {
 				logError("panic in quickSetup: %v\n%s", r, stackTrace())
 				invokeResult(callback, fmt.Sprintf("internal panic: %v", r))
 			}
 		}()
-		initParamsString := takeCString(initParamsChar)
-		setupParamsString := takeCString(setupParamsChar)
-		initParams := InitParams{}
 		if err := json.Unmarshal([]byte(initParamsString), &initParams); err != nil || !handleInitClash(&initParams) {
 			invokeResult(callback, "init failed")
 			return
 		}
-		setupParams := defaultSetupParams()
 		if err := UnmarshalJson([]byte(setupParamsString), setupParams); err != nil {
 			invokeResult(callback, err.Error())
 			return

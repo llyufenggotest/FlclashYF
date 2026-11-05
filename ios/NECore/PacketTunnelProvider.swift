@@ -209,8 +209,9 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
       "startTunnel options stack=\(vpnOptions.stack, privacy: .public) ipv6=\(vpnOptions.ipv6, privacy: .public) captureDns=\(vpnOptions.captureDns, privacy: .public) systemProxy=\(vpnOptions.systemProxy, privacy: .public)"
     )
     SwitchDiagnostics.record("ipad_vpn_options", fields: ["success": "true", "attempt_id": ownedAttempt.uuidString])
+    let setupSource = sharedStateStore.setupSourceCode
     let setupParamsData = sharedStateStore.loadSetupParams()
-    let setupObject = (try? JSONSerialization.jsonObject(with: setupParamsData)) as? [String: Any]
+    let setupObject = setupParamsData.count <= ConfigAccess.maxSetup ? (try? JSONSerialization.jsonObject(with: setupParamsData)) as? [String: Any] : nil
     SwitchDiagnostics.record("ipad_setup_params", fields: ["count": String(setupParamsData.count), "setup_exists": String(setupParamsData.count > 2), "setup_object": String(setupObject != nil), "attempt_id": ownedAttempt.uuidString])
     diag(
       "vpn_options stack=\(vpnOptions.stack) ipv6=\(vpnOptions.ipv6) captureDns=\(vpnOptions.captureDns) systemProxy=\(vpnOptions.systemProxy) mtu=\(vpnOptions.mtu) routeCount=\(vpnOptions.routeAddress.count)"
@@ -266,8 +267,12 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
         // Start sampling before the config load so a jetsam kill while the core
         // builds rule-provider matchers leaves a footprint trail instead of silence.
         self.resourceHeartbeat.start()
+        let configRoot = self.sharedStateStore.appGroupDirectory()
         let initParams = self.sharedStateStore.makeInitParams()
         let setupParams = self.sharedStateStore.loadSetupParams()
+        let expectedChallenge = (self.protocolConfiguration as? NETunnelProviderProtocol)?.providerConfiguration?[ConfigAccess.key]
+        let configAccess = ConfigAccess.observe(root: configRoot, initParams: initParams,
+          setup: setupParams, source: setupSource, expected: expectedChallenge, revision: startupRevision)
         self.logger.info(
           "quickSetup initParams prepared"
         )
@@ -296,18 +301,12 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
               return
             }
             self.coreSetupOwner = nil
-            if let result,
-              !result.isEmpty
-            {
+            if let result, !result.isEmpty {
               self.logger.error(
                 "quickSetup failed"
               )
               self.diag("startup_failure phase=quick_setup")
-              let root = self.sharedStateStore.appGroupDirectory()
-              if root == nil { self.diagnosticReceiveCode = 301 }
-              else if !FileManager.default.isReadableFile(atPath: root!.appendingPathComponent("config.yaml").path) { self.diagnosticReceiveCode = 302 }
-              else if (try? JSONSerialization.jsonObject(with: setupParams)) as? [String: Any] == nil { self.diagnosticReceiveCode = 303 }
-              else { self.diagnosticReceiveCode = 300 }
+              self.diagnosticReceiveCode = configAccess.failure(result)
               completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
               return
             }
@@ -572,28 +571,8 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
   }
 
   private func configProbe() -> String {
-    guard let directory = sharedStateStore.appGroupDirectory() else {
-      return "config_probe home_dir=missing"
-    }
-    let configURL = directory.appendingPathComponent("config.yaml")
-    let exists = FileManager.default.fileExists(atPath: configURL.path)
-    var bytes = 0
-    var proxyNameLines = -1
-    if exists, let data = try? Data(contentsOf: configURL) {
-      SwitchDiagnostics.record("config_snapshot", fields: [
-        "profile_digest": SwitchDiagnostics.requestID(data), "request_bytes": String(data.count),
-      ])
-      bytes = data.count
-      if let text = String(data: data, encoding: .utf8) {
-        proxyNameLines = text
-          .split(separator: "\n")
-          .filter {
-            $0.trimmingCharacters(in: .whitespaces).hasPrefix("- name:")
-          }
-          .count
-      }
-    }
-    return "config_probe configExists=\(exists) configBytes=\(bytes) proxyNameLines=\(proxyNameLines)"
+    let observed = ConfigAccess.probe(root: sharedStateStore.appGroupDirectory())
+    return "config_probe pre_probe=\(observed.0) errno_class=\(observed.1)"
   }
 }
 

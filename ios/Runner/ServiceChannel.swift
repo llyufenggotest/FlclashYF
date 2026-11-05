@@ -143,6 +143,9 @@ final class ServiceChannel {
   private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     log("handle method=\(call.method)")
     switch call.method {
+    case "configAccessWritten":
+      guard let path = call.arguments as? String, path.utf8.count <= 4096 else { result(false); return }
+      result(ConfigAccess.written(path: path))
     case "exportIPadDiagnostics":
       SwitchDiagnostics.exportIPadDiagnostics { text in
         DispatchQueue.main.async { result(text) }

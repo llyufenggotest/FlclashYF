@@ -1332,15 +1332,18 @@ func handleDeleteManagedPath(params *DeleteManagedPathParams) string {
 
 var setupConfig = applyConfig
 
-func handleSetupConfig(params *SetupParams) string {
+func handleSetupConfigError(params *SetupParams) error {
 	if !isInit.Load() {
-		return "not initialized"
+		return errors.New("not initialized")
 	}
-	if err := setupConfig(params); err != nil {
+	return setupConfig(params)
+}
+
+func handleSetupConfig(params *SetupParams) string {
+	if err := handleSetupConfigError(params); err != nil {
 		return err.Error()
 	}
-	// applyConfig admits DNS readiness inside the hub transaction, before
-	// publishing currentConfig. A post-commit retry cannot reject a candidate.
+	// applyConfig retains transaction/DNS readiness ownership unchanged.
 	return ""
 }
 

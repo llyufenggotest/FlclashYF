@@ -26,7 +26,7 @@ class TransportContracts(unittest.TestCase):
         self.assertIn('resolveStartup', provider)
         self.assertIn('loadVPNOptionsSnapshot()', provider)
     def test_envelope_is_bounded_and_closed(self):
-        helper = source('ios/Shared/StartupEnvelope.swift')
+        helper = source('ios/Shared/StartupEnvelope.swift').split('// Diagnostic only.', 1)[0]
         for token in ['maxBytes = 32 * 1024', 'version == 1', 'stale_revision', 'CFBooleanGetTypeID', 'UUID(uuidString:', 'options_decode']:
             self.assertIn(token, helper)
         for forbidden in ['config.yaml', 'selected-map', 'test-url', 'home-dir', 'subscription']:

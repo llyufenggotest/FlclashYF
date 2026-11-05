@@ -573,6 +573,17 @@ class SetupAction extends _$SetupAction {
         try {
           final configFilePath = await appPath.configFilePath;
           await File(configFilePath).safeWriteAsString(yamlString);
+          if (system.isIOS) {
+            // Only the actual write location crosses the in-process channel.
+            // Native retains it locally; no path/config enters NE preferences.
+            try {
+              await Service().methodChannel.invokeMethod<bool>(
+                'configAccessWritten', configFilePath,
+              );
+            } catch (_) {
+              // Optional diagnostic must never change configuration success.
+            }
+          }
           final profileId = profile?.id;
           if (profileId != null) {
             await appPath.ensureProviderDirs(profileId);
