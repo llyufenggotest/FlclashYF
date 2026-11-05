@@ -19,6 +19,17 @@ class Contract(unittest.TestCase):
  def test_runner_local_export(self):
   s=self.text('ios/Shared/SwitchDiagnostics.swift')
   self.assertIn('configAccessDecodeFailure',s); self.assertIn('"config_access"',s)
+ def test_posix_read_qualified_and_runtime_evidence_portable(self):
+  s=self.text('ios/Shared/StartupEnvelope.swift')
+  self.assertIn('return Darwin.read(fd, pointer, count)',s)
+  self.assertIn('return Glibc.read(fd, pointer, count)',s)
+  self.assertNotIn('{ read(fd,',s)
+  self.assertNotIn('guard read(fd,',s)
+  gate=self.text('scripts/test_ios_config_access_swift.py')
+  self.assertIn("runtime_archives=[]",gate)
+  self.assertIn("quoted-home-runtime.zip",gate)
+  self.assertIn('assert z.testzip() is None',gate)
+  self.assertIn("runtime=folder/'quoted\"home'",gate)
  def test_owner_before_challenge(self):
   s=self.text('ios/Runner/Tunnel/TunnelManagerStore.swift')
   self.assertLess(s.index('else { throw StartupEnvelopeError.stale }'),s.index('ConfigAccess.attach'))

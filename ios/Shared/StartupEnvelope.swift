@@ -106,6 +106,14 @@ enum ConfigAccess {
   static let key = "configAccessV1"
   static let marker = ".config-access-v1"
   static let maxSetup = 1024 * 1024
+  // Avoid collisions with legacy fixture globals named read.
+  private static func readBytes(_ fd: Int32, _ pointer: UnsafeMutableRawPointer?, _ count: Int) -> Int {
+    #if canImport(Darwin)
+    return Darwin.read(fd, pointer, count)
+    #else
+    return Glibc.read(fd, pointer, count)
+    #endif
+  }
   struct Challenge: Codable, Equatable { let version: Int; let revision: UUID; let nonce: UUID }
   // The actual Dart write location is Runner-local, never in system preferences.
   static func written(path: String) -> Bool {
@@ -138,7 +146,7 @@ enum ConfigAccess {
     var info = stat()
     guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG, info.st_size <= 512 else { return 5 }
     var buffer = [UInt8](repeating: 0, count: 513)
-    let count = buffer.withUnsafeMutableBytes { read(fd, $0.baseAddress, $0.count) }
+    let count = buffer.withUnsafeMutableBytes { readBytes(fd, $0.baseAddress, $0.count) }
     guard count >= 0, count <= 512,
       let actual = try? JSONDecoder().decode(Challenge.self, from: Data(buffer.prefix(Int(count)))) else { return 3 }
     return actual == wanted ? 1 : 3
@@ -159,7 +167,7 @@ enum ConfigAccess {
     guard fstat(fd, &info) == 0 else { return (6,errnoIndex(Int(errno))) }
     guard (info.st_mode & S_IFMT) == S_IFREG else { return (5,0) }
     var byte: UInt8 = 0
-    guard read(fd, &byte, 1) >= 0 else { return (7,errnoIndex(Int(errno))) }
+    guard readBytes(fd, &byte, 1) >= 0 else { return (7,errnoIndex(Int(errno))) }
     return (1,0)
   }
   static func cocoaErrno(_ error: NSError) -> Int {

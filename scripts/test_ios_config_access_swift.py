@@ -11,7 +11,21 @@ def main():
  p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);a=p.parse_args();a.output.mkdir(parents=True,exist_ok=True)
  report=dict(base=BASE,head=subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip(),native_acceptance=False,executions=[])
  def finish(code,status):
-  report.update(exit_code=code,status=status);(a.output/'result.json').write_text(json.dumps(report,indent=2));print(json.dumps(dict(exit_code=code,status=status)));return code
+  # Keep the exact quoted-path runtime regression, but nest its filesystem
+  # evidence in a portable ZIP: upload-artifact rejects quotes in member paths.
+  runtime_archives=[]
+  for label in ['baseline-slice','candidate-slice']:
+   folder=a.output/label;runtime=folder/'quoted"home'
+   if runtime.exists():
+    import zipfile
+    archive=folder/'quoted-home-runtime.zip'
+    with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
+     for entry in runtime.rglob('*'):
+      if entry.is_file():z.write(entry,entry.relative_to(folder).as_posix())
+    with zipfile.ZipFile(archive) as z:assert z.testzip() is None
+    runtime_archives.append(dict(path=str(archive),sha256=hashlib.sha256(archive.read_bytes()).hexdigest()))
+    shutil.rmtree(runtime)
+  report.update(exit_code=code,status=status,runtime_archives=runtime_archives);(a.output/'result.json').write_text(json.dumps(report,indent=2));print(json.dumps(dict(exit_code=code,status=status)));return code
  def run(cmd,timeout=120):
   r=subprocess.run(cmd,capture_output=True,text=True,timeout=timeout);report['executions'].append(dict(command=cmd,exit_code=r.returncode,stdout=r.stdout,stderr=r.stderr));return r
  prepared=[]
