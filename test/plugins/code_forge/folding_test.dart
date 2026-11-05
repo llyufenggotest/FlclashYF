@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:code_forge/code_forge.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -108,6 +110,24 @@ void main() {
       await pumpEditor(tester, controller);
       await tester.pump(const Duration(milliseconds: 400));
       await settle(tester);
+      if (controller.lineCount > 10000) {
+        // Fake widget time does not join the native whole-document Future.
+        // Observe a known fold, then restore it before the unchanged oracle.
+        final readinessBudget = Stopwatch()..start();
+        var ready = false;
+        while (readinessBudget.elapsed < const Duration(seconds: 10)) {
+          controller.toggleFold(0);
+          await tester.pump();
+          if (controller.foldings[0]?.isFolded == true) {
+            controller.toggleFold(0);
+            await tester.pump();
+            ready = true;
+            break;
+          }
+          await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+        }
+        expect(ready, isTrue, reason: 'native folding never became observable');
+      }
       final folds = <(int, int)>[];
       for (var line = 0; line < lines.length; line++) {
         controller.toggleFold(line);

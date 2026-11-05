@@ -12,7 +12,7 @@ class Wiring(unittest.TestCase):
   self.assertIn('  startup-diagnostics-native:\n',text)
   job=text.split('  startup-diagnostics-native:\n',1)[1].split('\n  ios:\n',1)[0]
   ios=text.split('\n  ios:\n',1)[1].split('\n  macos:\n',1)[0]
-  self.assertIn('needs: [verify, swift-review-native, startup-diagnostics-native]',ios)
+  self.assertIn('needs: [verify, flutter-full, swift-review-native, startup-diagnostics-native]',ios)
   self.assertIn('runs-on: macos-15',job)
   self.assertIn('python3 scripts/test_ios_start_diagnostics.py',job)
   self.assertIn('python3 scripts/test_ios_start_diagnostics_swift.py --output',job)
@@ -36,8 +36,8 @@ class Wiring(unittest.TestCase):
   text=(ROOT/'.github/workflows/ios-five-protocol.yaml').read_text()
   for missing in ('verify', 'swift-review-native'):
    with self.subTest(missing=missing):
-    dependencies=[name for name in ('verify', 'swift-review-native', 'startup-diagnostics-native') if name != missing]
-    changed=text.replace('needs: [verify, swift-review-native, startup-diagnostics-native]', 'needs: ['+', '.join(dependencies)+']')
+    dependencies=[name for name in ('verify', 'flutter-full', 'swift-review-native', 'startup-diagnostics-native') if name != missing]
+    changed=text.replace('needs: [verify, flutter-full, swift-review-native, startup-diagnostics-native]', 'needs: ['+', '.join(dependencies)+']')
     self.assertNotEqual(text,changed)
     self.assertFalse(self.review_accepts(changed))
 if __name__=='__main__':unittest.main()

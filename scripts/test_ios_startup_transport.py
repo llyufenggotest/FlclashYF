@@ -47,7 +47,7 @@ class TransportContracts(unittest.TestCase):
         self.assertIn('test_ios_startup_transport_swift.py --output', job)
         self.assertIn('${{ runner.temp }}/startup-transport', job)
         self.assertNotIn('--prepare-only', job)
-        self.assertIn('needs: [verify, swift-review-native, startup-diagnostics-native]', workflow)
+        self.assertIn('needs: [verify, flutter-full, swift-review-native, startup-diagnostics-native]', workflow)
         project = source('ios/Runner.xcodeproj/project.pbxproj')
         for role in ['Runner', 'NECore']:
             self.assertGreaterEqual(project.count('StartupEnvelope.swift in ' + role + ' Sources'), 2)
