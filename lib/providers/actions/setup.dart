@@ -578,7 +578,8 @@ class SetupAction extends _$SetupAction {
             // Native retains it locally; no path/config enters NE preferences.
             try {
               await Service().methodChannel.invokeMethod<bool>(
-                'configAccessWritten', configFilePath,
+                'configAccessWritten',
+                configFilePath,
               );
             } catch (_) {
               // Optional diagnostic must never change configuration success.
