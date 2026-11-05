@@ -373,6 +373,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # The mandatory output regression reads its immutable baseline commit.
+          fetch-depth: 0
           submodules: recursive
       - uses: actions/setup-go@v6
         with:
