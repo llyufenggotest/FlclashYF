@@ -396,6 +396,7 @@ jobs:
           xcodebuild -version
       - name: Verify native diagnostics before packaging
         run: |
+          python3 scripts/test_setup_process_output.py --output "$RUNNER_TEMP/setup-output-proof"
           python3 scripts/test_ios_heartbeat.py
           python3 scripts/test_ios_switch_diagnostics.py
           python3 scripts/test_ios_provider_retry.py

@@ -8,6 +8,7 @@ import 'package:xml/xml.dart';
 import 'package:yaml/yaml.dart';
 
 import 'tool/geodata.dart';
+import 'tool/process_output.dart';
 
 const _allTargets = <String, String>{
   'android': 'apk',
@@ -567,13 +568,7 @@ Future<int> packageIOSNoSign({
     '--no-codesign',
     '--dart-define-from-file=env.json',
   ], workingDirectory: rootDir);
-  process.stdout.listen((data) {
-    stdout.write(systemEncoding.decode(data));
-  });
-  process.stderr.listen((data) {
-    stderr.write(systemEncoding.decode(data));
-  });
-  final buildExit = await process.exitCode;
+  final buildExit = await forwardBuildOutput(process);
   if (buildExit != 0) return buildExit;
 
   final appDir = Directory(
