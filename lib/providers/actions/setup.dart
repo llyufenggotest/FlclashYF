@@ -481,9 +481,18 @@ class SetupAction extends _$SetupAction {
     final authorizationNotifier = ref.read(
       authorizedTunEnableProvider.notifier,
     );
+    // Keep the immutable TUN identity, not just enable: off/on is an ABA.
+    // All config writers replace Tun; unrelated patch fields preserve it.
+    final requestedTun = ref.read(patchClashConfigProvider).tun;
     authorizationNotifier.value = TunAuthorizationState.unauthorized;
-
     final code = await authorizeCore();
+
+    // A native prompt can outlive either its intent or this provider.
+    // Stale success/none must not publish authorization or trigger handoff.
+    if (!ref.mounted ||
+        !identical(requestedTun, ref.read(patchClashConfigProvider).tun)) {
+      return true;
+    }
 
     switch (code) {
       case AuthorizeCode.success:

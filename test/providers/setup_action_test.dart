@@ -85,6 +85,7 @@ class TestSetupAction extends SetupAction {
   bool? stopAccepted = true;
   int authorizeCalls = 0;
   AuthorizeCode authorizeResult = AuthorizeCode.none;
+  Completer<AuthorizeCode>? pendingAuthorization;
   bool restoreServiceRunTime = false;
   DateTime? serviceRunTime;
   int serviceRunTimeReads = 0;
@@ -101,6 +102,7 @@ class TestSetupAction extends SetupAction {
   @override
   Future<AuthorizeCode> authorizeCore() async {
     authorizeCalls++;
+    if (pendingAuthorization case final pending?) return pending.future;
     return authorizeResult;
   }
 
@@ -498,6 +500,75 @@ void main() {
   });
 
   group('requestAdmin', () {
+    for (final code in AuthorizeCode.values) {
+      for (final intent in ['unchanged', 'aba', 'off', 'ipv6', 'dispose']) {
+        test('pending $code respects $intent intent ownership', () async {
+          final scopedAction = TestSetupAction();
+          final scoped = ProviderContainer(
+            overrides: [setupActionProvider.overrideWith(() => scopedAction)],
+          );
+          var disposed = false;
+          addTearDown(() {
+            if (!disposed) scoped.dispose();
+          });
+          scoped.read(setupActionProvider.notifier);
+          final patch = scoped.read(patchClashConfigProvider.notifier);
+          patch.update((state) => state.copyWith.tun(enable: true));
+          final pending = Completer<AuthorizeCode>();
+          scopedAction.pendingAuthorization = pending;
+          final old = scopedAction.requestAdmin(true);
+          expect(scopedAction.authorizeCalls, 1);
+          expect(
+            scoped.read(authorizedTunEnableProvider),
+            TunAuthorizationState.unauthorized,
+          );
+          if (intent == 'aba' || intent == 'off') {
+            patch.update((state) => state.copyWith.tun(enable: false));
+            if (intent == 'aba') {
+              patch.update((state) => state.copyWith.tun(enable: true));
+            }
+          } else if (intent == 'ipv6') {
+            patch.update((state) => state.copyWith(ipv6: true));
+            expect(await scopedAction.requestAdmin(true), isTrue);
+            expect(scopedAction.authorizeCalls, 1);
+          }
+          final before = scoped.read(patchClashConfigProvider);
+          if (intent == 'dispose') {
+            scoped.dispose();
+            disposed = true;
+          }
+          pending.complete(code);
+          final result = await old;
+          if (intent == 'dispose') {
+            expect(result, isTrue);
+          } else if (intent == 'aba' || intent == 'off') {
+            expect(scoped.read(patchClashConfigProvider), same(before));
+            expect(
+              scoped.read(authorizedTunEnableProvider),
+              TunAuthorizationState.unauthorized,
+            );
+            expect(result, isTrue);
+          } else {
+            expect(
+              scoped.read(patchClashConfigProvider).tun.enable,
+              code != AuthorizeCode.error,
+            );
+            expect(
+              scoped.read(authorizedTunEnableProvider),
+              code == AuthorizeCode.error
+                  ? TunAuthorizationState.none
+                  : TunAuthorizationState.authorized,
+            );
+            expect(result, code != AuthorizeCode.success);
+            expect(
+              scoped.read(patchClashConfigProvider).ipv6,
+              intent == 'ipv6',
+            );
+          }
+        });
+      }
+    }
+
     test('never asks for authorization while tun is disabled', () async {
       expect(await action.requestAdmin(false), isTrue);
 

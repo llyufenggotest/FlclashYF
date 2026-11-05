@@ -109,6 +109,7 @@ jobs:
           python3 scripts/test_core_roots_wiring.py
           python3 scripts/test_upgrade097_toolchain.py
           python3 scripts/test_upgrade098_semantics.py
+          python3 scripts/test_tun_authorization_ownership.py
           python3 scripts/run_android_network_jni_gate.py
           python3 scripts/test_ios_lifecycle_cleanup.py
 

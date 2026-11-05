@@ -1,0 +1,95 @@
+import 'dart:async';
+
+enum TunAuthorizationState { none, unauthorized, authorized }
+enum AuthorizeCode { success, none, error }
+const authorizedTunEnableProvider = AuthProvider();
+const patchClashConfigProvider = PatchProvider();
+class AuthProvider { const AuthProvider(); String get notifier => 'auth'; }
+class PatchProvider { const PatchProvider(); String get notifier => 'patch'; }
+class Auth { dynamic value = TunAuthorizationState.none; }
+class Tun { final bool enable; const Tun(this.enable); }
+class Config {
+  final Tun tun;
+  final bool ipv6;
+  Config(bool enable, {this.ipv6 = false}) : tun = Tun(enable);
+  Config.withTun(this.tun, {this.ipv6 = false});
+  Copier get copyWith => Copier(this);
+}
+class Copier {
+  final Config c;
+  Copier(this.c);
+  Config tun({required bool enable}) => Config(enable, ipv6: c.ipv6);
+}
+class Patch {
+  final Ref ref;
+  Patch(this.ref);
+  void update(dynamic fn) { ref.writes++; ref.config = fn(ref.config); }
+}
+class Ref {
+  final auth = Auth();
+  Config config = Config(true);
+  bool mounted = true;
+  int writes = 0;
+  dynamic read(dynamic key) {
+    if (!mounted) throw StateError('provider read after dispose');
+    if (key == 'auth') return auth;
+    if (key == 'patch') return Patch(this);
+    if (key is AuthProvider) return auth.value;
+    if (key is PatchProvider) return config;
+    throw StateError('unknown provider');
+  }
+}
+class Action {
+  final ref = Ref();
+  final pending = Completer<AuthorizeCode>();
+  int calls = 0;
+  Future<AuthorizeCode> authorizeCore() { calls++; return pending.future; }
+// PRODUCTION_REQUEST_ADMIN
+}
+void check(bool condition, String message) {
+  if (!condition) throw StateError(message);
+}
+Future<void> main() async {
+  for (final code in AuthorizeCode.values) {
+    for (final intent in ['unchanged', 'aba', 'off', 'ipv6', 'dispose']) {
+      final a = Action();
+      final old = a.requestAdmin(true);
+      check(a.ref.auth.value == TunAuthorizationState.unauthorized, 'not pending');
+      if (intent == 'aba' || intent == 'off') {
+        // Real producers write config first; setup may not run until later.
+        a.ref.config = Config(false);
+        if (intent == 'aba') a.ref.config = Config(true, ipv6: true);
+      } else if (intent == 'ipv6') {
+        a.ref.config = Config.withTun(a.ref.config.tun, ipv6: true);
+        check(await a.requestAdmin(true), 'pending duplicate must continue');
+        check(a.calls == 1, 'duplicate native prompt');
+      } else if (intent == 'dispose') {
+        a.ref.mounted = false;
+      }
+      final beforeAuth = a.ref.auth.value;
+      final before = a.ref.config;
+      a.pending.complete(code);
+      final result = await old;
+      if (intent == 'aba' || intent == 'off' || intent == 'dispose') {
+        check(identical(a.ref.config, before), '$intent/$code stale config write');
+        check(a.ref.auth.value == beforeAuth, '$intent/$code stale auth write');
+        check(result, '$intent/$code stale handoff');
+        check(a.ref.writes == 0, '$intent/$code stale update');
+      } else {
+        check(a.ref.config.tun.enable == (code != AuthorizeCode.error), '$intent/$code ordinary rollback lost');
+        check(a.ref.auth.value == (code == AuthorizeCode.error ? TunAuthorizationState.none : TunAuthorizationState.authorized), '$intent/$code wrong auth');
+        check(result == (code != AuthorizeCode.success), '$intent/$code wrong handoff');
+        check(a.ref.config.ipv6 == (intent == 'ipv6'), 'unrelated field lost');
+      }
+      print('PASS $intent/$code');
+    }
+  }
+  final disabled = Action();
+  check(await disabled.requestAdmin(false), 'off rejected');
+  check(disabled.calls == 0, 'off prompted');
+  final authorized = Action();
+  authorized.ref.auth.value = TunAuthorizationState.authorized;
+  check(await authorized.requestAdmin(true), 'authorized rejected');
+  check(authorized.calls == 0, 'authorized prompted');
+  print('PASS disabled/authorized short circuits; 17 scenarios');
+}
