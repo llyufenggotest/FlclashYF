@@ -112,6 +112,7 @@ jobs:
           python3 scripts/test_oix_ci_wiring.py
           python3 scripts/test_core_roots_wiring.py
           python3 scripts/test_upgrade097_toolchain.py
+          python3 scripts/test_full_flutter_wiring.py
           python3 scripts/test_upgrade098_semantics.py
           python3 scripts/test_tun_authorization_ownership.py
           python3 scripts/run_android_network_jni_gate.py
@@ -157,6 +158,16 @@ jobs:
         shard: [0, 1, 2, 3]
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: core/go.sum
+      - name: Prepare private native input
+        env:
+          OIX_DNS_AUTH_SEED: ${{ secrets.OIX_DNS_AUTH_SEED }}
+        run: python3 scripts/prepare_oix_dns_auth.py
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
