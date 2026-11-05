@@ -73,13 +73,19 @@ final class PacketTunnelSharedStateStore {
     )
   }
 
-  func saveRunTime(vpnOptions: Data) {
+  func saveRunTime(vpnOptions: Data, revision: UUID? = nil) {
     let milliseconds = Int(Date().timeIntervalSince1970 * 1000)
+    // Invalidate before publishing a new pair; a reader must match both revision
+    // and control bytes. Legacy full snapshots remain directly readable.
+    userDefaults?.removeObject(forKey: "activeStartupRevision")
     userDefaults?.set(vpnOptions, forKey: activeVpnOptionsKey)
+    if let revision { userDefaults?.set(revision.uuidString, forKey: "activeStartupRevision") }
     userDefaults?.set(milliseconds, forKey: runTimeKey)
+    userDefaults?.synchronize()
   }
 
   func clearRunTime() {
+    userDefaults?.removeObject(forKey: "activeStartupRevision")
     userDefaults?.removeObject(forKey: runTimeKey)
     userDefaults?.removeObject(forKey: activeVpnOptionsKey)
   }

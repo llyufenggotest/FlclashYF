@@ -185,14 +185,17 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     diagnosticStage = "vpn_options"
     SwitchDiagnostics.record("ipad_vpn_options", fields: ["attempt_id": ownedAttempt.uuidString])
     let snapshot: (options: PacketTunnelVPNOptions, data: Data)
+    let startupRevision: UUID?
     do {
       let persisted = (protocolConfiguration as? NETunnelProviderProtocol)?.providerConfiguration
       if let (envelope, source) = try StartupEnvelope.resolveStartup(manual: options, persisted: persisted) {
         snapshot = (try JSONDecoder().decode(PacketTunnelVPNOptions.self, from: envelope.options), envelope.options)
+        startupRevision = envelope.revision
         SwitchDiagnostics.record("ipad_vpn_options", fields: ["receive_source": source, "count": String(envelope.data.count), "attempt_id": envelope.revision.uuidString])
       } else {
         guard let legacy = sharedStateStore.loadVPNOptionsSnapshot() else { throw sharedStateStore.lastOptionsFailure }
         snapshot = legacy
+        startupRevision = nil
         SwitchDiagnostics.record("ipad_vpn_options", fields: ["receive_source": "legacy_defaults", "count": String(legacy.data.count)])
       }
     } catch {
@@ -351,7 +354,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
             SwitchDiagnostics.record("ipad_start_tun", fields: ["success": String(started), "attempt_id": ownedAttempt.uuidString])
             if started {
               self.diagnosticStage = "command_server"
-              self.sharedStateStore.saveRunTime(vpnOptions: snapshot.data)
+              self.sharedStateStore.saveRunTime(vpnOptions: snapshot.data, revision: startupRevision)
               guard self.commandServer.start(attempt: self.lifecycleGeneration) else {
                 completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
                 return

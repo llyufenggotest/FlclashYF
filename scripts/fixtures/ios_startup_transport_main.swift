@@ -103,7 +103,8 @@ Task { @MainActor in
     _ = try! store.requireStartupEnvelope(next,manager:manager)
     let fullShared = Data(#"{"vpnOptions":{"enable":true,"accessControlProps":{},"allowBypass":false,"suspendSupport":false,"port":7891,"ipv6":false,"captureDns":true,"systemProxy":false,"stack":"mixed"}}"#.utf8)
     check(sharedStore.saveSharedState(fullShared), "full Dart payload rejected")
-    defaults.set(next.options,forKey:"activeVpnOptions")
+    let fullEnvelope = try! sharedStore.loadStartupEnvelope()
+    PacketTunnelSharedStateStore().saveRunTime(vpnOptions: fullEnvelope.options, revision: fullEnvelope.revision)
     let activeText = sharedStore.activeVpnOptions()
     check(activeText?.contains("accessControlProps") == true, "active options lost Dart required fields")
     let before = proto.providerConfiguration![StartupEnvelope.key] as! Data

@@ -33,7 +33,8 @@ class TransportContracts(unittest.TestCase):
             self.assertNotIn('"' + forbidden + '"', helper)
     def test_active_options_preserves_dart_required_shape(self):
         store = source('ios/Runner/Storage/SharedStateStore.swift')
-        self.assertIn('full.merge(control)', store)
+        self.assertIn('startupSnapshots[revision]', store)
+        self.assertNotIn('full.merge(control)', store)
         for key in ['accessControlProps', 'enable', 'allowBypass', 'suspendSupport']:
             self.assertIn('full["' + key + '"] != nil', store)
     def test_bridge_retains_closed_reason(self):

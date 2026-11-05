@@ -343,6 +343,8 @@ jobs:
           python3 scripts/test_ipad_diagnostic_swift.py --output "$RUNNER_TEMP/ipad-diagnostic"
           python3 scripts/test_ios_startup_transport.py
           python3 scripts/test_ios_startup_transport_swift.py --output "$RUNNER_TEMP/startup-transport"
+          python3 scripts/test_ios_startup_review_fix.py
+          python3 scripts/test_ios_startup_review_fix_swift.py --output "$RUNNER_TEMP/startup-review-fix"
           python3 scripts/test_ios_start_diagnostics.py
           python3 scripts/test_ios_start_diagnostics_ci.py
           python3 scripts/test_ios_dns_handoff_source.py
@@ -358,6 +360,7 @@ jobs:
             ${{ runner.temp }}/ipad-diagnostic
             ${{ runner.temp }}/startup-diagnostics
             ${{ runner.temp }}/startup-transport
+            ${{ runner.temp }}/startup-review-fix
             ${{ runner.temp }}/dns-handoff
           if-no-files-found: error
 

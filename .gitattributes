@@ -1,2 +1,4 @@
 # freezed emits lines of trailing spaces, and generated code is never edited by hand.
 lib/**/generated/** -whitespace
+# Preserve the immutable independent-review probe bytes across Windows/macOS.
+scripts/fixtures/startup_review_original.swift -text

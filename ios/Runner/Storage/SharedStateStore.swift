@@ -20,25 +20,51 @@ final class SharedStateStore {
     }
     guard let control = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
     if control["accessControlProps"] != nil { return String(data: data, encoding: .utf8) }
-    guard let shared = sharedStateJSON(from: UserDefaults(suiteName: appGroupIdentifier)?.data(forKey: sharedStateKey)), var full = shared["vpnOptions"] as? [String: Any],
+    // Only an NE-written receipt can identify a running official-channel snapshot.
+    // Never fill historical Dart fields from the current desired shared state.
+    guard let revision = UserDefaults(suiteName: appGroupIdentifier)?.string(forKey: "activeStartupRevision"),
+      let token = UUID(uuidString: revision),
+      let saved = startupSnapshots[revision],
+      let root = try? JSONSerialization.jsonObject(with: saved) as? [String: Any],
+      let full = root["vpnOptions"] as? [String: Any],
       full["accessControlProps"] != nil, full["enable"] != nil,
       full["allowBypass"] != nil, full["suspendSupport"] != nil,
-      let sharedBytes = try? JSONSerialization.data(withJSONObject: shared),
-      let current = try? StartupEnvelope.make(shared: sharedBytes),
-      let active = try? StartupEnvelope.validateOptions(control), current.options == active else { return nil }
-    full.merge(control) { _, active in active }
-    guard let merged = try? JSONSerialization.data(withJSONObject: full) else { return nil }
-    return String(data: merged, encoding: .utf8)
+      let envelope = try? StartupEnvelope.make(shared: saved, revision: token),
+      let active = try? StartupEnvelope.validateOptions(control), envelope.options == active,
+      let bytes = try? JSONSerialization.data(withJSONObject: full) else { return nil }
+    return String(data: bytes, encoding: .utf8)
   }
 
   private var startupEnvelope: StartupEnvelope?
   private var startupSharedData: Data?
+  // Runner-local only: full Dart options (including access control) never enter
+  // providerConfiguration or the bounded startup-control envelope.
+  private let startupSnapshotsKey = "startupDartSnapshotsV1"
+  private var startupSnapshots: [String: Data] {
+    UserDefaults.standard.dictionary(forKey: startupSnapshotsKey) as? [String: Data] ?? [:]
+  }
+
+  private func rememberStartupSnapshot(_ shared: Data, envelope: StartupEnvelope) {
+    guard let root = sharedStateJSON(from: shared),
+      let options = root["vpnOptions"] as? [String: Any],
+      let snapshot = try? JSONSerialization.data(withJSONObject: ["vpnOptions": options]) else { return }
+    var snapshots = startupSnapshots
+    // Retain the acknowledged running revision and the previous pending revision
+    // while preparing the next one. Missing/pruned receipts fail closed to nil.
+    let active = UserDefaults(suiteName: appGroupIdentifier)?.string(forKey: "activeStartupRevision")
+    let previous = startupEnvelope?.revision.uuidString
+    snapshots = snapshots.filter { $0.key == active || $0.key == previous }
+    snapshots[envelope.revision.uuidString] = snapshot
+    UserDefaults.standard.set(snapshots, forKey: startupSnapshotsKey)
+  }
 
   func loadStartupEnvelope() throws -> StartupEnvelope {
     if let startupEnvelope { return startupEnvelope }
     guard let data = UserDefaults(suiteName: appGroupIdentifier)?.data(forKey: sharedStateKey) else { throw StartupEnvelopeError.noData }
     let envelope = try StartupEnvelope.make(shared: data)
+    rememberStartupSnapshot(data, envelope: envelope)
     startupEnvelope = envelope
+    startupSharedData = data
     return envelope
   }
 
@@ -59,7 +85,11 @@ final class SharedStateStore {
     {
       userDefaults.set(setupData, forKey: setupParamsKey)
     }
-    if startupSharedData != data { startupEnvelope = candidate; startupSharedData = data }
+    if startupSharedData != data {
+      rememberStartupSnapshot(data, envelope: candidate)
+      startupEnvelope = candidate
+      startupSharedData = data
+    }
     userDefaults.set(data, forKey: sharedStateKey)
     userDefaults.synchronize()
     if previousControlDisplayState != controlDisplayState(from: data),

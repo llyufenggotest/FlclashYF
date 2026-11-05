@@ -46,7 +46,7 @@ struct StartupEnvelope {
     }
     for key in ["bypassDomain", "routeAddress"] {
       if let value = options[key] {
-        guard let items = value as? [String], items.count <= 256,
+        guard let items = value as? [String],
           items.allSatisfy({ $0.utf8.count <= 512 }) else { throw StartupEnvelopeError.optionsDecode }
       }
     }
