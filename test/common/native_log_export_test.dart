@@ -4,11 +4,105 @@ import 'package:fl_clash/common/native_log_export.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  String ipc(String timestamp, {String extra = ''}) =>
+      'official-ipc-v1 elapsed_ms=12 known_receipt=true nonce_equal=true '
+      'outcome=echo_verified provider_image_uuid=12345678-1234-1234-1234-123456789abc '
+      'schema=official-ipc-v1 source=official-ipc-a64057e-v1 '
+      'status_after=1 status_before=1 status_events= '
+      '${timestamp.isEmpty ? '' : 'timestamp=$timestamp'}$extra';
+
+  for (final mode in ['normal', 'corrupt', 'unreadable', 'absent']) {
+    test('official IPC history cutoff is fail closed: $mode', () async {
+      final directory = await Directory.systemTemp.createTemp('ipc-history-');
+      addTearDown(() => directory.delete(recursive: true));
+      final cutoffFile = File('${directory.path}/logs-cleared-at.json');
+      var snapshot = '';
+      final exporter = NativeLogExport(
+        File('${directory.path}/native.log'),
+        runnerDiagnosticReader: () async => snapshot,
+      );
+      if (mode != 'absent') {
+        await exporter.clear(DateTime.utc(2026, 11, 5));
+        if (mode == 'corrupt') await cutoffFile.writeAsString('{');
+        if (mode == 'unreadable') {
+          await cutoffFile.delete();
+          await Directory(cutoffFile.path).create();
+        }
+      }
+      final historyReadable = mode == 'normal' || mode == 'absent';
+      for (final timestamp in [
+        '2020-01-01T00:00:00Z',
+        '2026-11-05T00:00:00Z',
+        '2026-11-05T00:00:01Z',
+        '',
+        'bad-time',
+        '2026-11-31T00:00:01Z',
+        '2026-11-05T00:00:01',
+        '2026-11-05',
+      ]) {
+        snapshot = ipc(timestamp);
+        final output = await exporter.read();
+        final expected =
+            historyReadable &&
+            (mode == 'absent'
+                ? const [
+                    '2020-01-01T00:00:00Z',
+                    '2026-11-05T00:00:00Z',
+                    '2026-11-05T00:00:01Z',
+                  ].contains(timestamp)
+                : timestamp == '2026-11-05T00:00:01Z');
+        expect(
+          output.contains('outcome=echo_verified'),
+          expected,
+          reason: '$mode / $timestamp',
+        );
+      }
+      snapshot = 'official-ipc-v1 outcome=not_run';
+      expect(await exporter.read(), contains(snapshot));
+      snapshot = 'official-ipc-v1 outcome=not_run timestamp=bad-time';
+      expect(await exporter.read(), isNot(contains('outcome=not_run')));
+      for (final extra in [
+        ' secret=private-path',
+        ' nonce=raw-secret',
+        ' timestamp=2020-01-01T00:00:00Z',
+        ' error_domain=other/path',
+      ]) {
+        snapshot = ipc('2026-11-05T00:00:01Z', extra: extra);
+        expect(await exporter.read(), isNot(contains('outcome=echo_verified')));
+      }
+    });
+  }
+
+  test(
+    'clear removes old IPC but keeps a subsequent independent probe',
+    () async {
+      final directory = await Directory.systemTemp.createTemp('ipc-new-probe-');
+      addTearDown(() => directory.delete(recursive: true));
+      var snapshot = ipc('2020-01-01T00:00:00Z');
+      final exporter = NativeLogExport(
+        File('${directory.path}/native.log'),
+        runnerDiagnosticReader: () async => snapshot,
+      );
+      await exporter.clear(DateTime.utc(2026, 11, 5));
+      expect(await exporter.read(), isNot(contains('outcome=echo_verified')));
+      snapshot = ipc('2026-11-05T00:00:01Z');
+      expect(await exporter.read(), contains(snapshot));
+      expect(
+        await NativeLogExport(
+          File('${directory.path}/native.log'),
+          runnerDiagnosticReader: () async => snapshot,
+        ).read(),
+        contains(snapshot),
+      );
+    },
+  );
+
   test('official IPC Runner snapshot survives missing shared group', () async {
     const snapshot =
         'official-ipc-v1 known_receipt=true nonce_equal=true '
         'outcome=echo_verified schema=official-ipc-v1 '
-        'source=official-ipc-a64057e-v1 status_after=1 status_before=1';
+        'source=official-ipc-a64057e-v1 status_after=1 status_before=1 '
+        'timestamp=2026-11-05T00:00:01Z';
     final exporter = NativeLogExport(
       File('Z:/official-ipc/no-shared/native.log'),
       runnerDiagnosticReader: () async => '$snapshot\n',
@@ -17,6 +111,14 @@ void main() {
     expect(text, contains(snapshot));
     expect(text, contains('source=unavailable_or_absent'));
     expect(text, isNot(contains('nonce=')));
+    final failure =
+        snapshot.replaceAll('echo_verified', 'transport_error') +
+        ' error_domain=NSCocoaErrorDomain error_code=4097';
+    final failureExport = NativeLogExport(
+      File('Z:/official-ipc/no-shared/native.log'),
+      runnerDiagnosticReader: () async => failure,
+    );
+    expect(await failureExport.read(), contains(failure));
   });
 
   test(

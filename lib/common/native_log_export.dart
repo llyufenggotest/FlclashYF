@@ -131,7 +131,19 @@ class NativeLogExport {
       // Channel output mixes current capability headers with independent JSON
       // rows from local, pinned and NE sources. Never carry row inclusion state
       // across these boundaries or treat an invalid row as a continuation.
-      if (_isRunnerHeader(line)) {
+      if (line.startsWith('official-ipc-v1 ')) {
+        // Only the exact current not-run state is a header. Persisted probe
+        // summaries are timestamped history, even though they are not JSONL.
+        if (line == 'official-ipc-v1 outcome=not_run') {
+          buffer.writeln(line);
+        } else if (!withholdHistory) {
+          final timestamp = _officialIPCTimestamp(line);
+          if (timestamp != null &&
+              (cutoff == null || timestamp.isAfter(cutoff))) {
+            buffer.writeln(line);
+          }
+        }
+      } else if (_isRunnerHeader(line)) {
         buffer.writeln(line);
       } else if (!withholdHistory && line.trimLeft().startsWith('{')) {
         final timestamp = _timestamp(line.trimLeft());
@@ -144,13 +156,55 @@ class NativeLogExport {
     return buffer.toString();
   }
 
-  bool _isRunnerHeader(String line) {
-    if (line.length <= 4096 &&
-        RegExp(
-          r'^official-ipc-v1 (?:[a-z_]+=[A-Za-z0-9_.:,=+ -]*)$',
-        ).hasMatch(line)) {
-      return true;
+  DateTime? _officialIPCTimestamp(String line) {
+    if (line.length > 4096) return null;
+    const keys = {
+      'schema',
+      'source',
+      'runner_image_uuid',
+      'provider_image_uuid',
+      'timestamp',
+      'outcome',
+      'nonce_equal',
+      'known_receipt',
+      'elapsed_ms',
+      'status_before',
+      'status_after',
+      'status_events',
+      'error_domain',
+      'error_code',
+    };
+    final fields = <String, String>{};
+    for (final token in line.substring('official-ipc-v1 '.length).split(' ')) {
+      final separator = token.indexOf('=');
+      if (separator <= 0) return null;
+      final key = token.substring(0, separator);
+      final value = token.substring(separator + 1);
+      if (!keys.contains(key) ||
+          fields.containsKey(key) ||
+          value.length > 128 ||
+          !RegExp(r'^[A-Za-z0-9_.:,+-]*$').hasMatch(value))
+        return null;
+      fields[key] = value;
     }
+    final value = fields['timestamp'];
+    if (value == null ||
+        !RegExp(
+          r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$',
+        ).hasMatch(value)) {
+      return null;
+    }
+    final timestamp = DateTime.tryParse(value);
+    // DateTime.parse normalizes impossible dates; they are not valid history.
+    if (timestamp == null ||
+        timestamp.toIso8601String().substring(0, 19) !=
+            value.substring(0, 19)) {
+      return null;
+    }
+    return timestamp;
+  }
+
+  bool _isRunnerHeader(String line) {
     const fixed = {
       'iPadDiagnostic-v1',
       '===== iPadDiagnostic-v1 =====',
