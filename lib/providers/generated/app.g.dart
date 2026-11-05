@@ -1351,6 +1351,58 @@ abstract class _$Groups extends $Notifier<List<Group>> {
   }
 }
 
+@ProviderFor(GroupsProfileId)
+final groupsProfileIdProvider = GroupsProfileIdProvider._();
+
+final class GroupsProfileIdProvider
+    extends $NotifierProvider<GroupsProfileId, int?> {
+  GroupsProfileIdProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'groupsProfileIdProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$groupsProfileIdHash();
+
+  @$internal
+  @override
+  GroupsProfileId create() => GroupsProfileId();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(int? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<int?>(value),
+    );
+  }
+}
+
+String _$groupsProfileIdHash() => r'3e03c344d01dc5078be6a79778179cdc3efca7eb';
+
+abstract class _$GroupsProfileId extends $Notifier<int?> {
+  int? build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<int?, int?>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<int?, int?>,
+              int?,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 @ProviderFor(DelayDataSource)
 final delayDataSourceProvider = DelayDataSourceProvider._();
 

@@ -96,6 +96,24 @@ Task { @MainActor in
     check(PowerProbe.decodes <= 1, "delay_multiple_decodes")
     finish(["rows":logged,"wire_preserved":true])
   }
+  if caseName == "clear-dns-routing" {
+    let controller = TunnelController(sharedStateStore:SharedStateStore(),onTunnelStateChanged:{ _ in },onConnectionStateChanged:{ _ in },onExternalStart:{},onExternalStop:{})
+    let manager = NETunnelProviderManager()
+    let proto = NETunnelProviderProtocol(); proto.providerBundleIdentifier = "test.attempt.NECore"
+    manager.protocolConfiguration = proto
+    NETunnelProviderManager.managers = [manager]
+    let router = CoreMessageRouter(tunnelController:controller)
+    let request = Data(#"{"method":"clearDnsCache","id":"clear-dns"}"#.utf8)
+    IOSCoreBridge.testCalls = 0
+    // No NE mailbox server: sendProviderMessage must fail without App retry.
+    for state: TunnelTarget in [.running] {
+      router.updateTunnelState(state)
+      let response = await router.invoke(request)
+      check(response.contains("error") && !response.contains("\"error\":null"), "clear_dns_missing_error")
+      check(IOSCoreBridge.testCalls == 0, "clear_dns_host_fallback")
+    }
+    finish(["app_calls":IOSCoreBridge.testCalls,"runtime_only":true])
+  }
   let runnerStore = SharedStateStore()
   let neStore = PacketTunnelSharedStateStore()
   let manager = NETunnelProviderManager()

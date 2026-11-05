@@ -45,6 +45,7 @@ class ProxiesAction extends _$ProxiesAction {
     ref.onDispose(() => config.removeListener(changed));
   }
 
+
   @override
   void build() {
     ref.listen(currentProfileIdProvider, (previous, next) {

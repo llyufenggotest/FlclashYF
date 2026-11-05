@@ -45,6 +45,7 @@ private enum RuntimeStateCoreMethod: String {
   case getGoroutineCount
   case clearEffect
   case updateDns
+  case clearDnsCache
 }
 
 private struct CoreRoutingError: LocalizedError {

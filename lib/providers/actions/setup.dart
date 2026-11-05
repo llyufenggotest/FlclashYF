@@ -398,6 +398,7 @@ class SetupAction extends _$SetupAction {
     );
     final overrideDns = ref.read(overrideDnsProvider);
     final overrideNtp = ref.read(overrideNtpProvider);
+    final overrideSniffer = ref.read(overrideSnifferProvider);
     final appendSystemDns = networkSetting.appendSystemDns;
     final routeMode = networkSetting.routeMode;
     final configMap = await _core.getConfig(profileId);
@@ -431,6 +432,7 @@ class SetupAction extends _$SetupAction {
         realPatchConfig: realPatchConfig,
         overrideDns: overrideDns,
         overrideNtp: overrideNtp,
+        overrideSniffer: overrideSniffer,
         appendSystemDns: appendSystemDns,
         addedRules: addedRules,
         defaultUA: defaultUA,
@@ -491,6 +493,10 @@ class SetupAction extends _$SetupAction {
         authorizationNotifier.value = TunAuthorizationState.authorized;
         return true;
       case AuthorizeCode.error:
+        authorizationNotifier.value = TunAuthorizationState.none;
+        ref
+            .read(patchClashConfigProvider.notifier)
+            .update((state) => state.copyWith.tun(enable: false));
         return true;
     }
   }
@@ -616,6 +622,7 @@ class SetupAction extends _$SetupAction {
           rethrow;
         }
         globalState.lastConfigMd5 = yamlMd5;
+
         ref.read(checkIpNumProvider.notifier).add();
         await onUpdated?.call();
       },

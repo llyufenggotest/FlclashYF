@@ -61,7 +61,7 @@ def main():
     try:
         for group,cases in [('provider',['raw-error']),('integration',['mailbox-error','mailbox-success','app-error','classifier-boundaries',
                 'app-delay-positive','app-delay-negative','app-delay-zero','app-delay-missing',
-                'app-delay-error','app-delay-malformed','app-delay-oversize'])]:
+                'app-delay-error','app-delay-malformed','app-delay-oversize','clear-dns-routing'])]:
             directory,files=prepare(ROOT,out,group)
             if a.prepare_only:continue
             if platform.system()!='Darwin' or not shutil.which('xcrun'):return save(2,'BLOCKED_MACOS_NOT_RED')
