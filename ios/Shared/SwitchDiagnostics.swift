@@ -451,6 +451,14 @@ extension SwitchDiagnostics {
     var seen = Set<ObjectIdentifier>()
     for _ in 0..<4 {
       guard let item = current, seen.insert(ObjectIdentifier(item)).inserted else { break }
+      if item.domain == "com.flclashyf.iPadDiagnostic", let reason = downstreamReasons[item.code] {
+        fields["provider_stage"] = "quick_setup"; fields["observation"] = "provider_entry_proved"
+        fields["receive_reason"] = reason
+      }
+      if item.domain == "com.flclashyf.iPadDiagnostic", let reason = startupReasons[item.code] {
+        fields["provider_stage"] = "vpn_options"; fields["observation"] = "provider_entry_proved"
+        fields["receive_reason"] = reason
+      }
       if item.domain == "com.flclashyf.iPadDiagnostic", let stage = providerStages[item.code] {
         fields["provider_stage"] = stage; fields["observation"] = "provider_entry_proved"
       }
@@ -461,6 +469,9 @@ extension SwitchDiagnostics {
     }
     return fields
   }
+  static let startupReasons: [Int: String] = [200:"suite_unavailable", 201:"no_data_or_type", 202:"root_decode", 203:"options_missing_or_type", 204:"options_encode", 205:"options_decode", 206:"bad_version", 207:"oversize", 208:"envelope_shape", 209:"stale_revision"]
+  static let downstreamReasons: [Int: String] = [300:"core_setup_rejected", 301:"home_unavailable", 302:"config_unreadable", 303:"setup_decode"]
+  static let startupSources: Set<String> = ["options", "provider_configuration", "legacy_defaults"]
   static let providerStages: [Int: String] = [1:"rpc_publication", 2:"vpn_options", 3:"network_settings", 4:"tunnel_fd", 5:"quick_setup", 6:"start_tun", 7:"command_server", 8:"cancelled", 9:"completion"]
   static func recordIPad(_ stage: String, fields: [String: String] = [:]) {
     guard iPadStages.contains(stage) else { return }
@@ -472,6 +483,8 @@ extension SwitchDiagnostics {
     }
     for (key, value) in fields.prefix(32) {
       guard value.utf8.count <= 128 else { continue }
+      if key == "receive_reason", (startupReasons.values.contains(value) || downstreamReasons.values.contains(value)) { safe[key] = value }
+      if key == "receive_source", startupSources.contains(value) { safe[key] = value }
       if iPadBooleans.contains(key), ["true", "false"].contains(value) { safe[key] = value }
       if ["generation", "error_code", "underlying_code", "count"].contains(key), let n = Int64(value) { safe[key] = String(n) }
       if key == "attempt_id", let uuid = UUID(uuidString: value) { safe[key] = uuid.uuidString }
@@ -548,6 +561,8 @@ extension SwitchDiagnostics {
           var safe = ["schema": iPadSchema, "stage": stage, "timestamp": timestamp, "process_id": process]
           let tokens = Set(["none", "unknown", "NEVPNErrorDomain", "NEVPNConnectionErrorDomain", "NSPOSIXErrorDomain", "NSCocoaErrorDomain", "NSURLErrorDomain", "provider_diagnostic", "provider_entry_proved", "system_error_entry_unknown", "no_error_no_entry_proof"] + Array(providerStages.values))
           for (key, value) in row {
+            if key == "receive_reason", (startupReasons.values.contains(value) || downstreamReasons.values.contains(value)) { safe[key] = value }
+            if key == "receive_source", startupSources.contains(value) { safe[key] = value }
             if iPadBooleans.contains(key), ["true", "false"].contains(value) { safe[key] = value }
             if ["generation", "error_code", "underlying_code", "count"].contains(key), let n = Int64(value) { safe[key] = String(n) }
             if ["attempt_id", "image_uuid"].contains(key), let uuid = UUID(uuidString: value) { safe[key] = uuid.uuidString }

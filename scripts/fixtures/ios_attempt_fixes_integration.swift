@@ -22,6 +22,7 @@ let resp = fixtureRoot.appendingPathComponent("core-rpc/resp")
 try FileManager.default.createDirectory(at: req, withIntermediateDirectories: true)
 try FileManager.default.createDirectory(at: resp, withIntermediateDirectories: true)
 let runnerStore = SharedStateStore()
+_ = runnerStore.saveSharedState(Data(#"{"vpnOptions":{"port":7890,"ipv6":false,"captureDns":true,"systemProxy":false,"stack":"mixed"}}"#.utf8))
 let neStore = PacketTunnelSharedStateStore()
 let callsLock = NSLock()
 var heldCalls: [(Data?) -> Void] = []

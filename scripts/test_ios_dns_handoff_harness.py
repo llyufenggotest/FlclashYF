@@ -27,7 +27,7 @@ class DNSHarnessTests(unittest.TestCase):
             self.assertEqual((baseline/'dependencies.swift').read_bytes(),(candidate/'dependencies.swift').read_bytes())
             manifest=json.loads((baseline/'sources.json').read_text())
             self.assertEqual(len(manifest)-1,len(gate.PATHS))
-            self.assertTrue(all(row['ref']==gate.BASE for row in manifest[:-1]))
+            self.assertTrue(all(row['ref']==(gate.BASE if row['path'] != 'ios/Shared/StartupEnvelope.swift' else 'candidate') for row in manifest[:-1]))
             for rel in gate.PATHS:
                 raw=(gate.ROOT/rel).read_text()
                 expected=gate.integration.transform(raw,rel)
@@ -51,8 +51,8 @@ class DNSHarnessTests(unittest.TestCase):
                 self.assertEqual((baseline/filename).read_bytes(), (candidate/filename).read_bytes())
             manifest = json.loads((baseline/'sources.json').read_text())
             for row in manifest[:-1]:
-                self.assertEqual(row['ref'], gate.R1_BASE)
-                raw = subprocess.check_output(['git', '-C', str(gate.ROOT), 'show', f"{gate.R1_BASE}:{row['path']}"])
+                self.assertEqual(row['ref'], gate.R1_BASE if row['path'] != 'ios/Shared/StartupEnvelope.swift' else 'candidate')
+                raw = subprocess.check_output(['git', '-C', str(gate.ROOT), 'show', f"{gate.R1_BASE}:{row['path']}"]) if row['path'] != 'ios/Shared/StartupEnvelope.swift' else (gate.ROOT/row['path']).read_bytes()
                 self.assertEqual(row['sha256'], hashlib.sha256(raw).hexdigest())
                 self.assertEqual((baseline/Path(row['path']).name).read_text(), gate.integration.transform(raw.decode(), row['path']))
             self.assertEqual(len(gate.CASES), 16)

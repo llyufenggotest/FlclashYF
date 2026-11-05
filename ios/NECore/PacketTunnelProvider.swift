@@ -59,13 +59,14 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
   private var activeAttempt: UUID?
   private var coreReclaimRetiring = false
   private var diagnosticStage = "completion"
+  private var diagnosticReceiveCode: Int?
   override init() {
     super.init()
     SwitchDiagnostics.record("ipad_provider_init")
   }
   // Stable OS bridge channel, independent of the possibly broken App Group.
   private func diagnosticError(_ original: Error) -> NSError {
-    let code = SwitchDiagnosticProviderCodes[diagnosticStage] ?? 9
+    let code = diagnosticReceiveCode ?? SwitchDiagnosticProviderCodes[diagnosticStage] ?? 9
     return NSError(domain: "com.flclashyf.iPadDiagnostic", code: code,
       userInfo: [NSUnderlyingErrorKey: original])
   }
@@ -140,6 +141,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     }
     SwitchDiagnostics.record("ipad_provider_entry")
     diagnosticStage = "completion"
+    diagnosticReceiveCode = nil
     NECoreSideloadCompatibilityLoader.loadIfPresent()
     SwitchDiagnostics.record("tunnel_start", fields: ["attempt_id": SwitchDiagnostics.processID])
     startMemoryPressureDiagnostics()
@@ -182,9 +184,20 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     reloadWidgets()
     diagnosticStage = "vpn_options"
     SwitchDiagnostics.record("ipad_vpn_options", fields: ["attempt_id": ownedAttempt.uuidString])
-    guard let snapshot = sharedStateStore.loadVPNOptionsSnapshot() else {
-      logger.error("startTunnel failed: missing vpn options")
-      diag("startup_failure phase=vpn_options_missing")
+    let snapshot: (options: PacketTunnelVPNOptions, data: Data)
+    do {
+      let persisted = (protocolConfiguration as? NETunnelProviderProtocol)?.providerConfiguration
+      if let (envelope, source) = try StartupEnvelope.resolveStartup(manual: options, persisted: persisted) {
+        snapshot = (try JSONDecoder().decode(PacketTunnelVPNOptions.self, from: envelope.options), envelope.options)
+        SwitchDiagnostics.record("ipad_vpn_options", fields: ["receive_source": source, "count": String(envelope.data.count), "attempt_id": envelope.revision.uuidString])
+      } else {
+        guard let legacy = sharedStateStore.loadVPNOptionsSnapshot() else { throw sharedStateStore.lastOptionsFailure }
+        snapshot = legacy
+        SwitchDiagnostics.record("ipad_vpn_options", fields: ["receive_source": "legacy_defaults", "count": String(legacy.data.count)])
+      }
+    } catch {
+      let reason = (error as? StartupEnvelopeError) ?? .optionsDecode
+      diagnosticReceiveCode = 200 + (StartupEnvelopeError.allReasons.firstIndex(of: reason) ?? 5)
       completionHandler(PacketTunnelProviderError.missingVPNOptions)
       return
     }
@@ -194,7 +207,8 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     )
     SwitchDiagnostics.record("ipad_vpn_options", fields: ["success": "true", "attempt_id": ownedAttempt.uuidString])
     let setupParamsData = sharedStateStore.loadSetupParams()
-    SwitchDiagnostics.record("ipad_setup_params", fields: ["count": String(setupParamsData.count), "attempt_id": ownedAttempt.uuidString])
+    let setupObject = (try? JSONSerialization.jsonObject(with: setupParamsData)) as? [String: Any]
+    SwitchDiagnostics.record("ipad_setup_params", fields: ["count": String(setupParamsData.count), "setup_exists": String(setupParamsData.count > 2), "setup_object": String(setupObject != nil), "attempt_id": ownedAttempt.uuidString])
     diag(
       "vpn_options stack=\(vpnOptions.stack) ipv6=\(vpnOptions.ipv6) captureDns=\(vpnOptions.captureDns) systemProxy=\(vpnOptions.systemProxy) mtu=\(vpnOptions.mtu) routeCount=\(vpnOptions.routeAddress.count)"
     )
@@ -286,6 +300,11 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
                 "quickSetup failed"
               )
               self.diag("startup_failure phase=quick_setup")
+              let root = self.sharedStateStore.appGroupDirectory()
+              if root == nil { self.diagnosticReceiveCode = 301 }
+              else if !FileManager.default.isReadableFile(atPath: root!.appendingPathComponent("config.yaml").path) { self.diagnosticReceiveCode = 302 }
+              else if (try? JSONSerialization.jsonObject(with: setupParams)) as? [String: Any] == nil { self.diagnosticReceiveCode = 303 }
+              else { self.diagnosticReceiveCode = 300 }
               completionHandler(PacketTunnelProviderError.couldNotStartCoreTun)
               return
             }

@@ -22,15 +22,21 @@ final class PacketTunnelSharedStateStore {
   private let activeVpnOptionsKey = "activeVpnOptions"
   private let appliedConfigurationRequestKey = "appliedConfigurationRequest"
 
+  private(set) var lastOptionsFailure = StartupEnvelopeError.noData
+
   func loadVPNOptionsSnapshot() -> (options: PacketTunnelVPNOptions, data: Data)? {
-    guard let sharedData = userDefaults?.data(forKey: sharedStateKey),
-      let shared = try? JSONSerialization.jsonObject(with: sharedData) as? [String: Any],
-      let rawOptions = shared["vpnOptions"] as? [String: Any],
-      let data = try? JSONSerialization.data(withJSONObject: rawOptions),
-      let options = try? JSONDecoder().decode(PacketTunnelVPNOptions.self, from: data)
-    else {
-      return nil
-    }
+    lastOptionsFailure = .suiteUnavailable
+    guard let defaults = userDefaults else { return nil }
+    lastOptionsFailure = .noData
+    guard let sharedData = defaults.data(forKey: sharedStateKey) else { return nil }
+    lastOptionsFailure = .rootDecode
+    guard let shared = try? JSONSerialization.jsonObject(with: sharedData) as? [String: Any] else { return nil }
+    lastOptionsFailure = .optionsMissing
+    guard let rawOptions = shared["vpnOptions"] as? [String: Any] else { return nil }
+    lastOptionsFailure = .optionsEncode
+    guard let data = try? JSONSerialization.data(withJSONObject: rawOptions) else { return nil }
+    lastOptionsFailure = .optionsDecode
+    guard let options = try? JSONDecoder().decode(PacketTunnelVPNOptions.self, from: data) else { return nil }
     return (options, data)
   }
 

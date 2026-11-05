@@ -22,6 +22,7 @@ Task { @MainActor in
   manager.protocolConfiguration = proto; manager.connection.status = .disconnected
   NETunnelProviderManager.managers = [manager]
   let shared = SharedStateStore()
+  _ = shared.saveSharedState(Data(#"{"vpnOptions":{"port":7890,"ipv6":false,"captureDns":true,"systemProxy":false,"stack":"mixed"}}"#.utf8))
   var reported: [TunnelTarget] = []
   var routerReference: CoreMessageRouter?
   let controller = TunnelController(sharedStateStore:shared, onTunnelStateChanged:{ reported.append($0); routerReference?.updateTunnelState($0) },

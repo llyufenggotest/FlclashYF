@@ -215,6 +215,29 @@ final class TunnelManagerStore {
     )
   }
 
+  func prepareStartupEnvelope(for manager: NETunnelProviderManager) throws -> StartupEnvelope {
+    guard isCachedConnection(manager.connection),
+      let proto = manager.protocolConfiguration as? NETunnelProviderProtocol,
+      proto.providerBundleIdentifier == networkExtensionIdentifier
+    else { throw StartupEnvelopeError.stale }
+    let envelope = try sharedStateStore.loadStartupEnvelope()
+    var configuration = proto.providerConfiguration ?? [:]
+    configuration[StartupEnvelope.key] = envelope.data
+    proto.providerConfiguration = configuration
+    return envelope
+  }
+
+  func requireStartupEnvelope(_ envelope: StartupEnvelope, manager: NETunnelProviderManager) throws -> [String: NSObject] {
+    guard isCachedConnection(manager.connection),
+      let proto = manager.protocolConfiguration as? NETunnelProviderProtocol,
+      let value = proto.providerConfiguration?[StartupEnvelope.key],
+      let current = try? StartupEnvelope.decode(value),
+      current.revision == envelope.revision, current.options == envelope.options,
+      (try sharedStateStore.loadStartupEnvelope()).revision == envelope.revision
+    else { throw StartupEnvelopeError.stale }
+    return [StartupEnvelope.key: envelope.data as NSData]
+  }
+
   func isManagedConnection(_ connection: NEVPNConnection) -> Bool {
     guard
       let proto = connection.manager.protocolConfiguration

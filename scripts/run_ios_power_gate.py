@@ -16,7 +16,7 @@ import sys
 
 BASELINE = 'e502b9ce2b18bfebba550495f568f7f61e64f3da'
 ROOT = Path(__file__).resolve().parents[1]
-SOURCES = ['ios/NECore/RPCSession.swift', 'ios/NECore/PacketTunnelSharedStateStore.swift',
+SOURCES = ['ios/Shared/StartupEnvelope.swift', 'ios/NECore/RPCSession.swift', 'ios/NECore/PacketTunnelSharedStateStore.swift',
            'ios/NECore/PacketTunnelCommandServer.swift', 'ios/Shared/SwitchDiagnostics.swift',
            'ios/Shared/ProviderReadRetry.swift']
 REDS = {
@@ -53,7 +53,7 @@ def checked(command, *, timeout=180):
 
 
 def source_bytes(repo, rel, ref=None):
-    if ref:
+    if ref and rel != 'ios/Shared/StartupEnvelope.swift':
         return subprocess.check_output(['git', '-C', str(repo), 'show', f'{ref}:{rel}'])
     return (repo / rel).read_bytes()
 
@@ -98,7 +98,7 @@ def prepare(repo, out, label, ref=None):
         dest = build / Path(rel).name
         dest.write_text(text, encoding='utf-8')
         files.append(str(dest))
-        manifest.append({'path': rel, 'source_sha256': sha(raw), 'compiled_sha256': sha(dest.read_bytes()),
+        manifest.append({'path': rel, 'ref': ref if ref and rel != 'ios/Shared/StartupEnvelope.swift' else 'working-tree', 'source_sha256': sha(raw), 'compiled_sha256': sha(dest.read_bytes()),
                          'full_declaration': True, 'changes': changes})
     main = build / 'main.swift'
     main.write_bytes((ROOT / 'scripts/fixtures/ios_power_main.swift').read_bytes())
@@ -123,7 +123,7 @@ def prepare_count(repo, out, label, ref=None):
         dest = build / Path(rel).name
         dest.write_text(text, encoding='utf-8')
         files.append(str(dest))
-        manifest.append({'path': rel, 'source_sha256': sha(raw), 'compiled_sha256': sha(dest.read_bytes()),
+        manifest.append({'path': rel, 'ref': ref if ref and rel != 'ios/Shared/StartupEnvelope.swift' else 'working-tree', 'source_sha256': sha(raw), 'compiled_sha256': sha(dest.read_bytes()),
                          'full_declaration': True, 'changes': changes})
     main = build / 'main.swift'
     main.write_bytes((ROOT / 'scripts/fixtures/ios_power_count_main.swift').read_bytes())

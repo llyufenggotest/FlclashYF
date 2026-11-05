@@ -28,11 +28,11 @@ def prepare(out, baseline, baseline_ref=BASE):
     files = []
     manifest = []
     for rel in PATHS:
-        raw = subprocess.check_output(['git', '-C', str(ROOT), 'show', f'{baseline_ref}:{rel}']) if baseline else (ROOT/rel).read_bytes()
+        raw = subprocess.check_output(['git', '-C', str(ROOT), 'show', f'{baseline_ref}:{rel}']) if baseline and rel != 'ios/Shared/StartupEnvelope.swift' else (ROOT/rel).read_bytes()
         dest = folder/Path(rel).name
         dest.write_text(integration.transform(raw.decode(), rel), encoding='utf-8')
         files.append(str(dest))
-        manifest.append(dict(path=rel, sha256=hashlib.sha256(raw).hexdigest(), ref=baseline_ref if baseline else 'candidate'))
+        manifest.append(dict(path=rel, sha256=hashlib.sha256(raw).hexdigest(), ref=baseline_ref if baseline and rel != 'ios/Shared/StartupEnvelope.swift' else 'candidate'))
     deps = (ROOT/'scripts/fixtures/ios_attempt_fixes_dependencies.swift').read_text()
     deps = deps[:deps.index('enum IOSCoreBridge {')] + (ROOT/'scripts/fixtures/ios_dns_handoff_bridge.swift').read_text()
     # Record actual system start/stop calls, not a replacement state machine.

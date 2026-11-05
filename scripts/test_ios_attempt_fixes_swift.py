@@ -17,7 +17,7 @@ GROUPS = {
                     'ios/Runner/Core/CoreMessageRouter.swift', 'ios/Runner/Core/CoreNotificationCoordinator.swift',
                     'ios/NECore/PacketTunnelCommandServer.swift', 'ios/Shared/ProviderReadRetry.swift'],
 }
-COMMON = ['ios/NECore/RPCSession.swift', 'ios/NECore/PacketTunnelSharedStateStore.swift', 'ios/Runner/Storage/SharedStateStore.swift']
+COMMON = ['ios/Shared/StartupEnvelope.swift', 'ios/NECore/RPCSession.swift', 'ios/NECore/PacketTunnelSharedStateStore.swift', 'ios/Runner/Storage/SharedStateStore.swift']
 CASES = {'provider': ['cold-settings-stop', 'quicksetup-stop', 'old-cleanup-new-attempt', 'initial-publish-failure'],
          'integration': ['receipt-codable-owner', 'manager-held-cancel', 'absolute-deadline', 'wrong-reply-owner',
                          'cold-connecting-pending-ready', 'session-replace', 'same-attempt-slot-read',
@@ -62,7 +62,7 @@ def main():
                 continue
             sources = []
             for path in paths + COMMON:
-                text = subprocess.check_output(['git', '-C', str(ROOT), 'show', f'{BASE}:{path}'], text=True) if args.baseline else (ROOT/path).read_text(encoding='utf-8')
+                text = subprocess.check_output(['git', '-C', str(ROOT), 'show', f'{BASE}:{path}'], text=True) if args.baseline and path != 'ios/Shared/StartupEnvelope.swift' else (ROOT/path).read_text(encoding='utf-8')
                 target = tmp / Path(path).name
                 target.write_text(transform(text, path), encoding='utf-8')
                 sources.append(target)

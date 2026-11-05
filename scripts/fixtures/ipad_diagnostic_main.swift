@@ -82,6 +82,7 @@ if mode == "queue-caps" {
     manager.connection.status = .disconnected
     manager.connection.lastError = error
     let shared = SharedStateStore()
+  _ = shared.saveSharedState(Data(#"{"vpnOptions":{"port":7890,"ipv6":false,"captureDns":true,"systemProxy":false,"stack":"mixed"}}"#.utf8))
     let store = TunnelManagerStore(sharedStateStore: shared, networkExtensionIdentifier: "test.attempt.NECore", localizedDescription: "test")
     let proto = NETunnelProviderProtocol(); proto.providerBundleIdentifier = "test.attempt.NECore"
     manager.protocolConfiguration = proto

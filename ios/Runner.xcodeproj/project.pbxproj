@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10250153000000000000001 /* StartupEnvelope.swift in Runner Sources */ = {isa = PBXBuildFile; fileRef = A10250153000000000000003 /* StartupEnvelope.swift */; };
+		A10250153000000000000002 /* StartupEnvelope.swift in NECore Sources */ = {isa = PBXBuildFile; fileRef = A10250153000000000000003 /* StartupEnvelope.swift */; };
 		A10240153000000000000001 /* RPCSession.swift in Runner Sources */ = {isa = PBXBuildFile; fileRef = A10240153000000000000003 /* RPCSession.swift */; };
 		A10240053000000000000001 /* SwitchDiagnostics.swift in Runner Sources */ = {isa = PBXBuildFile; fileRef = A10240053000000000000003 /* SwitchDiagnostics.swift */; };
 		A10240053000000000000002 /* SwitchDiagnostics.swift in NECore Sources */ = {isa = PBXBuildFile; fileRef = A10240053000000000000003 /* SwitchDiagnostics.swift */; };
@@ -121,6 +123,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A10250153000000000000003 /* StartupEnvelope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/StartupEnvelope.swift; sourceTree = SOURCE_ROOT; };
 		A10240153000000000000003 /* RPCSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NECore/RPCSession.swift; sourceTree = SOURCE_ROOT; };
 		A10240053000000000000003 /* SwitchDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/SwitchDiagnostics.swift; sourceTree = SOURCE_ROOT; };
 		A10240063000000000000003 /* ProviderReadRetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ProviderReadRetry.swift; sourceTree = SOURCE_ROOT; };
@@ -654,6 +657,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10240053000000000000002 /* SwitchDiagnostics.swift in NECore Sources */,
+				A10250153000000000000002 /* StartupEnvelope.swift in NECore Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -684,6 +688,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10240053000000000000001 /* SwitchDiagnostics.swift in Runner Sources */,
+				A10250153000000000000001 /* StartupEnvelope.swift in Runner Sources */,
 				A10240063000000000000001 /* ProviderReadRetry.swift in Runner Sources */,
 				A10240153000000000000001 /* RPCSession.swift in Runner Sources */,
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,

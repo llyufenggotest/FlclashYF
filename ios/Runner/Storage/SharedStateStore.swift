@@ -18,10 +18,32 @@ final class SharedStateStore {
     else {
       return nil
     }
-    return String(data: data, encoding: .utf8)
+    guard let control = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+    if control["accessControlProps"] != nil { return String(data: data, encoding: .utf8) }
+    guard let shared = sharedStateJSON(from: UserDefaults(suiteName: appGroupIdentifier)?.data(forKey: sharedStateKey)), var full = shared["vpnOptions"] as? [String: Any],
+      full["accessControlProps"] != nil, full["enable"] != nil,
+      full["allowBypass"] != nil, full["suspendSupport"] != nil,
+      let sharedBytes = try? JSONSerialization.data(withJSONObject: shared),
+      let current = try? StartupEnvelope.make(shared: sharedBytes),
+      let active = try? StartupEnvelope.validateOptions(control), current.options == active else { return nil }
+    full.merge(control) { _, active in active }
+    guard let merged = try? JSONSerialization.data(withJSONObject: full) else { return nil }
+    return String(data: merged, encoding: .utf8)
+  }
+
+  private var startupEnvelope: StartupEnvelope?
+  private var startupSharedData: Data?
+
+  func loadStartupEnvelope() throws -> StartupEnvelope {
+    if let startupEnvelope { return startupEnvelope }
+    guard let data = UserDefaults(suiteName: appGroupIdentifier)?.data(forKey: sharedStateKey) else { throw StartupEnvelopeError.noData }
+    let envelope = try StartupEnvelope.make(shared: data)
+    startupEnvelope = envelope
+    return envelope
   }
 
   func saveSharedState(_ data: Data) -> Bool {
+    guard let candidate = try? StartupEnvelope.make(shared: data) else { return false }
     guard let userDefaults = UserDefaults(suiteName: appGroupIdentifier) else {
       return false
     }
@@ -37,6 +59,7 @@ final class SharedStateStore {
     {
       userDefaults.set(setupData, forKey: setupParamsKey)
     }
+    if startupSharedData != data { startupEnvelope = candidate; startupSharedData = data }
     userDefaults.set(data, forKey: sharedStateKey)
     userDefaults.synchronize()
     if previousControlDisplayState != controlDisplayState(from: data),

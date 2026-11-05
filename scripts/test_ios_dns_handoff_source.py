@@ -11,7 +11,7 @@ def main():
     c=source('ios/Runner/Tunnel/TunnelCoordinator.swift')
     r=source('ios/Runner/Core/CoreMessageRouter.swift')
     t=source('ios/Runner/Tunnel/TunnelController.swift')
-    checks=[('real-start-awaits-dns', 'let dnsReleased = await changeAppDNSOwnership(suspended: true)' in c and c.index('let dnsReleased = await changeAppDNSOwnership(suspended: true)') < c.index('try manager.connection.startVPNTunnel()')),
+    checks=[('real-start-awaits-dns', 'let dnsReleased = await changeAppDNSOwnership(suspended: true)' in c and c.index('let dnsReleased = await changeAppDNSOwnership(suspended: true)') < c.index('try manager.connection.startVPNTunnel(')),
       ('post-await-current-owner', 'guard isCurrent(request) else { return }\n      guard dnsReleased else' in c),
       ('serialized-dns-operations', 'await previous.value' in c),
       ('configuration-preflight', 'await tunnelController.prepareAppDNSForConfiguration()' in r),

@@ -7,15 +7,15 @@ import test_ios_attempt_fixes_swift as attempt
 ROOT=Path(__file__).resolve().parents[1]
 BASE='de6517d43c3a3277df4f0ce14c42b3f791f9fb05'
 CASES=['sink-failure','underlying','provider-publication','provider-network-error','queue-caps','privacy','no-entry']
-PATHS=['ios/NECore/PacketTunnelProvider.swift','ios/NECore/PacketTunnelLifecycleCleanup.swift','ios/NECore/RPCSession.swift','ios/NECore/PacketTunnelSharedStateStore.swift','ios/Runner/Storage/SharedStateStore.swift','ios/Runner/Tunnel/TunnelCoordinator.swift','ios/Runner/Tunnel/TunnelManagerStore.swift','ios/Runner/Tunnel/TunnelTypes.swift','ios/Shared/SwitchDiagnostics.swift']
+PATHS=['ios/Shared/StartupEnvelope.swift','ios/NECore/PacketTunnelProvider.swift','ios/NECore/PacketTunnelLifecycleCleanup.swift','ios/NECore/RPCSession.swift','ios/NECore/PacketTunnelSharedStateStore.swift','ios/Runner/Storage/SharedStateStore.swift','ios/Runner/Tunnel/TunnelCoordinator.swift','ios/Runner/Tunnel/TunnelManagerStore.swift','ios/Runner/Tunnel/TunnelTypes.swift','ios/Shared/SwitchDiagnostics.swift']
 def prepare(out,baseline=False):
     folder=out/('baseline' if baseline else 'candidate');folder.mkdir(parents=True,exist_ok=True)
     files=[];manifest=[]
     for rel in PATHS:
-        raw=subprocess.check_output(['git','-C',str(ROOT),'show',f'{BASE}:{rel}']) if baseline else (ROOT/rel).read_bytes()
+        raw=subprocess.check_output(['git','-C',str(ROOT),'show',f'{BASE}:{rel}']) if baseline and rel != 'ios/Shared/StartupEnvelope.swift' else (ROOT/rel).read_bytes()
         text=attempt.transform(raw.decode(),rel)
         dest=folder/Path(rel).name;dest.write_text(text,encoding='utf-8');files.append(str(dest))
-        manifest.append(dict(path=rel,sha256=hashlib.sha256(raw).hexdigest(),compiled_sha256=hashlib.sha256(dest.read_bytes()).hexdigest()))
+        manifest.append(dict(path=rel,ref=BASE if baseline and rel != 'ios/Shared/StartupEnvelope.swift' else 'candidate',sha256=hashlib.sha256(raw).hexdigest(),compiled_sha256=hashlib.sha256(dest.read_bytes()).hexdigest()))
     dep=(ROOT/'scripts/fixtures/ios_attempt_fixes_dependencies.swift').read_text()
     begin=dep.index('enum SwitchDiagnostics {');end=dep.index('enum IOSCoreBridge {',begin)
     dep=dep[:begin]+dep[end:]

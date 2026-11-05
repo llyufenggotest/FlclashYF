@@ -15,6 +15,7 @@ final class NEVPNConnection: NSObject {
   func startVPNTunnel() throws {
     starts += 1; startedOptions.append(preparedOptions); status = .connecting
   }
+  func startVPNTunnel(options: [String: NSObject]?) throws { try startVPNTunnel() }
   func stopVPNTunnel() {
     stops += 1
     if !ignoreStop { status = holdStop ? .disconnecting : .disconnected }
@@ -47,6 +48,8 @@ final class NETunnelProviderManager {
   func isManagedConnection(_ c: NEVPNConnection) -> Bool { c === manager.connection }
   func isCachedConnection(_ c: NEVPNConnection) -> Bool { c === manager.connection }
   func invalidateCachedManager(forPreferenceError: Error) -> Bool { false }
+  func prepareStartupEnvelope(for manager: NETunnelProviderManager) throws -> Int { 1 }
+  func requireStartupEnvelope(_ envelope: Int, manager: NETunnelProviderManager) throws -> [String: NSObject] { [:] }
   func applyNetworkExtensionOptions(to manager: NETunnelProviderManager, enableOnDemand: Bool) {
     manager.connection.preparedOptions = options
   }

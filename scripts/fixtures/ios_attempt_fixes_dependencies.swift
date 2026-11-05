@@ -28,11 +28,13 @@ class NEVPNConnection: NSObject {
   var status = NEVPNStatus.connected
   unowned var manager: NETunnelProviderManager!
   func startVPNTunnel() throws { status = .connecting }
+  func startVPNTunnel(options: [String: NSObject]?) throws { try startVPNTunnel() }
   func stopVPNTunnel() { status = .disconnected }
   func fetchLastDisconnectError(completionHandler: @escaping (Error?) -> Void) { completionHandler(nil) }
 }
 class NEVPNProtocol: NSObject {}
 final class NETunnelProviderProtocol: NEVPNProtocol {
+  var providerConfiguration: [String: Any]?
   var providerBundleIdentifier: String?
   var serverAddress: String?
   var disconnectOnSleep = false
@@ -94,6 +96,7 @@ enum IOSCoreBridge {
 #if PROVIDER_FIXTURE
 // The actual provider invokes these held external operations.
 class NEPacketTunnelProvider: NSObject {
+  var protocolConfiguration: NEVPNProtocol = NETunnelProviderProtocol()
   var heldSettings: ((Error?) -> Void)?
   func setTunnelNetworkSettings(_ settings: NSObject, completionHandler: @escaping (Error?) -> Void) { heldSettings = completionHandler }
   func startTunnel(options: [String: NSObject]?, completionHandler: @escaping (Error?) -> Void) {}

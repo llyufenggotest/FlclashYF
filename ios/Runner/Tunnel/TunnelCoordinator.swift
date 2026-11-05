@@ -371,6 +371,7 @@ final class TunnelCoordinator {
         continue
       }
 
+      let startupEnvelope = try managerStore.prepareStartupEnvelope(for: manager)
       manager.isEnabled = true
       managerStore.applyNetworkExtensionOptions(to: manager, enableOnDemand: true)
       SwitchDiagnostics.record("ipad_save", fields: ["generation": String(request.generation)])
@@ -392,6 +393,7 @@ final class TunnelCoordinator {
         return
       }
 
+      _ = try managerStore.requireStartupEnvelope(startupEnvelope, manager: manager)
       SwitchDiagnostics.record("ipad_save", fields: ["generation": String(request.generation), "success": "true"])
       SwitchDiagnostics.record("ipad_reload", fields: ["generation": String(request.generation)])
       log("start reload preferences")
@@ -412,6 +414,7 @@ final class TunnelCoordinator {
         return
       }
 
+      _ = try managerStore.requireStartupEnvelope(startupEnvelope, manager: manager)
       SwitchDiagnostics.record("ipad_reload", fields: ["generation": String(request.generation), "success": "true"])
       let preparedStatus = manager.connection.status
       recordObservedTunnelStatus(preparedStatus, notifyExternal: false)
@@ -440,7 +443,8 @@ final class TunnelCoordinator {
       }
       do {
         SwitchDiagnostics.record("ipad_start_call", fields: ["generation": String(request.generation)])
-        try manager.connection.startVPNTunnel()
+        let startOptions = try managerStore.requireStartupEnvelope(startupEnvelope, manager: manager)
+        try manager.connection.startVPNTunnel(options: startOptions)
         SwitchDiagnostics.record("ipad_start_call", fields: ["generation": String(request.generation), "success": "true"])
         log("start requested")
       } catch {
@@ -756,6 +760,7 @@ final class TunnelCoordinator {
   }
 
   private func performOnDemandRulesReload() async -> Error? {
+    let generation = requestGeneration
     var allowPreferenceRetry = true
     while true {
       do {
@@ -766,11 +771,13 @@ final class TunnelCoordinator {
         else {
           return nil
         }
+        guard generation == requestGeneration else { return nil }
         let status = manager.connection.status
         managerStore.applyNetworkExtensionOptions(
           to: manager,
           enableOnDemand: status == .connecting || status.tunnelState == .running
         )
+        _ = try managerStore.prepareStartupEnvelope(for: manager)
         try await awaitPreferenceResult { completion in
           manager.saveToPreferences(completionHandler: completion)
         }

@@ -18,6 +18,7 @@ def main():
         report['source_hashes']['baseline' if baseline else 'candidate']=hashlib.sha256(raw).hexdigest()
         test=(ROOT/'scripts/fixtures/ipad_diagnostic_export_test.dart').read_text()
         if baseline:
+            test = test.split("  test('validated receipt and closed reason survive channel export'", 1)[0] + '}\n'
             begin=test.index('      runnerDiagnosticReader:');end=test.index('\n      );',begin)
             test=test[:begin]+test[end:]
             test=test.replace('      expect(calls, 1);\n','')
