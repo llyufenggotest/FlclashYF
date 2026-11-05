@@ -1,4 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
+
+import 'package:fl_clash/core/controller.dart';
+import 'package:fl_clash/providers/action.dart';
+import 'package:fl_clash/providers/core.dart';
 
 import 'package:fl_clash/common/app_ports.dart';
 import 'package:fl_clash/common/color.dart';
@@ -16,6 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:riverpod/riverpod.dart';
 
 import '../helpers/test_profiles.dart';
+import 'groups_owner_test.dart' show OwnerCore, data;
 
 void main() {
   late ProviderContainer container;
@@ -447,16 +453,108 @@ void main() {
       id: loaded.id + 1,
       selectedMap: {'Selector': 'B'},
     );
+    const groups = [
+      Group(
+        name: 'Selector',
+        type: GroupType.Selector,
+        all: [
+          Proxy(name: 'A', type: 'ss'),
+          Proxy(name: 'B', type: 'ss'),
+        ],
+      ),
+    ];
     _profiles(container).replace([loaded, next]);
     container.read(currentProfileIdProvider.notifier).update((_) => loaded.id);
-    container.read(groupsProfileIdProvider.notifier).update((_) => loaded.id);
+    final token = Object();
+    container
+        .read(groupsProvider.notifier)
+        .publish(profileId: loaded.id, token: token, groups: groups);
+    final prior = container.read(loadedGroupsProvider);
 
     container.read(currentProfileIdProvider.notifier).update((_) => next.id);
     expect(container.read(selectedMapProvider), {'Selector': 'A'});
+    expect(container.read(loadedGroupsProvider), same(prior));
+    expect(
+      container.read(realSelectedProxyStateProvider('Selector')).proxyName,
+      'A',
+    );
 
-    container.read(groupsProfileIdProvider.notifier).update((_) => next.id);
+    final nextToken = Object();
+    container
+        .read(groupsProvider.notifier)
+        .publish(profileId: next.id, token: nextToken, groups: groups);
     expect(container.read(selectedMapProvider), {'Selector': 'B'});
+    expect(container.read(loadedGroupsProvider)?.profileId, next.id);
+    expect(container.read(loadedGroupsProvider)?.token, same(nextToken));
+    expect(
+      container.read(realSelectedProxyStateProvider('Selector')).proxyName,
+      'B',
+    );
   });
+
+  test(
+    'stale owner refresh cannot replace a newly published selection',
+    () async {
+      final loaded = Profile.normal().copyWith(selectedMap: {'Proxy': 'A'});
+      final next = loaded.copyWith(
+        id: loaded.id + 1,
+        selectedMap: {'Proxy': 'B'},
+      );
+      final core = OwnerCore();
+      final controller = CoreController.scoped(core);
+      final owned = ProviderContainer(
+        overrides: [
+          profilesProvider.overrideWith(() => TestProfiles([loaded, next])),
+          coreHandlerProvider.overrideWithValue(controller),
+        ],
+      );
+      addTearDown(owned.dispose);
+      owned.read(currentProfileIdProvider.notifier).value = loaded.id;
+      final action = owned.read(proxiesActionProvider.notifier);
+      await action.updateGroups();
+      expect(owned.read(loadedGroupsProvider)?.profileId, loaded.id);
+
+      final gate = Completer<ProxiesData>();
+      final entered = Completer<void>();
+      core.read = () {
+        entered.complete();
+        return gate.future;
+      };
+      final stale = action.updateGroups();
+      await entered.future;
+      owned.read(currentProfileIdProvider.notifier).value = next.id;
+      expect(owned.read(selectedMapProvider), {'Proxy': 'A'});
+      owned
+          .read(groupsProvider.notifier)
+          .publish(
+            profileId: next.id,
+            token: controller.configuration.token,
+            groups: const [
+              Group(
+                name: 'Proxy',
+                type: GroupType.Selector,
+                all: [Proxy(name: 'B', type: 'ss')],
+              ),
+            ],
+          );
+      final accepted = owned.read(loadedGroupsProvider);
+      gate.complete(data('A', group: 'Stale'));
+      await stale;
+
+      expect(owned.read(loadedGroupsProvider), same(accepted));
+      expect(owned.read(groupsProvider).single.name, 'Proxy');
+      expect(owned.read(groupsProvider).single.all.single.name, 'B');
+      expect(owned.read(selectedMapProvider), {'Proxy': 'B'});
+      expect(
+        owned.read(realSelectedProxyStateProvider('Proxy')).proxyName,
+        'B',
+      );
+      expect(owned.read(profileProvider(loaded.id))?.selectedMap, {
+        'Proxy': 'A',
+      });
+      expect(owned.read(profileProvider(next.id))?.selectedMap, {'Proxy': 'B'});
+    },
+  );
 
   test('theme and simple derived providers cover fallback branches', () {
     expect(container.read(currentBrightnessProvider), Brightness.dark);
