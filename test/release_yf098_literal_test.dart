@@ -8,4 +8,10 @@ void main() {
       {'APP_ENV': 'stable', 'APP_RELEASE_VERSION': '0.9.8-yf.1'},
     );
   });
+  test('literal v0.9.8-yf.2 preserves the owned release identity', () {
+    expect(
+      setup.createBuildEnvironment('stable', releaseVersion: 'v0.9.8-yf.2'),
+      {'APP_ENV': 'stable', 'APP_RELEASE_VERSION': '0.9.8-yf.2'},
+    );
+  });
 }
