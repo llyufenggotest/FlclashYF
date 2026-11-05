@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/services.dart';
 
 import 'package:fl_clash/common/common.dart';
 import 'package:fl_clash/core/controller.dart';
@@ -72,6 +75,7 @@ class _LogsViewState extends ConsumerState<LogsView> {
   late final CoreController _core;
   bool _logListening = false;
   bool _pageActive = false;
+  bool _officialIPCBusy = false;
   int _listenGeneration = 0;
 
   @override
@@ -96,8 +100,49 @@ class _LogsViewState extends ConsumerState<LogsView> {
     _syncListening();
   }
 
+  Future<void> _testOfficialProviderIPC() async {
+    if (_officialIPCBusy) return;
+    final confirmed = await dialogs.showMessage(
+      context: context,
+      title: '官方 IPC 可行性实验 / Official IPC test',
+      message: const TextSpan(
+        text:
+            '仅发送无秘密随机 echo，不修复 VPN。不要在可用 VPN 传输期间测试。'
+            '系统可能自行启动扩展并改变状态；本测试不会主动连接或停止 VPN。'
+            '请先通过正常连接建立系统配置，再确认测试。'
+            '\nNonsecret echo only, not a VPN fix. The OS may launch the provider. '
+            'Do not test during working VPN traffic.',
+      ),
+    );
+    if (confirmed != true || !mounted || _officialIPCBusy) return;
+    setState(() => _officialIPCBusy = true);
+    var outcome = 'official-ipc-v1 outcome=channel_unavailable';
+    try {
+      outcome =
+          await const MethodChannel(
+            'cc.llyufeng.flclash.dev/service',
+          ).invokeMethod<String>('testOfficialProviderIPC') ??
+          'official-ipc-v1 outcome=channel_nil';
+    } catch (_) {
+      outcome = 'official-ipc-v1 outcome=channel_error';
+    } finally {
+      if (mounted) setState(() => _officialIPCBusy = false);
+    }
+    if (!mounted) return;
+    await dialogs.showMessage(
+      context: context,
+      title: '官方 IPC 实验结果 / IPC feasibility only',
+      message: TextSpan(text: '$outcome\n可通过“导出日志”保存 Runner 独立结果。'),
+    );
+  }
+
   List<Widget> _buildActions() {
     return [
+      if (Platform.isIOS)
+        TextButton(
+          onPressed: _officialIPCBusy ? null : _testOfficialProviderIPC,
+          child: Text(_officialIPCBusy ? 'IPC…' : '测试官方 IPC'),
+        ),
       ValueListenableBuilder<LogsState>(
         valueListenable: _listController,
         builder: (_, state, _) => _LogFilterButton(

@@ -444,6 +444,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     _ messageData: Data,
     completionHandler: ((Data?) -> Void)?
   ) {
+    if OfficialIPCWire.intercept(messageData, completion: completionHandler) { return }
     guard Thread.isMainThread else {
       DispatchQueue.main.async {
         self.handleAppMessage(messageData, completionHandler: completionHandler)

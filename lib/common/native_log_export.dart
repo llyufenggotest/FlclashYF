@@ -145,6 +145,12 @@ class NativeLogExport {
   }
 
   bool _isRunnerHeader(String line) {
+    if (line.length <= 4096 &&
+        RegExp(
+          r'^official-ipc-v1 (?:[a-z_]+=[A-Za-z0-9_.:,=+ -]*)$',
+        ).hasMatch(line)) {
+      return true;
+    }
     const fixed = {
       'iPadDiagnostic-v1',
       '===== iPadDiagnostic-v1 =====',

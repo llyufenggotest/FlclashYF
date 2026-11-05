@@ -4,6 +4,21 @@ import 'package:fl_clash/common/native_log_export.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('official IPC Runner snapshot survives missing shared group', () async {
+    const snapshot =
+        'official-ipc-v1 known_receipt=true nonce_equal=true '
+        'outcome=echo_verified schema=official-ipc-v1 '
+        'source=official-ipc-a64057e-v1 status_after=1 status_before=1';
+    final exporter = NativeLogExport(
+      File('Z:/official-ipc/no-shared/native.log'),
+      runnerDiagnosticReader: () async => '$snapshot\n',
+    );
+    final text = await exporter.read();
+    expect(text, contains(snapshot));
+    expect(text, contains('source=unavailable_or_absent'));
+    expect(text, isNot(contains('nonce=')));
+  });
+
   test(
     'unreadable cutoff keeps current identity but withholds channel history',
     () async {

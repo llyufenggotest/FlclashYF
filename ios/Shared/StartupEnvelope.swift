@@ -1,5 +1,52 @@
 import Foundation
 import CoreFoundation
+import MachO
+
+// Fixed binary probe only: no Core, file access, configuration or RPC dispatch.
+enum OfficialIPCWire {
+  static let magic = Data("FLYF.IPC.PROBE".utf8)
+  static let receipt = Data("NE_ECHO_V1:official-ipc-a64057e-v1".utf8)
+  static let maxBytes = 4096
+  static var requestSize: Int { magic.count + 1 + 16 }
+  static var responseSize: Int { requestSize + receipt.count + 36 }
+
+  static func request(nonce: UUID) -> Data {
+    var value = nonce.uuid
+    return magic + Data([1]) + withUnsafeBytes(of: &value) { Data($0) }
+  }
+
+  static func intercept(_ data: Data, completion: ((Data?) -> Void)?) -> Bool {
+    guard data.starts(with: magic) else { return false }
+    guard data.count <= maxBytes, data.count == requestSize,
+      data[magic.count] == 1 else { completion?(nil); return true }
+    completion?(data + receipt + Data(imageUUID().utf8))
+    return true
+  }
+
+  static func validate(_ response: Data, request: Data) -> String? {
+    guard response.count <= maxBytes, response.count == responseSize,
+      response.prefix(requestSize) == request,
+      response.dropFirst(requestSize).prefix(receipt.count) == receipt,
+      let text = String(data: response.suffix(36), encoding: .utf8),
+      let uuid = UUID(uuidString: text) else { return nil }
+    return uuid.uuidString
+  }
+
+  static func imageUUID() -> String {
+    guard let header = _dyld_get_image_header(0) else { return "00000000-0000-0000-0000-000000000000" }
+    let base = UnsafeRawPointer(header)
+    var offset = MemoryLayout<mach_header_64>.size
+    for _ in 0..<min(Int(header.pointee.ncmds), 4096) {
+      let command = base.advanced(by: offset).load(as: load_command.self)
+      guard command.cmdsize >= MemoryLayout<load_command>.size else { break }
+      if command.cmd == LC_UUID {
+        return UUID(uuid: base.advanced(by: offset).load(as: uuid_command.self).uuid).uuidString
+      }
+      offset += Int(command.cmdsize)
+    }
+    return "00000000-0000-0000-0000-000000000000"
+  }
+}
 
 enum StartupEnvelopeError: String, Error {
   static let allReasons: [StartupEnvelopeError] = [.suiteUnavailable, .noData, .rootDecode, .optionsMissing, .optionsEncode, .optionsDecode, .version, .oversize, .shape, .stale]

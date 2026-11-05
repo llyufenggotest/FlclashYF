@@ -146,9 +146,12 @@ final class ServiceChannel {
     case "configAccessWritten":
       guard let path = call.arguments as? String, path.utf8.count <= 4096 else { result(false); return }
       result(ConfigAccess.written(path: path))
+    case "testOfficialProviderIPC":
+      OfficialIPCProbe.shared.run { result($0) }
     case "exportIPadDiagnostics":
+      let officialIPC = OfficialIPCProbe.export()
       SwitchDiagnostics.exportIPadDiagnostics { text in
-        DispatchQueue.main.async { result(text) }
+        DispatchQueue.main.async { result(text + "\n===== official IPC feasibility (Runner local) =====\n" + officialIPC) }
       }
     case "invokeMethod":
       guard let data = methodCallData(call) else {
